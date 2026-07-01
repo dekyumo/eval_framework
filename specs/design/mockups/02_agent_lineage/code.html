@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Agent Lineage &amp; Provenance</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&amp;family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "on-primary-container": "#e7dfff",
+                      "on-secondary-fixed": "#37404e",
+                      "surface-container-lowest": "#000000",
+                      "surface-bright": "#282c37",
+                      "on-secondary-container": "#b7c0d1",
+                      "error": "#f97386",
+                      "tertiary-dim": "#fc6e93",
+                      "on-tertiary-fixed": "#000000",
+                      "on-surface-variant": "#a7abb8",
+                      "primary": "#cabeff",
+                      "error-container": "#871c34",
+                      "primary-dim": "#7757fa",
+                      "secondary-dim": "#b0b9ca",
+                      "on-error-container": "#ff97a3",
+                      "background": "#0c0e13",
+                      "surface-container-high": "#1c2028",
+                      "surface": "#0c0e13",
+                      "tertiary-fixed-dim": "#eb6287",
+                      "surface-tint": "#cabeff",
+                      "on-background": "#e2e5f3",
+                      "on-secondary-fixed-variant": "#535c6b",
+                      "primary-container": "#542bd6",
+                      "outline-variant": "#444853",
+                      "on-tertiary-fixed-variant": "#5a0023",
+                      "secondary-fixed-dim": "#ccd5e6",
+                      "on-primary-fixed": "#ffffff",
+                      "on-primary-fixed-variant": "#f4edff",
+                      "tertiary-container": "#fc6e93",
+                      "surface-container": "#161921",
+                      "tertiary": "#ff85a2",
+                      "secondary-container": "#333c4a",
+                      "on-surface": "#e2e5f3",
+                      "surface-container-highest": "#212630",
+                      "inverse-surface": "#f9f9ff",
+                      "inverse-primary": "#613de3",
+                      "secondary-fixed": "#dae3f5",
+                      "tertiary-fixed": "#fc6e93",
+                      "surface-container-low": "#11131a",
+                      "on-tertiary": "#5e0026",
+                      "surface-dim": "#0c0e13",
+                      "error-dim": "#c44b5f",
+                      "outline": "#717582",
+                      "on-tertiary-container": "#48001b",
+                      "on-secondary": "#38414f",
+                      "surface-variant": "#212630",
+                      "inverse-on-surface": "#53555b",
+                      "secondary": "#bec7d8",
+                      "on-primary": "#4100c5",
+                      "primary-fixed-dim": "#704ef2",
+                      "on-error": "#490013",
+                      "primary-fixed": "#7c5cff"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "fontFamily": {
+                      "headline": ["Space Grotesk", "sans-serif"],
+                      "display": ["Space Grotesk", "sans-serif"],
+                      "body": ["Inter", "sans-serif"],
+                      "label": ["JetBrains Mono", "monospace"]
+              }
+            },
+          },
+        }
+    </script>
+<style>
+        /* Custom scrollbar for deep dark theme */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0c0e13; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #212630; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #444853; 
+        }
+
+        /* SVG Grid Background Pattern */
+        .bg-grid-pattern {
+            background-image: 
+                linear-gradient(to right, #242A36 1px, transparent 1px),
+                linear-gradient(to bottom, #242A36 1px, transparent 1px);
+            background-size: 32px 32px;
+        }
+
+        /* Lineage Graph SVG Lines */
+        .edge-line {
+            stroke: #444853;
+            stroke-width: 1.5;
+            fill: none;
+            marker-end: url(#arrowhead);
+        }
+        .edge-label {
+            fill: #a7abb8;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            text-anchor: middle;
+        }
+        
+        /* Node Animations */
+        @keyframes pulse-indigo {
+            0% { box-shadow: 0 0 0 0 rgba(124, 92, 255, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(124, 92, 255, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(124, 92, 255, 0); }
+        }
+        .node-selected {
+            animation: pulse-indigo 2s infinite;
+            border-color: #7c5cff !important;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-surface font-body h-screen w-screen overflow-hidden flex selection:bg-primary-container selection:text-on-primary-container">
+<!-- App Shell: Persistent Left Rail (SideNavBar) -->
+<nav class="bg-surface-container-low dark:bg-surface-container-low text-primary dark:text-primary font-body text-sm font-medium tracking-tight h-screen w-64 fixed left-0 top-0 flex flex-col border-r border-outline-variant flat no shadows flex flex-col h-full py-4 z-20">
+<!-- Header Context Switcher -->
+<div class="px-4 mb-6 flex flex-col gap-2">
+<div class="flex items-center gap-3 w-full p-2 hover:bg-surface-container-high transition-colors duration-150 rounded cursor-pointer active:opacity-80">
+<div class="w-8 h-8 rounded-full bg-surface-container-highest border border-outline-variant flex items-center justify-center shrink-0 overflow-hidden">
+<img class="w-full h-full object-cover" data-alt="A macro close-up abstract visualization of a high-tech lab instrument avatar. Sleek metallic dark slate textures with glowing indigo circuit lines indicating AI processing. Minimalist, scientific, dark mode aesthetic, high contrast." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBZMnhG2f-pmtcMpHTJ_2f6qlV8BoOBeWzulHuXo6BR95Vt29YKOVw1k4DkFv5m50hVTWBGrCcIpjGxr1bSDET2ax60f__ydG0ATWFErt6PGJ2WhEbwZi3hNX7nxh6DqvkFi9lQCEDxVNZuLTJ5LGnle8FqRg_MRiBSOwdyCo2NvCSgZzkw_aAQPHOWbJl7vROOn39_BDDMXz1evquipJvjaZCjFsGmBdvo4_CJt5GSmPL1QijG4XprAB035RGbTycsW2nUcqHkwgU"/>
+</div>
+<div class="flex flex-col min-w-0">
+<span class="font-headline text-lg font-bold text-on-surface tracking-tighter truncate leading-tight">refund_bot</span>
+<span class="text-on-surface-variant font-label text-[10px] truncate leading-tight">Project Lab v2.4.0-stable</span>
+</div>
+<span class="material-symbols-outlined text-outline-variant ml-auto text-sm shrink-0">unfold_more</span>
+</div>
+<!-- Commit Hash Anchor -->
+<div class="px-2 py-1 bg-surface-container-highest border border-outline-variant rounded font-label text-xs text-secondary-fixed-dim flex items-center justify-between">
+<span>head</span>
+<span class="text-primary-dim">7a2f9d1</span>
+</div>
+</div>
+<!-- Primary Navigation -->
+<div class="flex flex-col gap-1 px-2 flex-grow overflow-y-auto">
+<a class="bg-secondary-container text-on-secondary-container border-r-2 border-primary hover:bg-surface-container-high transition-colors duration-150 cursor-pointer active:opacity-80 flex items-center gap-3 px-3 py-2 rounded-l" href="#">
+<span class="material-symbols-outlined text-lg" style="font-variation-settings: 'FILL' 1;">smart_toy</span>
+                Agents
+            </a>
+<a class="text-on-surface-variant hover:text-on-surface hover:bg-surface-container hover:bg-surface-container-high transition-colors duration-150 cursor-pointer active:opacity-80 flex items-center gap-3 px-3 py-2 rounded-lg" href="#">
+<span class="material-symbols-outlined text-lg">history</span>
+                Snapshots
+            </a>
+<a class="text-on-surface-variant hover:text-on-surface hover:bg-surface-container hover:bg-surface-container-high transition-colors duration-150 cursor-pointer active:opacity-80 flex items-center gap-3 px-3 py-2 rounded-lg" href="#">
+<span class="material-symbols-outlined text-lg">fact_check</span>
+                Cases
+            </a>
+<a class="text-on-surface-variant hover:text-on-surface hover:bg-surface-container hover:bg-surface-container-high transition-colors duration-150 cursor-pointer active:opacity-80 flex items-center gap-3 px-3 py-2 rounded-lg" href="#">
+<span class="material-symbols-outlined text-lg">play_circle</span>
+                Runs
+            </a>
+<a class="text-on-surface-variant hover:text-on-surface hover:bg-surface-container hover:bg-surface-container-high transition-colors duration-150 cursor-pointer active:opacity-80 flex items-center gap-3 px-3 py-2 rounded-lg" href="#">
+<span class="material-symbols-outlined text-lg">rocket_launch</span>
+                Campaigns
+            </a>
+<a class="text-on-surface-variant hover:text-on-surface hover:bg-surface-container hover:bg-surface-container-high transition-colors duration-150 cursor-pointer active:opacity-80 flex items-center gap-3 px-3 py-2 rounded-lg" href="#">
+<span class="material-symbols-outlined text-lg">difference</span>
+                Compare
+            </a>
+<a class="text-on-surface-variant hover:text-on-surface hover:bg-surface-container hover:bg-surface-container-high transition-colors duration-150 cursor-pointer active:opacity-80 flex items-center gap-3 px-3 py-2 rounded-lg" href="#">
+<span class="material-symbols-outlined text-lg">database</span>
+                Registries
+            </a>
+<a class="text-on-surface-variant hover:text-on-surface hover:bg-surface-container hover:bg-surface-container-high transition-colors duration-150 cursor-pointer active:opacity-80 flex items-center gap-3 px-3 py-2 rounded-lg" href="#">
+<span class="material-symbols-outlined text-lg">forum</span>
+                Chat
+            </a>
+</div>
+<div class="px-4 py-2 mt-auto">
+<button class="w-full bg-primary-fixed-dim hover:bg-primary-fixed text-on-primary border border-primary-container rounded flex items-center justify-center gap-2 py-1.5 font-label text-xs uppercase tracking-wider transition-colors">
+<span class="material-symbols-outlined text-[16px]">add</span>
+                New Run
+            </button>
+</div>
+<!-- Footer Nav -->
+<div class="mt-4 px-2 flex flex-col gap-1 border-t border-outline-variant pt-2 mx-2">
+<a class="text-on-surface-variant hover:text-on-surface hover:bg-surface-container hover:bg-surface-container-high transition-colors duration-150 cursor-pointer active:opacity-80 flex items-center gap-3 px-3 py-2 rounded-lg text-xs" href="#">
+<span class="material-symbols-outlined text-base">settings</span>
+                Settings
+            </a>
+<a class="text-on-surface-variant hover:text-on-surface hover:bg-surface-container hover:bg-surface-container-high transition-colors duration-150 cursor-pointer active:opacity-80 flex items-center gap-3 px-3 py-2 rounded-lg text-xs" href="#">
+<span class="material-symbols-outlined text-base">help_outline</span>
+                Docs
+            </a>
+</div>
+</nav>
+<!-- Main Content Canvas -->
+<main class="ml-64 flex flex-col flex-grow h-screen relative bg-surface-dim">
+<!-- Top App Bar (Contextual actions for Canvas) -->
+<header class="bg-surface dark:bg-surface text-primary dark:text-primary font-label text-xs uppercase tracking-widest font-headline text-xl font-black text-on-surface docked full-width top-0 h-12 border-b border-outline-variant flat no shadows flex items-center justify-between px-4 z-10 shrink-0">
+<div class="flex items-center gap-4">
+<h1 class="text-on-surface font-headline font-bold text-sm tracking-normal capitalize flex items-center gap-2">
+<span class="text-outline">Agents</span>
+<span class="text-outline-variant">/</span>
+                    Refund Orchestrator
+                </h1>
+<div class="px-2 py-0.5 rounded bg-surface-container border border-outline-variant text-[10px] text-primary-dim font-label flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-primary-dim"></span>
+                    Live
+                </div>
+</div>
+<!-- Toolbar Actions -->
+<div class="flex items-center gap-1">
+<button class="w-8 h-8 flex items-center justify-center text-on-surface-variant hover:text-on-surface transition-colors scale-95 duration-100 rounded hover:bg-surface-container">
+<span class="material-symbols-outlined text-lg">terminal</span>
+</button>
+<button class="w-8 h-8 flex items-center justify-center text-on-surface-variant hover:text-on-surface transition-colors scale-95 duration-100 rounded hover:bg-surface-container">
+<span class="material-symbols-outlined text-lg">account_tree</span>
+</button>
+</div>
+</header>
+<!-- Split Layout Area -->
+<div class="flex flex-row flex-grow overflow-hidden mb-8"> <!-- mb-8 for jobs tray -->
+<!-- Left/Center: Canvas (Graph + DAG + Domains) -->
+<div class="flex-grow flex flex-col min-w-0 border-r border-outline-variant relative">
+<!-- 1. Node-Link Topology Graph (Top Area) -->
+<div class="flex-grow relative bg-background bg-grid-pattern overflow-hidden p-6 group">
+<div class="absolute top-4 left-4 flex gap-2 z-10">
+<button class="px-2 py-1 bg-surface-container-high border border-outline-variant rounded text-on-surface-variant text-[10px] font-label hover:bg-surface-variant transition-colors flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">zoom_in</span> Zoom
+                        </button>
+<button class="px-2 py-1 bg-surface-container-high border border-outline-variant rounded text-on-surface-variant text-[10px] font-label hover:bg-surface-variant transition-colors flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">my_location</span> Recenter
+                        </button>
+</div>
+<!-- SVG Canvas for Graph Edges (Simulated) -->
+<svg class="absolute inset-0 w-full h-full pointer-events-none" style="z-index: 1;">
+<defs>
+<marker id="arrowhead" markerheight="6" markerwidth="6" orient="auto" refx="5" refy="3">
+<polygon fill="#444853" points="0 0, 6 3, 0 6"></polygon>
+</marker>
+</defs>
+<!-- Root to Sub A -->
+<path class="edge-line" d="M 400 100 L 250 250"></path>
+<text class="edge-label" transform="rotate(45, 315, 170)" x="315" y="170">delegates_to</text>
+<!-- Root to Sub B -->
+<path class="edge-line" d="M 400 100 L 550 250"></path>
+<text class="edge-label" transform="rotate(-45, 485, 170)" x="485" y="170">delegates_to</text>
+<!-- Sub A to Model -->
+<path class="edge-line" d="M 250 250 L 150 400"></path>
+</svg>
+<!-- HTML Nodes for interactive layer -->
+<div class="relative w-full h-full" style="z-index: 2;">
+<!-- Root Node (Selected) -->
+<div class="absolute top-[100px] left-[400px] transform -translate-x-1/2 -translate-y-1/2 cursor-pointer">
+<div class="node-selected bg-surface-container-highest border border-primary-fixed rounded-lg p-3 w-48 flex flex-col gap-2 shadow-lg">
+<div class="flex items-center gap-2 border-b border-outline-variant pb-2">
+<span class="material-symbols-outlined text-primary-fixed text-sm">smart_toy</span>
+<span class="font-headline text-xs font-bold truncate">Refund Orchestrator</span>
+</div>
+<div class="flex justify-between items-center text-[10px] font-label text-secondary-fixed-dim">
+<span>Router</span>
+<span class="px-1 bg-surface-variant rounded">v1.2</span>
+</div>
+</div>
+</div>
+<!-- Sub Agent A -->
+<div class="absolute top-[250px] left-[250px] transform -translate-x-1/2 -translate-y-1/2 cursor-pointer hover:-translate-y-1 hover:shadow-md transition-transform">
+<div class="bg-surface-container border border-outline-variant rounded-lg p-3 w-40 flex flex-col gap-2">
+<div class="flex items-center gap-2 border-b border-outline-variant pb-2">
+<span class="material-symbols-outlined text-tertiary-dim text-sm">policy</span>
+<span class="font-headline text-xs font-medium truncate">Policy Evaluator</span>
+</div>
+<div class="flex justify-between items-center text-[10px] font-label text-secondary-fixed-dim">
+<span>Agent Target</span>
+</div>
+</div>
+</div>
+<!-- Model Node (attached to Sub A) -->
+<div class="absolute top-[400px] left-[150px] transform -translate-x-1/2 -translate-y-1/2 cursor-pointer hover:-translate-y-1 transition-transform">
+<div class="bg-surface-container border border-outline-variant border-dashed rounded-full px-4 py-2 flex items-center gap-2">
+<span class="material-symbols-outlined text-secondary-dim text-xs">memory</span>
+<span class="font-label text-[10px] text-on-surface-variant">gpt-4-turbo</span>
+</div>
+</div>
+<!-- Sub Agent B -->
+<div class="absolute top-[250px] left-[550px] transform -translate-x-1/2 -translate-y-1/2 cursor-pointer hover:-translate-y-1 hover:shadow-md transition-transform">
+<div class="bg-surface-container border border-outline-variant rounded-lg p-3 w-40 flex flex-col gap-2">
+<div class="flex items-center gap-2 border-b border-outline-variant pb-2">
+<span class="material-symbols-outlined text-secondary-dim text-sm">account_balance</span>
+<span class="font-headline text-xs font-medium truncate">Ledger Client</span>
+</div>
+<div class="flex justify-between items-center text-[10px] font-label text-secondary-fixed-dim">
+<span>Tool</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Right: Detail Drawer -->
+<aside class="w-80 bg-surface-container-low border-l border-outline-variant flex flex-col shrink-0 overflow-y-auto z-10">
+<!-- Drawer Header -->
+<div class="p-4 border-b border-outline-variant flex justify-between items-start sticky top-0 bg-surface-container-low/95 backdrop-blur z-20">
+<div class="flex flex-col gap-1">
+<span class="text-[10px] font-label text-primary-dim uppercase tracking-wider">Node Details</span>
+<h2 class="font-headline text-lg font-semibold text-on-surface leading-tight">Refund Orchestrator</h2>
+</div>
+<button class="text-on-surface-variant hover:text-on-surface">
+<span class="material-symbols-outlined text-sm">close</span>
+</button>
+</div>
+<!-- Drawer Content -->
+<div class="p-4 flex flex-col gap-6">
+<!-- Metadata block -->
+<div class="grid grid-cols-1 gap-3">
+<div class="flex flex-col gap-1">
+<span class="text-[10px] text-on-surface-variant font-label">Fingerprint (SHA256)</span>
+<div class="bg-surface-container border border-outline-variant rounded px-2 py-1.5 flex items-center justify-between group cursor-copy">
+<span class="font-label text-xs text-secondary-fixed truncate mr-2 text-primary-dim">e3b0c442...</span>
+<span class="material-symbols-outlined text-[14px] text-outline opacity-0 group-hover:opacity-100 transition-opacity">content_copy</span>
+</div>
+</div>
+<div class="flex flex-col gap-1">
+<span class="text-[10px] text-on-surface-variant font-label">Base Model</span>
+<div class="bg-surface-container border border-outline-variant rounded px-2 py-1.5">
+<span class="font-label text-xs text-secondary-fixed">gpt-4-turbo</span>
+</div>
+</div>
+<div class="flex flex-col gap-1">
+<span class="text-[10px] text-on-surface-variant font-label">Role Definition</span>
+<div class="bg-surface-container border border-outline-variant rounded px-2 py-1.5">
+<span class="font-label text-xs text-secondary-fixed">primary_router</span>
+</div>
+</div>
+</div>
+<!-- Code Snippet -->
+<div class="flex flex-col gap-1 border-t border-outline-variant pt-4">
+<div class="flex justify-between items-center mb-1">
+<span class="text-[10px] text-on-surface-variant font-label">System Prompt Source</span>
+<button class="text-[10px] font-label text-primary-dim hover:text-primary">Expand</button>
+</div>
+<div class="bg-surface-container-lowest border border-outline-variant rounded-md p-3 overflow-x-auto relative group">
+<pre class="font-label text-[11px] leading-relaxed text-secondary-dim"><code><span class="text-tertiary-dim">def</span> <span class="text-primary-dim">route_intent</span>(request: Dict) -&gt; AgentTarget:
+    <span class="text-outline">"""Evaluates raw intent..."""</span>
+    if <span class="text-primary">is_policy_query</span>(request):
+        return SubAgents.POLICY
+    return SubAgents.LEDGER</code></pre>
+<button class="absolute top-2 right-2 p-1 bg-surface-container rounded border border-outline-variant opacity-0 group-hover:opacity-100 transition-opacity text-on-surface-variant hover:text-on-surface">
+<span class="material-symbols-outlined text-[12px]">content_copy</span>
+</button>
+</div>
+</div>
+<!-- State/Metrics -->
+<div class="flex flex-col gap-2 border-t border-outline-variant pt-4">
+<span class="text-[10px] text-on-surface-variant font-label">Runtime Stats (Last 24h)</span>
+<div class="grid grid-cols-2 gap-2">
+<div class="bg-surface-container border border-outline-variant rounded p-2 flex flex-col">
+<span class="text-xl font-headline font-semibold">142ms</span>
+<span class="text-[10px] font-label text-on-surface-variant">p95 Latency</span>
+</div>
+<div class="bg-surface-container border border-outline-variant rounded p-2 flex flex-col">
+<span class="text-xl font-headline font-semibold text-error-dim">0.02%</span>
+<span class="text-[10px] font-label text-on-surface-variant">Error Rate</span>
+</div>
+</div>
+</div>
+</div>
+</aside>
+</div>
+</main>
+<!-- BottomNavBar (Jobs Tray - Configured as Fixed Bottom Strip) -->
+<!-- Applying JSON logic: label_icon, fixed bottom-0 right-0 h-8 left-64, flex row gap-6 px-4 -->
+<nav class="bg-surface-container-lowest dark:bg-surface-container-lowest text-primary-dim dark:text-primary-dim font-label text-[10px] uppercase fixed bottom-0 right-0 h-8 left-64 border-t border-outline-variant flat no shadows flex flex-row items-center justify-start gap-6 px-4 z-30">
+<!-- Active Scan (Active State from JSON) -->
+<div class="text-primary-fixed-dim flex items-center gap-2 px-3 border-r border-outline-variant pr-6">
+<span class="material-symbols-outlined text-sm animate-spin-slow">radar</span>
+<span class="flex items-center gap-2">
+                Active Scan
+                <span class="w-16 h-1 bg-surface-container-high rounded-full overflow-hidden ml-2">
+<span class="block h-full bg-primary-fixed w-[68%]"></span>
+</span>
+<span class="normal-case">68%</span>
+</span>
+</div>
+<!-- Inactive Items -->
+<div class="text-outline flex items-center gap-2 px-3 hover:bg-surface-container-high hover:text-on-surface-variant transition-colors rounded cursor-pointer py-1">
+<span class="material-symbols-outlined text-sm">running_with_errors</span>
+            Run: Alpha
+        </div>
+<div class="text-outline flex items-center gap-2 px-3 hover:bg-surface-container-high hover:text-on-surface-variant transition-colors rounded cursor-pointer py-1">
+<span class="material-symbols-outlined text-sm">analytics</span>
+            Campaign: QA
+        </div>
+<div class="text-outline flex items-center gap-2 px-3 hover:bg-surface-container-high hover:text-on-surface-variant transition-colors rounded cursor-pointer py-1 ml-auto border-l border-outline-variant pl-6">
+<span class="material-symbols-outlined text-sm text-secondary-fixed">check_circle</span>
+            System Idle
+        </div>
+</nav>
+<style>
+        .animate-spin-slow {
+            animation: spin 3s linear infinite;
+        }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</body></html>

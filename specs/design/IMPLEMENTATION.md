@@ -12,7 +12,7 @@ A local, single-process workbench that makes ADK agent evaluation reproducible a
 2. `specs/functional_spec.md` and `specs/functional_spec_addendum.md` — the functional behaviour. Note: the souls were written **after** these, so where they conflict, the souls and this design win.
 3. `specs/python_objects.md` — the first-pass object/architecture sketch.
 4. `specs/design/object_model.md` — **the authoritative object model and Kuzu schema.** Build this first.
-5. `specs/design/contracts/*.md` — the fragile components, each with a formal contract, error taxonomy, pseudocode, and tests. These are the parts a weaker model must implement carefully and not improvise.
+5. `specs/design/contracts/*.md` — the fragile components, each with a formal contract, error taxonomy, pseudocode, and tests. These are the parts a weaker model must implement carefully and not improvise. This includes `contracts/web_frontend.md` — the SPA pages, actions, and edit surfaces (gen-1's UI was underspecified).
 6. `specs/agent_spec/AGENT1..AGENT4` — the framework's own ADK agents (dogfooded).
 
 ## Architecture (one rule above all)
@@ -25,20 +25,30 @@ A local, single-process workbench that makes ADK agent evaluation reproducible a
                                               |
                         analysis (sklearn/numpy) | scanner | runner | faults | extraction
                                               |
-                                      STORAGE (Kuzu, one DB per agent-under-test)
+                                      STORAGE (Kuzu, one DB per repo)
 ```
 
 **The service layer is the contract.** The Flask routes, the web UI, and the chat agent are all *clients* of the same service functions. The chat agent wraps **service functions** as tools, never HTTP routes. Nothing above the service layer computes scores; the deterministic core does.
+
+## Unit of evaluation (read before Phase 2 — gen-1 got this wrong)
+
+The thing under test is an **`AgentTarget = (repo, agent_path)`**, not a repo. A repo may contain several ADK agents, and a sub-agent may be evaluated on its own.
+
+- **Snapshot identity is `(commit, agent_path)`.** One commit of a multi-agent repo yields several snapshots.
+- **One Kuzu DB per repo**, shared by the repo's agents (they share a commit DAG + topology). The DB path is configured/derived per repo, **never hard-coded**.
+- **The repo path and the agent path are set in the UI** (point-at-repo → pick agent → scan). They are not an `AGENT_ENTRYPOINT` env var or a constant in source. See `contracts/web_frontend.md`.
+- **ADK is the only agent framework.** "An agent is an importable object / directory" is ADK's model, not ours. **Do not build a non-ADK compatibility shim** — gen-1 hallucinated one; it is scope creep, delete on sight.
 
 ## Technology choices (locked)
 
 | Concern | Choice | Notes |
 | --- | --- | --- |
-| Web | **Flask**, single process | `python run_app.py`. No Docker. Serves API + UI (templates first; a built static SPA later if needed). |
-| Agents | **ADK (latest)** + **LiteLLM** | LiteLLM wrapper for non-Gemini models in the campaign panel. Pin the ADK version; isolate all ADK-version-sensitive code in `scanner/` and `faults/`. |
+| Web API | **Flask**, single process | `python run_app.py`. No Docker. Serves a JSON API **and** the pre-built SPA bundle as static files. No server-side templating for app pages. |
+| Web UI | **React + TypeScript SPA**, Vite build | Compiled to static assets checked in / built once, then served by Flask. One app, client-side routing — not a pile of static pages with a navbar. See `contracts/web_frontend.md`. |
+| Agents | **ADK, pinned** (`google-adk`, exact version in `pyproject.toml`) + **LiteLLM** | ADK is the ONLY agent framework; no shim for others. LiteLLM wraps non-Gemini campaign models. Isolate ADK-version-sensitive code in `scanner/` and `faults/`. ADK must be a real dependency, not mocked. |
 | Metrics/ML | **scikit-learn + numpy** (+ scipy) | Classification/regression metrics, Cohen's kappa, PCA/clustering, and the IRT response matrix as a logistic regression on a design matrix. |
 | Embeddings | **sentence-transformers**, `paraphrase-multilingual-*` | For clustering/anomaly (SOUL2). Multilingual on purpose. |
-| Storage | **Kuzu**, embedded, **one DB per agent-under-test** | Graph-shaped: commit DAG + snapshot→subagent/prompt/tool edges. |
+| Storage | **Kuzu**, embedded, **one DB per repo** | Graph-shaped: commit DAG + snapshot→subagent/prompt/tool edges. Path configured per repo. |
 | Isolation | **git worktree + uv venv**, subprocess execution | Correctness under concurrency, not a security sandbox. |
 | Tests | **pytest** | Contract tests for every fragile component. |
 | Packaging | **uv** | `pyproject.toml`; pinned deps. |
@@ -57,7 +67,7 @@ eval_framework/                      # THIS repo (git)
       run.py campaign.py fault.py tag.py
     storage/
       schema.py                      # Kuzu DDL (node/rel tables)
-      kuzu_store.py                  # connection, get-or-create DB per agent
+      kuzu_store.py                  # connection, get-or-create DB per REPO (keyed by repo path)
       repositories.py                # typed read/write per node type
     services/                        # THE CONTRACT LAYER (API + chat agent call this)
       agents.py snapshots.py cases.py runs.py scoring.py
@@ -73,10 +83,14 @@ eval_framework/                      # THIS repo (git)
     extraction/
       extractor.py                   # load/fingerprint/run extractor functions
     web/
-      app.py routes/ templates/ static/
-    agents/                          # the framework's OWN ADK agents (dogfoodable)
+      app.py                         # Flask: JSON API + serves the built SPA bundle (no app templates)
+      routes/                        # thin JSON endpoints -> service layer
+      static/                        # BUILT SPA bundle (output of frontend/ build) is served from here
+    frontend/                        # React + TypeScript SPA source (Vite). Built to web/static/. See contracts/web_frontend.md
+      src/ index.html vite.config.ts package.json
+    agents/                          # the framework's OWN ADK agents (dogfoodable), git submodule so versions can be switched
       chat_operator/ agent.py tools.py sub_agents/   # AGENT1
-      code_explorer/ agent.py                        # AGENT2 (assists scanner)
+      code_explorer/ agent.py                        # AGENT2 (the scanner's LLM assist)
       fault_mocker/  agent.py                         # AGENT3 (writes mocked_tools.py)
       extractor_author/ agent.py                      # AGENT4 (writes extractors)
   tests/
@@ -101,6 +115,10 @@ Agents-under-test are **separate sibling git repos** referenced by path; the fra
 6. **Held-out is sacred (SOUL13).** Every `EvalCase` carries `split: optimisation | judging`. Any optimisation loop may read only `optimisation` cases. `judging` cases never tune anything.
 7. **Subprocess isolation.** Agent code is executed in a subprocess inside a worktree venv, never imported into the main process (avoids `sys.modules` collisions across commits).
 8. **No scope creep.** Build the slices in the TODO. Do not add features not in the specs. If a spec is ambiguous, prefer the simplest inspectable option and leave a `# SPEC-GAP:` comment.
+9. **Thin over clever (gen-1 over-produced).** Cheap models pad. The worktree runner should be a thin wrapper over `git worktree` + `uv` (or a vetted library), not a 400-line reimplementation. Regression "detection" is a threshold comparison over stored aggregates surfaced in the UI, not a bespoke ML module. If a component grows past ~a screen of code, stop and simplify before continuing.
+10. **Config, never constants.** Repo path, agent path, model panel, DB location, judge model — all live in `config.py` and/or are set in the UI. **No hard-coded paths, no `AGENT_ENTRYPOINT` env var documented only in source.** A fresh checkout must be configurable without editing code.
+11. **All four agents ship; the scanner enables dogfooding.** Do not ship only the chat operator (gen-1's mistake). The scanner (deterministic path + AGENT2 LLM assist) is what makes the platform usable and self-hostable, so it comes first. Sub-agents must be real ADK agents, not mocked stubs.
+12. **Nothing is mocked in the delivered core.** `agent_runner.py`, the ADK dependency, and the sub-agents are real. Mocks belong only in `tests/` and in the deliberately-generated `mocked_tools.py` fault artifact.
 
 ## Definition of done per component
 
@@ -112,14 +130,14 @@ Phases are ordered by dependency. Each phase ends when its tests are green. The 
 
 - **Phase 0 — Scaffold.** `uv` project, deps pinned, `run_app.py` + Flask health route, pytest wired, `config.py` with the model panel. Kuzu connection opens and closes.
 - **Phase 1 — Domain + storage.** Implement all `domain/` models per `object_model.md`. Implement `storage/schema.py` (Kuzu node/rel tables) and `repositories.py` with typed CRUD. Round-trip tests for every model.
-- **Phase 2 — AgentScanner.** Implement per `contracts/agent_scanner.md`. Build the golden + malformed fixtures. All error-taxonomy tests pass. (Fragile — go slow.)
+- **Phase 2 — AgentScanner.** Implement per `contracts/agent_scanner.md`: input is an `AgentTarget` (repo + agent_path), output is a snapshot + manifest + detected `AgentDomain`. Build the golden + malformed fixtures. All error-taxonomy tests pass. (Fragile — go slow.)
 - **Phase 3 — WorktreeRunner.** Implement per `contracts/worktree_runner.md`, subprocess execution, venv cache, guaranteed cleanup, Windows caveats handled. Concurrency test passes. (Fragile.)
 - **Phase 4 — AgentRunner + Trace.** Run one case in a worktree → serialized `Trace` (parts, structured output, exception, latency, tokens). **M1 here**: scan → snapshot → run → score → show.
 - **Phase 5 — Scoring + extraction.** `analysis/metrics.py`, type-driven folding, deterministic + verifier + rubric evaluators, extractor loading/fingerprinting. Minimal `extractor_author` (AGENT4) draft→run→confirm.
 - **Phase 6 — Faults.** Implement per `contracts/fault_injector.md` (ADK callbacks + `mocked_tools.py`). Robustness/resilience rubric (detect/contain/recover/honesty).
 - **Phase 7 — Campaign + response matrix.** `EvalCampaign` runs the dataset across the model panel; `analysis/response_matrix.py` builds the design matrix + logistic regression for difficulty/ability, co-failure clustering, and thinning.
 - **Phase 8 — Comparison + validity.** Snapshot/run comparison, regression detection, human–LLM agreement, the SOUL13 held-out guard (score-up-while-agreement-down flag).
-- **Phase 9 — Web UI.** Agent/lineage graph, dashboard, run viewer, comparison view, eval builder (domain × problem matrix).
+- **Phase 9 — Web UI (SPA).** Build the React + TypeScript SPA per `contracts/web_frontend.md`, applying the Stitch `DESIGN.md`. Must cover the full loop: **add repo → pick agent → scan** (no env vars), agent/lineage graph, dashboard, run/trace viewer, comparison view, eval builder (domain × problem matrix), and **edit surfaces for tags, cases, metrics, rubrics, extractors** (gen-1 shipped raw JSON with no editing). Build output lands in `web/static/` and is served by Flask.
 - **Phase 10 — Chat operator.** Wrap service functions as ADK tools (read vs confirm-write), build the agent + sub-agents (AGENT1), implement the monitor-version loop (human-greenlit). Dogfood: evaluate the chat operator with the platform.
 
 See `object_model.md` next.

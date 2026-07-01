@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Campaign Response Matrix - AgentBench</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;family=Space+Grotesk:wght@400;500;700;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "tertiary": "#ff85a2",
+                        "on-tertiary": "#5e0026",
+                        "surface-dim": "#0c0e13",
+                        "on-secondary-fixed-variant": "#535c6b",
+                        "on-primary-container": "#e7dfff",
+                        "on-primary": "#4100c5",
+                        "inverse-primary": "#613de3",
+                        "on-primary-fixed": "#ffffff",
+                        "inverse-on-surface": "#53555b",
+                        "tertiary-dim": "#fc6e93",
+                        "surface-container": "#161921",
+                        "on-tertiary-container": "#48001b",
+                        "primary-dim": "#7757fa",
+                        "primary-fixed-dim": "#704ef2",
+                        "secondary-fixed-dim": "#ccd5e6",
+                        "error-container": "#871c34",
+                        "on-tertiary-fixed-variant": "#5a0023",
+                        "primary": "#cabeff",
+                        "secondary-fixed": "#dae3f5",
+                        "surface-container-low": "#11131a",
+                        "surface-variant": "#212630",
+                        "on-surface": "#e2e5f3",
+                        "on-secondary-container": "#b7c0d1",
+                        "on-tertiary-fixed": "#000000",
+                        "surface": "#0c0e13",
+                        "tertiary-fixed": "#fc6e93",
+                        "on-surface-variant": "#a7abb8",
+                        "secondary": "#bec7d8",
+                        "surface-tint": "#cabeff",
+                        "surface-container-highest": "#212630",
+                        "tertiary-container": "#fc6e93",
+                        "on-error-container": "#ff97a3",
+                        "on-secondary": "#38414f",
+                        "on-secondary-fixed": "#37404e",
+                        "background": "#0c0e13",
+                        "surface-container-high": "#1c2028",
+                        "secondary-container": "#333c4a",
+                        "on-primary-fixed-variant": "#f4edff",
+                        "surface-container-lowest": "#000000",
+                        "outline": "#717582",
+                        "error": "#f97386",
+                        "on-error": "#490013",
+                        "primary-container": "#542bd6",
+                        "tertiary-fixed-dim": "#eb6287",
+                        "error-dim": "#c44b5f",
+                        "inverse-surface": "#f9f9ff",
+                        "surface-bright": "#282c37",
+                        "secondary-dim": "#b0b9ca",
+                        "primary-fixed": "#7c5cff",
+                        "outline-variant": "#444853",
+                        "on-background": "#e2e5f3"
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    fontFamily: {
+                        "headline": ["Space Grotesk", "sans-serif"],
+                        "display": ["Space Grotesk", "sans-serif"],
+                        "body": ["Inter", "sans-serif"],
+                        "label": ["JetBrains Mono", "monospace"]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        /* Custom scrollbar for data dense areas */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #11131a; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #212630; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #444853; 
+        }
+        
+        /* Heatmap cell coloring */
+        .cell-pass-high { background-color: rgba(74, 222, 128, 0.2); color: #4ade80; }
+        .cell-pass-mid { background-color: rgba(74, 222, 128, 0.1); color: #86efac; }
+        .cell-fail-mid { background-color: rgba(244, 63, 94, 0.1); color: #fda4af; }
+        .cell-fail-high { background-color: rgba(244, 63, 94, 0.2); color: #fb7185; }
+        
+        /* Utility for sticky headers */
+        .sticky-col { position: sticky; left: 0; z-index: 10; background: #0c0e13; border-right: 1px solid #444853; }
+        .sticky-row { position: sticky; top: 0; z-index: 20; background: #0c0e13; border-bottom: 1px solid #444853; }
+        .sticky-corner { position: sticky; top: 0; left: 0; z-index: 30; background: #0c0e13; border-right: 1px solid #444853; border-bottom: 1px solid #444853; }
+    </style>
+</head>
+<body class="bg-background text-on-background font-body text-sm antialiased flex h-screen overflow-hidden">
+<!-- Shared Component: SideNavBar -->
+<nav class="h-screen w-64 fixed left-0 top-0 flex flex-col bg-surface-container-low dark:bg-surface-container-low border-r border-outline-variant py-4 hidden md:flex z-50">
+<!-- Header -->
+<div class="px-4 mb-6 flex items-center gap-3">
+<div class="w-8 h-8 rounded bg-primary-container text-on-primary-container flex items-center justify-center font-headline font-bold">P</div>
+<div>
+<h1 class="font-headline text-lg font-bold text-on-surface tracking-tighter leading-tight">Project Lab</h1>
+<p class="font-label text-[10px] text-on-surface-variant uppercase tracking-wider">v2.4.0-stable</p>
+</div>
+</div>
+<!-- CTA -->
+<div class="px-4 mb-6">
+<button class="w-full bg-primary text-on-primary font-body font-medium text-sm py-2 px-4 rounded hover:opacity-90 transition-opacity flex items-center justify-center gap-2">
+<span class="material-symbols-outlined text-sm" style="font-variation-settings: 'FILL' 1;">add</span>
+                New Run
+            </button>
+</div>
+<!-- Main Nav -->
+<div class="flex-1 overflow-y-auto px-2 space-y-1">
+<a class="text-on-surface-variant hover:text-on-surface hover:bg-surface-container hover:bg-surface-container-high transition-colors duration-150 rounded px-3 py-2 flex items-center gap-3 cursor-pointer active:opacity-80 font-body text-sm font-medium tracking-tight" href="#">
+<span class="material-symbols-outlined text-[20px]">smart_toy</span>
+                Agents
+            </a>
+<a class="text-on-surface-variant hover:text-on-surface hover:bg-surface-container hover:bg-surface-container-high transition-colors duration-150 rounded px-3 py-2 flex items-center gap-3 cursor-pointer active:opacity-80 font-body text-sm font-medium tracking-tight" href="#">
+<span class="material-symbols-outlined text-[20px]">history</span>
+                Snapshots
+            </a>
+<a class="text-on-surface-variant hover:text-on-surface hover:bg-surface-container hover:bg-surface-container-high transition-colors duration-150 rounded px-3 py-2 flex items-center gap-3 cursor-pointer active:opacity-80 font-body text-sm font-medium tracking-tight" href="#">
+<span class="material-symbols-outlined text-[20px]">fact_check</span>
+                Cases
+            </a>
+<a class="text-on-surface-variant hover:text-on-surface hover:bg-surface-container hover:bg-surface-container-high transition-colors duration-150 rounded px-3 py-2 flex items-center gap-3 cursor-pointer active:opacity-80 font-body text-sm font-medium tracking-tight" href="#">
+<span class="material-symbols-outlined text-[20px]">play_circle</span>
+                Runs
+            </a>
+<a class="bg-secondary-container text-on-secondary-container border-r-2 border-primary rounded px-3 py-2 flex items-center gap-3 cursor-pointer active:opacity-80 font-body text-sm font-medium tracking-tight" href="#">
+<span class="material-symbols-outlined text-[20px]" style="font-variation-settings: 'FILL' 1;">rocket_launch</span>
+                Campaigns
+            </a>
+<a class="text-on-surface-variant hover:text-on-surface hover:bg-surface-container hover:bg-surface-container-high transition-colors duration-150 rounded px-3 py-2 flex items-center gap-3 cursor-pointer active:opacity-80 font-body text-sm font-medium tracking-tight" href="#">
+<span class="material-symbols-outlined text-[20px]">difference</span>
+                Compare
+            </a>
+<a class="text-on-surface-variant hover:text-on-surface hover:bg-surface-container hover:bg-surface-container-high transition-colors duration-150 rounded px-3 py-2 flex items-center gap-3 cursor-pointer active:opacity-80 font-body text-sm font-medium tracking-tight" href="#">
+<span class="material-symbols-outlined text-[20px]">database</span>
+                Registries
+            </a>
+<a class="text-on-surface-variant hover:text-on-surface hover:bg-surface-container hover:bg-surface-container-high transition-colors duration-150 rounded px-3 py-2 flex items-center gap-3 cursor-pointer active:opacity-80 font-body text-sm font-medium tracking-tight" href="#">
+<span class="material-symbols-outlined text-[20px]">forum</span>
+                Chat
+            </a>
+</div>
+<!-- Footer Nav -->
+<div class="px-2 mt-auto space-y-1 pt-4 border-t border-outline-variant/30">
+<a class="text-on-surface-variant hover:text-on-surface hover:bg-surface-container hover:bg-surface-container-high transition-colors duration-150 rounded px-3 py-2 flex items-center gap-3 cursor-pointer active:opacity-80 font-body text-sm font-medium tracking-tight" href="#">
+<span class="material-symbols-outlined text-[20px]">settings</span>
+                Settings
+            </a>
+<a class="text-on-surface-variant hover:text-on-surface hover:bg-surface-container hover:bg-surface-container-high transition-colors duration-150 rounded px-3 py-2 flex items-center gap-3 cursor-pointer active:opacity-80 font-body text-sm font-medium tracking-tight" href="#">
+<span class="material-symbols-outlined text-[20px]">help_outline</span>
+                Docs
+            </a>
+</div>
+</nav>
+<!-- Main Content Wrapper -->
+<div class="flex-1 flex flex-col md:ml-64 h-screen">
+<!-- Shared Component: TopAppBar -->
+<header class="bg-surface dark:bg-surface docked full-width top-0 h-12 border-b border-outline-variant flex items-center justify-between px-4 z-40">
+<!-- Brand / Search (Placeholder for search logic) -->
+<div class="flex items-center gap-4">
+<span class="font-headline text-xl font-black text-on-surface">AgentBench</span>
+<div class="h-6 w-[1px] bg-outline-variant mx-2"></div>
+<div class="flex items-center gap-2 text-on-surface-variant hover:text-on-surface transition-colors cursor-pointer group">
+<span class="material-symbols-outlined text-sm">search</span>
+<span class="font-label text-xs uppercase tracking-widest group-hover:text-primary transition-colors">Search</span>
+</div>
+</div>
+<!-- Trailing Actions -->
+<div class="flex items-center gap-3">
+<button class="text-on-surface-variant hover:text-on-surface transition-colors scale-95 duration-100 p-1 rounded hover:bg-surface-container">
+<span class="material-symbols-outlined text-[20px]">notifications</span>
+</button>
+<button class="text-on-surface-variant hover:text-on-surface transition-colors scale-95 duration-100 p-1 rounded hover:bg-surface-container">
+<span class="material-symbols-outlined text-[20px]">terminal</span>
+</button>
+<button class="text-on-surface-variant hover:text-on-surface transition-colors scale-95 duration-100 p-1 rounded hover:bg-surface-container">
+<span class="material-symbols-outlined text-[20px]">account_tree</span>
+</button>
+<div class="w-7 h-7 rounded-full bg-secondary-container border border-outline-variant ml-2 overflow-hidden">
+<!-- Profile placeholder -->
+<img alt="User profile" class="w-full h-full object-cover" data-alt="A macro shot of a metallic sphere reflecting a neon lit futuristic laboratory with cold blue and purple lighting, extremely detailed, 8k resolution, photorealistic, sharp focus" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDl9TmLsrMF70Xu3gHSzpkK1qGDEfmXM1BVn3VI-tlOGbzIfyZlUPe2NDT9k4aPGNoIAkJ06dPbwWPahHuqSZ8SrzfKyLPjdz9j-IbPmdlq83xphM_wsEn7fiQuSfAHycDHp5IvT36EQi5HwPaPMJL2BeXzqL29Fz9GRpSDTuTWjqKZXxson_5ZPBZVGCAei1iy3tOOKAYO--fyoNGkpal1k_Jcr3vQhR-HhtHr-Vw4xKw93ac_9Sx-Innov_ZeKYuki919cfVe3h4"/>
+</div>
+</div>
+</header>
+<!-- Canvas Area -->
+<main class="flex-1 overflow-hidden flex flex-col p-4 bg-background">
+<!-- Context Header -->
+<div class="flex justify-between items-end mb-4 shrink-0">
+<div>
+<div class="flex items-center gap-2 text-on-surface-variant mb-1">
+<span class="font-label text-xs uppercase tracking-wider">Campaigns / C-2024-Q3-EVAL</span>
+<span class="px-1.5 py-0.5 rounded text-[9px] font-label bg-surface-container-highest border border-outline-variant uppercase">Matrix View</span>
+</div>
+<h2 class="font-headline text-2xl font-bold tracking-tight text-on-surface">Campaign Response Matrix</h2>
+</div>
+<div class="flex items-center gap-4">
+<div class="flex items-center gap-3 font-label text-xs text-on-surface-variant border-r border-outline-variant pr-4">
+<div class="flex flex-col items-end">
+<span class="text-on-surface font-medium">7</span>
+<span class="text-[10px] uppercase">Models</span>
+</div>
+<div class="flex flex-col items-end">
+<span class="text-on-surface font-medium">150</span>
+<span class="text-[10px] uppercase">Cases</span>
+</div>
+</div>
+<div class="flex items-center gap-1.5 text-on-surface-variant bg-surface-container-low px-2 py-1 rounded border border-outline-variant">
+<span class="material-symbols-outlined text-sm text-secondary">info</span>
+<span class="font-label text-[10px] uppercase tracking-wider">Derived, Not Stored</span>
+</div>
+</div>
+</div>
+<!-- Complex Layout Grid -->
+<div class="flex-1 grid grid-cols-1 lg:grid-cols-4 gap-4 min-h-0">
+<!-- Left/Center Pane: The Matrix -->
+<div class="lg:col-span-3 bg-surface border border-outline-variant rounded-lg flex flex-col overflow-hidden relative shadow-sm shadow-black/50">
+<!-- Matrix Toolbar -->
+<div class="h-10 border-b border-outline-variant bg-surface-container-low flex items-center justify-between px-3 shrink-0">
+<div class="flex gap-2">
+<button class="px-2 py-1 rounded text-xs font-medium bg-surface-container-high border border-outline hover:bg-surface-variant transition-colors flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">filter_list</span> Filter
+                            </button>
+<button class="px-2 py-1 rounded text-xs font-medium text-on-surface-variant hover:bg-surface-variant transition-colors flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">sort</span> Sort: Severity
+                            </button>
+</div>
+<div class="flex items-center gap-3 text-xs font-label">
+<div class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-emerald-400"></span> Pass</div>
+<div class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-rose-400"></span> Fail</div>
+</div>
+</div>
+<!-- Scrollable Heatmap Area -->
+<div class="flex-1 overflow-auto bg-surface-dim">
+<table class="w-full text-left border-collapse font-label text-xs whitespace-nowrap">
+<thead>
+<tr>
+<th class="sticky-corner p-2 font-medium text-on-surface-variant uppercase text-[10px] tracking-wider w-40">Model / Case</th>
+<!-- Generating exactly 15 columns for demo -->
+<th class="sticky-row p-2 font-medium text-on-surface-variant uppercase text-[10px] border-r border-outline-variant/30 text-center">CASE-001</th>
+<th class="sticky-row p-2 font-medium text-on-surface-variant uppercase text-[10px] border-r border-outline-variant/30 text-center">CASE-002</th>
+<th class="sticky-row p-2 font-medium text-on-surface-variant uppercase text-[10px] border-r border-outline-variant/30 text-center">CASE-003</th>
+<th class="sticky-row p-2 font-medium text-on-surface-variant uppercase text-[10px] border-r border-outline-variant/30 text-center">CASE-004</th>
+<th class="sticky-row p-2 font-medium text-on-surface-variant uppercase text-[10px] border-r border-outline-variant/30 text-center">CASE-005</th>
+<th class="sticky-row p-2 font-medium text-on-surface-variant uppercase text-[10px] border-r border-outline-variant/30 text-center">CASE-006</th>
+<th class="sticky-row p-2 font-medium text-on-surface-variant uppercase text-[10px] border-r border-outline-variant/30 text-center">CASE-007</th>
+<th class="sticky-row p-2 font-medium text-on-surface-variant uppercase text-[10px] border-r border-outline-variant/30 text-center">CASE-008</th>
+<th class="sticky-row p-2 font-medium text-on-surface-variant uppercase text-[10px] border-r border-outline-variant/30 text-center">CASE-009</th>
+<th class="sticky-row p-2 font-medium text-on-surface-variant uppercase text-[10px] border-r border-outline-variant/30 text-center">CASE-010</th>
+</tr>
+</thead>
+<tbody>
+<!-- Row 1: GPT-4o (High Performer) -->
+<tr class="border-b border-outline-variant/30 hover:bg-surface-container-high transition-colors">
+<td class="sticky-col p-2 text-on-surface font-medium">gpt-4o</td>
+<td class="p-2 border-r border-outline-variant/30 text-center cell-pass-high">1.00</td>
+<td class="p-2 border-r border-outline-variant/30 text-center cell-pass-high">0.98</td>
+<td class="p-2 border-r border-outline-variant/30 text-center cell-pass-high">1.00</td>
+<td class="p-2 border-r border-outline-variant/30 text-center cell-pass-mid">0.85</td>
+<td class="p-2 border-r border-outline-variant/30 text-center cell-pass-high">0.99</td>
+<td class="p-2 border-r border-outline-variant/30 text-center cell-fail-mid">0.45</td>
+<td class="p-2 border-r border-outline-variant/30 text-center cell-pass-high">1.00</td>
+<td class="p-2 border-r border-outline-variant/30 text-center cell-pass-high">0.92</td>
+<td class="p-2 border-r border-outline-variant/30 text-center cell-pass-high">1.00</td>
+<td class="p-2 border-r border-outline-variant/30 text-center cell-pass-mid">0.78</td>
+</tr>
+<!-- Row 2: Claude Sonnet -->
+<tr class="border-b border-outline-variant/30 hover:bg-surface-container-high transition-colors">
+<td class="sticky-col p-2 text-on-surface font-medium">claude-sonnet</td>
+<td class="p-2 border-r border-outline-variant/30 text-center cell-pass-high">0.95</td>
+<td class="p-2 border-r border-outline-variant/30 text-center cell-pass-high">0.90</td>
+<td class="p-2 border-r border-outline-variant/30 text-center cell-pass-high">0.98</td>
+<td class="p-2 border-r border-outline-variant/30 text-center cell-pass-mid">0.75</td>
+<td class="p-2 border-r border-outline-variant/30 text-center cell-pass-high">0.96</td>
+<td class="p-2 border-r border-outline-variant/30 text-center cell-fail-high">0.22</td>
+<td class="p-2 border-r border-outline-variant/30 text-center cell-pass-high">1.00</td>
+<td class="p-2 border-r border-outline-variant/30 text-center cell-pass-mid">0.88</td>
+<td class="p-2 border-r border-outline-variant/30 text-center cell-pass-high">0.95</td>
+<td class="p-2 border-r border-outline-variant/30 text-center cell-pass-mid">0.82</td>
+</tr>
+<!-- Row 3: Gemini Pro -->
+<tr class="border-b border-outline-variant/30 hover:bg-surface-container-high transition-colors">
+<td class="sticky-col p-2 text-on-surface font-medium">gemini-pro</td>
+<td class="p-2 border-r border-outline-variant/30 text-center cell-pass-mid">0.85</td>
+<td class="p-2 border-r border-outline-variant/30 text-center cell-pass-high">0.92</td>
+<td class="p-2 border-r border-outline-variant/30 text-center cell-pass-mid">0.80</td>
+<td class="p-2 border-r border-outline-variant/30 text-center cell-fail-mid">0.45</td>
+<td class="p-2 border-r border-outline-variant/30 text-center cell-pass-mid">0.88</td>
+<td class="p-2 border-r border-outline-variant/30 text-center cell-fail-high">0.15</td>
+<td class="p-2 border-r border-outline-variant/30 text-center cell-pass-high">0.90</td>
+<td class="p-2 border-r border-outline-variant/30 text-center cell-pass-mid">0.76</td>
+<td class="p-2 border-r border-outline-variant/30 text-center cell-fail-mid">0.48</td>
+<td class="p-2 border-r border-outline-variant/30 text-center cell-pass-mid">0.65</td>
+</tr>
+<!-- Row 4: Claude Haiku -->
+<tr class="border-b border-outline-variant/30 hover:bg-surface-container-high transition-colors">
+<td class="sticky-col p-2 text-on-surface font-medium">claude-haiku</td>
+<td class="p-2 border-r border-outline-variant/30 text-center cell-pass-mid">0.78</td>
+<td class="p-2 border-r border-outline-variant/30 text-center cell-pass-mid">0.82</td>
+<td class="p-2 border-r border-outline-variant/30 text-center cell-pass-mid">0.75</td>
+<td class="p-2 border-r border-outline-variant/30 text-center cell-fail-high">0.20</td>
+<td class="p-2 border-r border-outline-variant/30 text-center cell-pass-mid">0.85</td>
+<td class="p-2 border-r border-outline-variant/30 text-center cell-fail-high">0.10</td>
+<td class="p-2 border-r border-outline-variant/30 text-center cell-pass-mid">0.88</td>
+<td class="p-2 border-r border-outline-variant/30 text-center cell-pass-mid">0.65</td>
+<td class="p-2 border-r border-outline-variant/30 text-center cell-fail-mid">0.35</td>
+<td class="p-2 border-r border-outline-variant/30 text-center cell-fail-mid">0.42</td>
+</tr>
+<!-- Row 5: Gemini Flash -->
+<tr class="border-b border-outline-variant/30 hover:bg-surface-container-high transition-colors">
+<td class="sticky-col p-2 text-on-surface font-medium">gemini-flash</td>
+<td class="p-2 border-r border-outline-variant/30 text-center cell-pass-mid">0.72</td>
+<td class="p-2 border-r border-outline-variant/30 text-center cell-pass-mid">0.70</td>
+<td class="p-2 border-r border-outline-variant/30 text-center cell-pass-mid">0.68</td>
+<td class="p-2 border-r border-outline-variant/30 text-center cell-fail-high">0.15</td>
+<td class="p-2 border-r border-outline-variant/30 text-center cell-pass-mid">0.80</td>
+<td class="p-2 border-r border-outline-variant/30 text-center cell-fail-high">0.05</td>
+<td class="p-2 border-r border-outline-variant/30 text-center cell-pass-mid">0.75</td>
+<td class="p-2 border-r border-outline-variant/30 text-center cell-fail-mid">0.45</td>
+<td class="p-2 border-r border-outline-variant/30 text-center cell-fail-high">0.25</td>
+<td class="p-2 border-r border-outline-variant/30 text-center cell-fail-mid">0.38</td>
+</tr>
+<!-- Row 6: GPT Mini -->
+<tr class="border-b border-outline-variant/30 hover:bg-surface-container-high transition-colors">
+<td class="sticky-col p-2 text-on-surface font-medium">gpt-mini</td>
+<td class="p-2 border-r border-outline-variant/30 text-center cell-pass-mid">0.65</td>
+<td class="p-2 border-r border-outline-variant/30 text-center cell-pass-mid">0.60</td>
+<td class="p-2 border-r border-outline-variant/30 text-center cell-fail-mid">0.45</td>
+<td class="p-2 border-r border-outline-variant/30 text-center cell-fail-high">0.10</td>
+<td class="p-2 border-r border-outline-variant/30 text-center cell-pass-mid">0.70</td>
+<td class="p-2 border-r border-outline-variant/30 text-center cell-fail-high">0.02</td>
+<td class="p-2 border-r border-outline-variant/30 text-center cell-fail-mid">0.55</td>
+<td class="p-2 border-r border-outline-variant/30 text-center cell-fail-mid">0.35</td>
+<td class="p-2 border-r border-outline-variant/30 text-center cell-fail-high">0.15</td>
+<td class="p-2 border-r border-outline-variant/30 text-center cell-fail-high">0.20</td>
+</tr>
+<!-- Row 7: Gemini Flash Lite -->
+<tr class="border-b border-outline-variant/30 hover:bg-surface-container-high transition-colors">
+<td class="sticky-col p-2 text-on-surface font-medium">gemini-flash-lite</td>
+<td class="p-2 border-r border-outline-variant/30 text-center cell-fail-mid">0.45</td>
+<td class="p-2 border-r border-outline-variant/30 text-center cell-fail-mid">0.40</td>
+<td class="p-2 border-r border-outline-variant/30 text-center cell-fail-high">0.25</td>
+<td class="p-2 border-r border-outline-variant/30 text-center cell-fail-high">0.05</td>
+<td class="p-2 border-r border-outline-variant/30 text-center cell-fail-mid">0.50</td>
+<td class="p-2 border-r border-outline-variant/30 text-center cell-fail-high">0.00</td>
+<td class="p-2 border-r border-outline-variant/30 text-center cell-fail-mid">0.30</td>
+<td class="p-2 border-r border-outline-variant/30 text-center cell-fail-high">0.20</td>
+<td class="p-2 border-r border-outline-variant/30 text-center cell-fail-high">0.08</td>
+<td class="p-2 border-r border-outline-variant/30 text-center cell-fail-high">0.12</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<!-- Right Pane: Analysis Stack -->
+<div class="bg-surface border border-outline-variant rounded-lg flex flex-col overflow-hidden h-full">
+<div class="p-3 border-b border-outline-variant bg-surface-container-low shrink-0">
+<h3 class="font-headline font-bold text-sm">Psychometric Stack</h3>
+</div>
+<div class="flex-1 overflow-y-auto p-3 space-y-6">
+<!-- Panel 1: Item Difficulty -->
+<div>
+<h4 class="text-xs font-semibold text-on-surface-variant uppercase tracking-wider mb-3 flex items-center justify-between">
+                                Item Difficulty
+                                <span class="material-symbols-outlined text-[14px]">bar_chart</span>
+</h4>
+<div class="space-y-2">
+<div class="flex items-center gap-2">
+<span class="font-label text-[10px] w-14 text-right">CASE-006</span>
+<div class="flex-1 h-1.5 bg-surface-container-high rounded overflow-hidden">
+<div class="h-full bg-rose-400 w-[95%]"></div>
+</div>
+<span class="font-label text-[10px] w-8 text-on-surface-variant">0.95</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="font-label text-[10px] w-14 text-right">CASE-004</span>
+<div class="flex-1 h-1.5 bg-surface-container-high rounded overflow-hidden">
+<div class="h-full bg-rose-400 w-[82%]"></div>
+</div>
+<span class="font-label text-[10px] w-8 text-on-surface-variant">0.82</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="font-label text-[10px] w-14 text-right">CASE-009</span>
+<div class="flex-1 h-1.5 bg-surface-container-high rounded overflow-hidden">
+<div class="h-full bg-rose-400 w-[60%]"></div>
+</div>
+<span class="font-label text-[10px] w-8 text-on-surface-variant">0.60</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="font-label text-[10px] w-14 text-right">CASE-001</span>
+<div class="flex-1 h-1.5 bg-surface-container-high rounded overflow-hidden">
+<div class="h-full bg-emerald-400 w-[12%]"></div>
+</div>
+<span class="font-label text-[10px] w-8 text-on-surface-variant">0.12</span>
+</div>
+</div>
+</div>
+<!-- Panel 2: Model Ability (Theta) -->
+<div>
+<h4 class="text-xs font-semibold text-on-surface-variant uppercase tracking-wider mb-3 flex items-center justify-between">
+                                Model Ability (θ)
+                                <span class="material-symbols-outlined text-[14px]">psychology</span>
+</h4>
+<div class="space-y-1">
+<div class="flex justify-between items-center p-1.5 bg-surface-container-high rounded">
+<span class="font-label text-[11px]">gpt-4o</span>
+<span class="font-label text-[11px] text-primary">2.45</span>
+</div>
+<div class="flex justify-between items-center p-1.5 hover:bg-surface-container transition-colors rounded">
+<span class="font-label text-[11px] text-on-surface-variant">claude-sonnet</span>
+<span class="font-label text-[11px] text-on-surface-variant">1.82</span>
+</div>
+<div class="flex justify-between items-center p-1.5 hover:bg-surface-container transition-colors rounded">
+<span class="font-label text-[11px] text-on-surface-variant">gemini-pro</span>
+<span class="font-label text-[11px] text-on-surface-variant">1.15</span>
+</div>
+<div class="flex justify-between items-center p-1.5 hover:bg-surface-container transition-colors rounded">
+<span class="font-label text-[11px] text-on-surface-variant">claude-haiku</span>
+<span class="font-label text-[11px] text-on-surface-variant">0.45</span>
+</div>
+<div class="flex justify-between items-center p-1.5 hover:bg-surface-container transition-colors rounded">
+<span class="font-label text-[11px] text-on-surface-variant">gemini-flash-lite</span>
+<span class="font-label text-[11px] text-error-dim">-1.20</span>
+</div>
+</div>
+</div>
+<!-- Panel 3: Co-failure Clusters -->
+<div>
+<h4 class="text-xs font-semibold text-on-surface-variant uppercase tracking-wider mb-3 flex items-center justify-between">
+                                Co-failure Clusters
+                                <span class="material-symbols-outlined text-[14px]">bubble_chart</span>
+</h4>
+<div class="space-y-2">
+<div class="border border-outline-variant p-2 rounded bg-surface-container-lowest">
+<div class="flex justify-between items-start mb-1">
+<span class="text-xs font-medium">Complex Logic</span>
+<span class="text-[10px] text-rose-400 font-label">r=0.89</span>
+</div>
+<div class="flex flex-wrap gap-1">
+<span class="px-1 py-0.5 bg-surface-container-high rounded text-[9px] font-label">CASE-006</span>
+<span class="px-1 py-0.5 bg-surface-container-high rounded text-[9px] font-label">CASE-004</span>
+<span class="px-1 py-0.5 bg-surface-container-high rounded text-[9px] font-label">CASE-009</span>
+</div>
+</div>
+<div class="border border-outline-variant p-2 rounded bg-surface-container-lowest">
+<div class="flex justify-between items-start mb-1">
+<span class="text-xs font-medium">Memory Retainment</span>
+<span class="text-[10px] text-rose-400 font-label">r=0.75</span>
+</div>
+<div class="flex flex-wrap gap-1">
+<span class="px-1 py-0.5 bg-surface-container-high rounded text-[9px] font-label">CASE-010</span>
+<span class="px-1 py-0.5 bg-surface-container-high rounded text-[9px] font-label">CASE-012</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Panel 4: Suite Thinning -->
+<div>
+<h4 class="text-xs font-semibold text-on-surface-variant uppercase tracking-wider mb-3 flex items-center justify-between">
+                                Suite Thinning
+                                <span class="material-symbols-outlined text-[14px]">content_cut</span>
+</h4>
+<div class="border border-outline-variant rounded divide-y divide-outline-variant">
+<div class="p-2 flex justify-between items-center group hover:bg-surface-container transition-colors">
+<div class="flex items-center gap-2">
+<span class="font-label text-[10px]">CASE-001</span>
+<span class="text-on-surface-variant text-[10px]">≈</span>
+<span class="font-label text-[10px] text-on-surface-variant line-through decoration-rose-500">CASE-003</span>
+</div>
+<button class="text-on-surface-variant hover:text-rose-400 opacity-0 group-hover:opacity-100 transition-all" title="Prune redundant case">
+<span class="material-symbols-outlined text-[14px]">delete</span>
+</button>
+</div>
+<div class="p-2 flex justify-between items-center group hover:bg-surface-container transition-colors">
+<div class="flex items-center gap-2">
+<span class="font-label text-[10px]">CASE-005</span>
+<span class="text-on-surface-variant text-[10px]">≈</span>
+<span class="font-label text-[10px] text-on-surface-variant line-through decoration-rose-500">CASE-008</span>
+</div>
+<button class="text-on-surface-variant hover:text-rose-400 opacity-0 group-hover:opacity-100 transition-all" title="Prune redundant case">
+<span class="material-symbols-outlined text-[14px]">delete</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- Shared Component: BottomNavBar -->
+<footer class="bg-surface-container-lowest dark:bg-surface-container-lowest fixed bottom-0 right-0 h-8 left-64 border-t border-outline-variant flex flex-row items-center justify-start gap-6 px-4 z-40 hidden md:flex">
+<!-- Labels and Icons mapped from JSON -->
+<div class="text-outline flex items-center gap-2 px-3 font-label text-[10px] uppercase">
+<span class="material-symbols-outlined text-[14px]">radar</span>
+                Active Scan
+            </div>
+<div class="text-outline flex items-center gap-2 px-3 font-label text-[10px] uppercase">
+<span class="material-symbols-outlined text-[14px]">running_with_errors</span>
+                Run: Alpha
+            </div>
+<div class="text-primary-fixed-dim flex items-center gap-2 px-3 font-label text-[10px] uppercase">
+<span class="material-symbols-outlined text-[14px]">analytics</span>
+                Campaign: QA
+            </div>
+<div class="text-outline flex items-center gap-2 px-3 font-label text-[10px] uppercase">
+<span class="material-symbols-outlined text-[14px]">check_circle</span>
+                System Idle
+            </div>
+</footer>
+</div>
+</body></html>

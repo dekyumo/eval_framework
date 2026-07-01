@@ -1,0 +1,3 @@
+[submodule "cuppibla_example_agents"]
+	path = cuppibla_example_agents
+	url = https://github.com/cuppibla/adk_tutorial/

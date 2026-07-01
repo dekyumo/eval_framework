@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Extractor Author - AgentWorkbench</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "secondary-container": "#333c4a",
+                        "primary-container": "#542bd6",
+                        "on-error": "#490013",
+                        "surface-bright": "#282c37",
+                        "secondary-dim": "#b0b9ca",
+                        "on-primary-fixed": "#ffffff",
+                        "on-error-container": "#ff97a3",
+                        "error-dim": "#c44b5f",
+                        "secondary-fixed-dim": "#ccd5e6",
+                        "on-surface-variant": "#a7abb8",
+                        "on-surface": "#e2e5f3",
+                        "surface-container-lowest": "#000000",
+                        "on-primary-container": "#e7dfff",
+                        "primary-fixed-dim": "#704ef2",
+                        "on-tertiary-fixed": "#000000",
+                        "on-primary-fixed-variant": "#f4edff",
+                        "tertiary-fixed": "#fc6e93",
+                        "surface-variant": "#212630",
+                        "tertiary-fixed-dim": "#eb6287",
+                        "surface-container-highest": "#212630",
+                        "on-secondary-fixed": "#37404e",
+                        "primary-fixed": "#7c5cff",
+                        "on-tertiary-fixed-variant": "#5a0023",
+                        "tertiary-dim": "#fc6e93",
+                        "surface-tint": "#cabeff",
+                        "surface": "#0c0e13",
+                        "secondary-fixed": "#dae3f5",
+                        "on-secondary": "#38414f",
+                        "surface-dim": "#0c0e13",
+                        "surface-container-low": "#11131a",
+                        "on-tertiary-container": "#48001b",
+                        "outline": "#717582",
+                        "primary": "#cabeff",
+                        "on-secondary-container": "#b7c0d1",
+                        "on-secondary-fixed-variant": "#535c6b",
+                        "inverse-surface": "#f9f9ff",
+                        "on-tertiary": "#5e0026",
+                        "inverse-primary": "#613de3",
+                        "tertiary-container": "#fc6e93",
+                        "error-container": "#871c34",
+                        "surface-container-high": "#1c2028",
+                        "on-background": "#e2e5f3",
+                        "background": "#0c0e13",
+                        "primary-dim": "#7757fa",
+                        "tertiary": "#ff85a2",
+                        "surface-container": "#161921",
+                        "inverse-on-surface": "#53555b",
+                        "outline-variant": "#444853",
+                        "error": "#f97386",
+                        "secondary": "#bec7d8",
+                        "on-primary": "#4100c5"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {},
+                    "fontFamily": {
+                        "headline": ["Space Grotesk"],
+                        "display": ["Space Grotesk"],
+                        "body": ["Inter"],
+                        "label": ["Jetbrains Mono"]
+                    },
+                    "fontSize": {}
+                },
+            },
+        }
+    </script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700;800&amp;family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        /* Custom scrollbar for data dense views */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #444853;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #717582;
+        }
+        .code-block {
+            tab-size: 4;
+        }
+    </style>
+</head>
+<body class="bg-surface text-on-surface font-body h-screen overflow-hidden flex selection:bg-primary-container selection:text-on-primary-container">
+<!-- SideNavBar (from JSON) -->
+<nav class="bg-surface-container dark:bg-surface-container border-r border-outline-variant fixed inset-y-0 left-0 z-50 flex flex-col p-4 w-64 h-screen flat no shadows transition-all duration-300 hidden md:flex">
+<!-- Header -->
+<div class="mb-8 flex items-center gap-3">
+<div class="h-10 w-10 rounded-lg bg-surface-container-high border border-outline-variant overflow-hidden shrink-0">
+<img alt="Agent Avatar" class="h-full w-full object-cover" data-alt="A small, stylized, high-contrast monochrome digital avatar for an AI agent in a data-dense interface. Crisp lines, technical aesthetic, dark background. Geometric and abstract." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDzQ1BG7w4TLTxWBcHTzAyi01zKnKmkLbtR_90BQkUtLPQXqqyK78SJjjgMqIHkLaYC5IqDERstiQ3SfWJl4FSdz9c1JQxz0wniRUnq5l8rrz6SpDQNhBwOtyAvcIfu6ooA1v9dZzBUGXUKTJAVLesIVsa6I8pZfH5XzjghsE0DdxZGYXcMtbJMiv9Ha-Be6I8RHUGTE00H8zUE3iMcVbLeSabIjF02aU8yGoWkBkCRPyFBMKBEa-pAuCz-2TRfpvsNcdY-FNIcbdY"/>
+</div>
+<div>
+<h1 class="font-headline text-lg font-bold text-on-surface tracking-tight">Agent Lab</h1>
+<p class="font-label text-xs text-on-surface-variant">v1.0.4-alpha</p>
+</div>
+</div>
+<!-- Main Nav -->
+<div class="flex-1 overflow-y-auto space-y-1">
+<a class="text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors duration-150 flex items-center gap-3 px-3 py-2 rounded-lg group" href="#">
+<span class="material-symbols-outlined text-[20px] group-active:opacity-80 group-active:scale-[0.99]">smart_toy</span>
+<span class="font-body text-sm">Agents</span>
+</a>
+<a class="text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors duration-150 flex items-center gap-3 px-3 py-2 rounded-lg group" href="#">
+<span class="material-symbols-outlined text-[20px] group-active:opacity-80 group-active:scale-[0.99]">history</span>
+<span class="font-body text-sm">Snapshots</span>
+</a>
+<a class="text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors duration-150 flex items-center gap-3 px-3 py-2 rounded-lg group" href="#">
+<span class="material-symbols-outlined text-[20px] group-active:opacity-80 group-active:scale-[0.99]">assignment</span>
+<span class="font-body text-sm">Cases</span>
+</a>
+<a class="text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors duration-150 flex items-center gap-3 px-3 py-2 rounded-lg group" href="#">
+<span class="material-symbols-outlined text-[20px] group-active:opacity-80 group-active:scale-[0.99]">play_arrow</span>
+<span class="font-body text-sm">Runs</span>
+</a>
+<a class="text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors duration-150 flex items-center gap-3 px-3 py-2 rounded-lg group" href="#">
+<span class="material-symbols-outlined text-[20px] group-active:opacity-80 group-active:scale-[0.99]">rocket_launch</span>
+<span class="font-body text-sm">Campaigns</span>
+</a>
+<a class="text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors duration-150 flex items-center gap-3 px-3 py-2 rounded-lg group" href="#">
+<span class="material-symbols-outlined text-[20px] group-active:opacity-80 group-active:scale-[0.99]">difference</span>
+<span class="font-body text-sm">Compare</span>
+</a>
+<a class="bg-secondary-container text-on-secondary-container font-medium rounded-lg hover:bg-surface-container-high transition-colors duration-150 flex items-center gap-3 px-3 py-2 group" href="#">
+<span class="material-symbols-outlined text-[20px] group-active:opacity-80 group-active:scale-[0.99]">database</span>
+<span class="font-body text-sm">Registries</span>
+</a>
+<a class="text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors duration-150 flex items-center gap-3 px-3 py-2 rounded-lg group" href="#">
+<span class="material-symbols-outlined text-[20px] group-active:opacity-80 group-active:scale-[0.99]">forum</span>
+<span class="font-body text-sm">Chat</span>
+</a>
+</div>
+<!-- Footer Actions -->
+<div class="mt-4 pt-4 border-t border-outline-variant space-y-1">
+<button class="w-full bg-surface-container-high hover:bg-surface-variant text-primary border border-outline-variant font-body text-sm font-medium py-2 px-4 rounded-lg flex justify-center items-center gap-2 transition-colors">
+<span class="material-symbols-outlined text-[18px]">add</span>
+                New Experiment
+            </button>
+<div class="pt-2 flex flex-col gap-1">
+<a class="text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors duration-150 flex items-center gap-3 px-3 py-2 rounded-lg text-sm" href="#">
+<span class="material-symbols-outlined text-[18px]">settings</span>
+                    Settings
+                </a>
+<a class="text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors duration-150 flex items-center gap-3 px-3 py-2 rounded-lg text-sm" href="#">
+<span class="material-symbols-outlined text-[18px]">menu_book</span>
+                    Docs
+                </a>
+</div>
+</div>
+</nav>
+<!-- Main Content Area -->
+<main class="flex-1 ml-0 md:ml-64 flex flex-col h-screen bg-surface w-full">
+<!-- TopAppBar (from JSON) -->
+<header class="bg-surface dark:bg-surface border-b border-outline-variant flat no shadows flex justify-between items-center w-full px-6 py-2 shrink-0 h-14">
+<div class="flex items-center gap-6">
+<div class="font-headline text-xl font-black text-on-surface tracking-tight mr-4">
+                    AgentWorkbench
+                </div>
+<nav class="hidden md:flex items-center gap-4 h-full pt-1">
+<a class="font-body text-sm font-medium text-on-surface-variant hover:text-on-surface pb-2 transition-all cursor-pointer" href="#">Snapshot</a>
+<a class="font-body text-sm font-medium text-on-surface-variant hover:text-on-surface pb-2 transition-all cursor-pointer" href="#">Trace</a>
+<a class="font-body text-sm font-medium text-primary border-b-2 border-primary pb-2 transition-all cursor-pointer" href="#">Rubric</a>
+<a class="font-body text-sm font-medium text-on-surface-variant hover:text-on-surface pb-2 transition-all cursor-pointer" href="#">Split</a>
+</nav>
+</div>
+<div class="flex items-center gap-4">
+<div class="relative hidden sm:block">
+<span class="material-symbols-outlined absolute left-2 top-1.5 text-on-surface-variant text-[18px]">search</span>
+<input class="bg-surface-container border border-outline-variant rounded-md pl-8 pr-3 py-1 text-sm text-on-surface focus:outline-none focus:border-primary w-48 font-body" placeholder="Search..." type="text"/>
+</div>
+<div class="flex items-center gap-2 text-on-surface-variant">
+<button class="hover:text-on-surface transition-colors p-1"><span class="material-symbols-outlined text-[20px]">notifications</span></button>
+<button class="hover:text-on-surface transition-colors p-1"><span class="material-symbols-outlined text-[20px]">help_outline</span></button>
+</div>
+<button class="bg-primary-container text-on-primary-container hover:bg-primary-dim px-4 py-1.5 rounded-md font-body text-sm font-medium transition-colors">
+                    Deploy
+                </button>
+</div>
+</header>
+<!-- Page Header -->
+<div class="px-6 py-4 border-b border-outline-variant shrink-0 bg-surface">
+<div class="flex items-center gap-2 text-sm text-on-surface-variant mb-1 font-body">
+<span class="material-symbols-outlined text-[16px]">database</span>
+<span>Registries</span>
+<span class="material-symbols-outlined text-[14px]">chevron_right</span>
+<span>Extractors</span>
+</div>
+<h2 class="font-headline text-2xl font-bold text-on-surface">Extractor author</h2>
+</div>
+<!-- 3-Column Workspace -->
+<div class="flex-1 overflow-hidden p-6 flex flex-col lg:flex-row gap-6">
+<!-- Column 1: Intent -->
+<div class="flex flex-col gap-4 w-full lg:w-1/4 h-full overflow-y-auto min-w-[250px]">
+<div class="flex items-center gap-2 mb-2">
+<span class="material-symbols-outlined text-primary text-[18px]">edit_note</span>
+<h3 class="font-headline font-semibold text-sm uppercase tracking-wider text-on-surface">Intent</h3>
+</div>
+<div class="bg-surface-container border border-outline-variant rounded-lg p-4 flex flex-col gap-3 flex-1">
+<label class="font-body text-sm font-medium text-on-surface-variant">Natural Language Description</label>
+<textarea class="w-full bg-surface-container-highest border border-outline-variant rounded p-3 text-sm font-body text-on-surface focus:outline-none focus:border-primary resize-none flex-1 h-32" placeholder="Describe what to extract...">Return true if the reply contains a ticket number</textarea>
+<div class="mt-2">
+<label class="font-body text-sm font-medium text-on-surface-variant mb-2 block">Return Type</label>
+<select class="w-full bg-surface-container-highest border border-outline-variant rounded p-2 text-sm font-label text-primary focus:outline-none focus:border-primary appearance-none">
+<option selected="" value="bool">bool</option>
+<option value="int">int</option>
+<option value="float">float</option>
+<option value="enum">enum</option>
+</select>
+</div>
+<div class="mt-auto pt-4 border-t border-outline-variant flex gap-2 items-start text-xs text-on-surface-variant font-body">
+<span class="material-symbols-outlined text-[14px] text-tertiary">psychology</span>
+<p class="leading-tight">AGENT4 drafts the function which a human then edits.</p>
+</div>
+</div>
+</div>
+<!-- Column 2: Function Source -->
+<div class="flex flex-col gap-4 w-full lg:w-2/4 h-full overflow-hidden min-w-[300px]">
+<div class="flex items-center justify-between mb-2">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-[18px]">code</span>
+<h3 class="font-headline font-semibold text-sm uppercase tracking-wider text-on-surface">Function source</h3>
+</div>
+<div class="flex gap-2">
+<button class="text-on-surface-variant hover:text-on-surface p-1 rounded bg-surface-container border border-outline-variant transition-colors"><span class="material-symbols-outlined text-[16px]">content_copy</span></button>
+<button class="text-on-surface-variant hover:text-on-surface p-1 rounded bg-surface-container border border-outline-variant transition-colors"><span class="material-symbols-outlined text-[16px]">format_align_left</span></button>
+</div>
+</div>
+<div class="bg-surface-container border border-outline-variant rounded-lg flex flex-col flex-1 overflow-hidden shadow-[inset_0_2px_4px_rgba(0,0,0,0.2)]">
+<div class="bg-surface-container-lowest border-b border-outline-variant px-4 py-2 flex items-center gap-4 text-xs font-label text-on-surface-variant">
+<span class="text-secondary">extract.py</span>
+<span class="text-outline">Python 3.11</span>
+</div>
+<div class="flex-1 overflow-auto bg-[#0d1017] p-4 font-label text-sm leading-relaxed code-block">
+<pre><code class="text-on-surface"><span class="text-primary-dim">def</span> <span class="text-tertiary">extract</span>(trace: Trace) -&gt; <span class="text-secondary">bool</span>:
+    <span class="text-outline"># Logic here</span>
+    <span class="text-primary-dim">return</span> <span class="text-secondary-fixed">"ticket_#"</span> <span class="text-primary-dim">in</span> trace.last_assistant_message</code></pre>
+</div>
+<div class="bg-surface-container-lowest border-t border-outline-variant px-4 py-2 flex items-center justify-between text-xs font-label">
+<div class="flex items-center gap-2 text-on-surface-variant">
+<span class="material-symbols-outlined text-[14px]">fingerprint</span>
+<span class="truncate max-w-[150px]">sha256:9f2a4b8c7d6e...</span>
+</div>
+<div class="flex items-center gap-1 text-secondary-dim">
+<span class="material-symbols-outlined text-[14px] text-primary">verified</span>
+<span>pure, no I/O, deterministic</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Column 3: Run on Sample -->
+<div class="flex flex-col gap-4 w-full lg:w-1/4 h-full overflow-y-auto min-w-[250px]">
+<div class="flex items-center gap-2 mb-2">
+<span class="material-symbols-outlined text-primary text-[18px]">science</span>
+<h3 class="font-headline font-semibold text-sm uppercase tracking-wider text-on-surface">Run on sample</h3>
+</div>
+<div class="bg-surface-container border border-outline-variant rounded-lg p-4 flex flex-col gap-4 flex-1">
+<div class="flex gap-2">
+<select class="flex-1 bg-surface-container-highest border border-outline-variant rounded p-2 text-sm font-body text-on-surface focus:outline-none focus:border-primary appearance-none">
+<option>Recent Support Traces (12)</option>
+<option>Edge Cases (5)</option>
+</select>
+<button class="bg-surface-container-highest hover:bg-surface-variant border border-outline-variant text-on-surface p-2 rounded flex items-center justify-center transition-colors">
+<span class="material-symbols-outlined text-[18px]">play_arrow</span>
+</button>
+</div>
+<div class="text-xs font-label text-on-surface-variant uppercase tracking-widest border-b border-outline-variant pb-2 mt-2">
+                        Results Preview
+                    </div>
+<div class="flex flex-col gap-2 overflow-y-auto pr-1">
+<!-- Result Row -->
+<div class="flex items-center justify-between bg-surface-container-highest border border-outline-variant rounded p-2 text-sm">
+<span class="font-label text-on-surface truncate w-32" title="tr_8a9b2c1d">tr_8a9b2c1d</span>
+<span class="px-2 py-0.5 rounded text-xs font-label bg-[#0d2a1f] text-[#4ade80] border border-[#14532d]">true</span>
+</div>
+<!-- Result Row -->
+<div class="flex items-center justify-between bg-surface-container-highest border border-outline-variant rounded p-2 text-sm">
+<span class="font-label text-on-surface truncate w-32" title="tr_3f4e5d6c">tr_3f4e5d6c</span>
+<span class="px-2 py-0.5 rounded text-xs font-label bg-error-container/40 text-on-error-container border border-error-container">false</span>
+</div>
+<!-- Result Row -->
+<div class="flex items-center justify-between bg-surface-container-highest border border-outline-variant rounded p-2 text-sm">
+<span class="font-label text-on-surface truncate w-32" title="tr_1q2w3e4r">tr_1q2w3e4r</span>
+<span class="px-2 py-0.5 rounded text-xs font-label bg-[#0d2a1f] text-[#4ade80] border border-[#14532d]">true</span>
+</div>
+<!-- Error Row -->
+<div class="flex items-center justify-between bg-surface-container-highest border border-[#b45309] rounded p-2 text-sm">
+<span class="font-label text-on-surface truncate w-32" title="tr_9z8x7c6v">tr_9z8x7c6v</span>
+<span class="px-2 py-0.5 rounded text-xs font-label bg-[#451a03] text-[#fbbf24] border border-[#78350f] flex items-center gap-1">
+<span class="material-symbols-outlined text-[12px]">warning</span>
+                                Error
+                            </span>
+</div>
+<!-- Result Row -->
+<div class="flex items-center justify-between bg-surface-container-highest border border-outline-variant rounded p-2 text-sm opacity-60">
+<span class="font-label text-on-surface truncate w-32" title="tr_5t6y7u8i">tr_5t6y7u8i</span>
+<span class="text-xs font-label text-outline italic">pending...</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- BottomNavBar (from JSON) -->
+<!-- Logic says to exclude if transactional, but prompt explicitly asks for bottom action bar with specific buttons.
+             I will adapt the BottomNavBar shape for these specific actions as requested by the user prompt. -->
+<div class="bg-surface-container-high dark:bg-surface-container-high border-t border-outline-variant h-14 shrink-0 flex items-center justify-end px-6 gap-4 w-full relative z-40 md:hidden">
+<!-- Mobile fallback content if needed, but per prompt we need a global action bar -->
+</div>
+<!-- Custom Desktop Action Bar per prompt requirements -->
+<div class="bg-surface-container dark:bg-surface-container border-t border-outline-variant h-16 shrink-0 flex items-center justify-end px-6 gap-4 w-full">
+<button class="bg-transparent hover:bg-surface-variant text-on-surface border border-outline-variant font-body text-sm font-medium py-2 px-4 rounded-lg transition-colors flex items-center gap-2">
+<span class="material-symbols-outlined text-[18px]">psychology</span>
+                Ask AGENT4 to revise
+            </button>
+<button class="bg-primary-container hover:bg-primary-dim text-on-primary-container font-body text-sm font-medium py-2 px-6 rounded-lg transition-colors flex items-center gap-2 shadow-[0_0_10px_rgba(84,43,214,0.3)]">
+<span class="material-symbols-outlined text-[18px]">save</span>
+                Save extractor
+            </button>
+</div>
+</main>
+</body></html>

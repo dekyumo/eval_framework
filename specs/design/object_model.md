@@ -4,6 +4,8 @@ Authoritative domain model. All types are Pydantic v2 models in `src/eval_workbe
 
 Design rule from the souls: **the trace is the unit** (SOUL3), **a crash is a scorable trace** (carries an exception), **results are free-form typed values folded by type** (not a forced 0–100), **prompts/mocks/extractors are fingerprinted artifacts** (SOUL4/10/11).
 
+**Unit of evaluation (corrected after gen-1).** A git repo may contain **several ADK agents**, and a sub-agent may be evaluated on its own. The thing under test is therefore an `AgentTarget = (repo, agent_path)`, not a repo. Snapshot identity is `(commit, agent_path)`. Storage is **one Kuzu DB per repo** (shared across the repo's agents), because sub-agents and the root agent of one repo belong to the same lineage graph. Nothing about "an agent is a directory" is invented here — it comes from ADK; do not build a non-ADK compatibility layer.
+
 ## 1. Trace and message parts (SOUL3)
 
 ```python
@@ -104,6 +106,8 @@ Evaluators (in `analysis`/`services/scoring.py`) all implement `evaluate(trace, 
 - `VerifierEvaluator`: run external `verifier_ref(input, output)`.
 - `RubricEvaluator`: LLM judge or human applies the rubric → one `Result` per item.
 
+**Intent classification is a metric, not a core case field (corrected after gen-1).** A routing agent's intent detection is expressed as a `MetricDef` with `strategy="deterministic"`, `result_type="enum"`, a **closed** `enum_values` set (the intents), an `extractor_ref` that pulls the detected intent from the trace, and `ground_truth` = the expected intent. Scored across a dataset with scikit accuracy/precision/recall/F1. **Non-routing agents have no intents**; nothing in `EvalCase` forces one. (This replaces the earlier `intents: list[Intent]` field, which wrongly assumed every agent routes over a closed intent set.)
+
 ## 4. Extractor (SOUL3 + AGENT4)
 
 ```python
@@ -147,20 +151,17 @@ ProblemType = Literal["happy", "technical", "adversarial", "client"]
 Split = Literal["optimisation", "judging"]
 CaseSource = Literal["manual", "generated", "copied", "incident"]
 
-class Intent(BaseModel):
-    intent: str
-    domain_position: DomainPosition
-
 class EvalCase(BaseModel):
     id: str
+    target_agent_path: str                   # WHICH agent in the repo this case targets (root or a sub-agent)
     conversation: list[MessagePart]          # multi-turn input (agentic, not single prompt)
-    intents: list[Intent]                    # one row per intent (multi-intent supported)
+    domain_position: DomainPosition          # coverage attribute of THIS case (in / margin / ood)
     problem_type: ProblemType
     tags: list[str] = []
-    metrics: list[MetricDef] = []
+    metrics: list[MetricDef] = []            # intent classification, if any, is just an enum metric here
     fault_config: "FaultConfig | None" = None
     split: Split = "judging"                 # SOUL13; default held-out
-    difficulty_prior: Literal["easy", "medium", "hard"] | None = None  # derived from intents x problem
+    difficulty_prior: Literal["easy", "medium", "hard"] | None = None  # derived from domain_position x problem
     source: CaseSource = "manual"
 
 class EvalDataset(BaseModel):
@@ -172,9 +173,27 @@ class EvalDataset(BaseModel):
 
 `difficulty_prior` is derived a priori: more `ood`/`adversarial` ⇒ harder (SOUL9). It is the prior the campaign later calibrates.
 
-## 7. Agent snapshot, manifest, graph (functional spec §2.2, §3)
+## 7. Agent target, snapshot, manifest, graph (functional spec §2.2, §3)
+
+A repo can hold many agents; the target names which one. Domain is detected per snapshot and is human-editable (functional spec addendum §2-3) — it is what the eval-builder generates against.
 
 ```python
+class AgentTarget(BaseModel):
+    repo_path: str                           # git repo root of the agent-under-test (a sibling repo)
+    agent_path: str                          # import path to the agent within the repo, e.g. "pkg.mod:root_agent"
+    name: str                                # human label; also identifies a sub-agent when targeting one
+
+class DomainRegion(BaseModel):
+    in_domain: list[str] = []                # example tasks/intents the agent should handle
+    margin: list[str] = []                   # boundary cases
+    ood: list[str] = []                      # out-of-domain, should be refused/redirected
+
+class AgentDomain(BaseModel):
+    snapshot_id: str
+    description: str                         # NL: what this agent is for (drafted by SpecGenerator)
+    regions: DomainRegion
+    editable: bool = True                    # detected per snapshot, then edited by a human in the UI
+
 class PromptNode(BaseModel):
     id: str
     fingerprint: str                         # of the RAW ADK instruction template, pre-.format
@@ -208,16 +227,19 @@ class AgentManifest(BaseModel):
     root_agent_name: str
 
 class AgentSnapshot(BaseModel):
-    id: str                                  # = commit_hash (identity is the clean commit)
-    repo_path: str
+    id: str                                  # = f"{commit_hash}:{agent_target.agent_path}" (identity = commit + which agent)
+    agent_target: AgentTarget                # which repo AND which agent within it
     commit_hash: str
     branch: str
     timestamp: float
     manifest: AgentManifest
+    domain: AgentDomain | None = None         # detected per snapshot, human-editable
     sampling_params: dict                    # temperature, top_p... (part of the agent, not the run)
     dependency_lock: str                     # contents/hash of the lockfile at the commit
     framework_commit: str | None = None
 ```
+
+Because identity is `(commit, agent_path)`, one commit of a multi-agent repo yields several snapshots (one per targeted agent / sub-agent), all sharing the repo's single Kuzu DB.
 
 Graph edges (stored, see Kuzu schema): `DELEGATES_TO`, `USES_TOOL`, `USES_MODEL`, `CONTAINS_PROMPT`, and commit `ON_TOP_OF` parent.
 
@@ -305,18 +327,21 @@ class FaultConfig(BaseModel):                 # FARM: the F (see SOUL10 + fault_
     mocked_tools_fingerprint: str
 ```
 
-## 11. Kuzu schema (one DB per agent-under-test)
+## 11. Kuzu schema (one DB per repo)
+
+One DB per repo (not per agent): a repo may hold several agents, each with its own snapshot lineage, and sub-agents are evaluated separately — they share the repo's commit DAG and topology graph. The DB lives at a configured location keyed by repo (never hard-coded in source).
 
 Node tables (Kuzu DDL sketch; PK in parentheses):
 
 ```text
 Commit(hash)            : hash STRING, branch STRING, ts INT64
-Snapshot(id)            : id STRING, commit_hash STRING, sampling_params STRING(json), dependency_lock STRING, manifest STRING(json)
+Snapshot(id)            : id STRING, commit_hash STRING, agent_path STRING, repo_path STRING, sampling_params STRING(json), dependency_lock STRING, manifest STRING(json)
+AgentDomain(snapshot_id): snapshot_id STRING, description STRING, regions STRING(json), editable BOOL
 AgentNode(key)          : key STRING, snapshot_id STRING, name STRING, model_id STRING, prompt_id STRING
 ToolNode(id)            : id STRING, name STRING, signature STRING, source_fingerprint STRING, reaches_external BOOL
 ModelNode(id)           : id STRING, provider STRING
 PromptNode(id)          : id STRING, fingerprint STRING, text STRING
-EvalCase(id)            : id STRING, conversation STRING(json), intents STRING(json), problem_type STRING, split STRING, difficulty_prior STRING, source STRING
+EvalCase(id)            : id STRING, target_agent_path STRING, conversation STRING(json), domain_position STRING, problem_type STRING, split STRING, difficulty_prior STRING, source STRING
 Rubric(id)              : id STRING, name STRING, items STRING(json), version INT64, fingerprint STRING, frozen BOOL
 Extractor(id)           : id STRING, name STRING, return_type STRING, source_path STRING, fingerprint STRING
 EvalRun(id)             : id STRING, snapshot_id STRING, case_id STRING, model_id STRING, repetition_index INT64, trace STRING(json), campaign_id STRING
@@ -333,6 +358,7 @@ Rel tables:
 ```text
 ON_TOP_OF      (Commit -> Commit)          # child on top of parent
 SNAPSHOT_OF    (Snapshot -> Commit)
+HAS_DOMAIN     (Snapshot -> AgentDomain)
 HAS_AGENT      (Snapshot -> AgentNode)
 DELEGATES_TO   (AgentNode -> AgentNode)
 USES_TOOL      (AgentNode -> ToolNode)

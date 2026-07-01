@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Agent Evaluator - Chat</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;700&amp;family=Inter:wght@400;500&amp;family=JetBrains+Mono&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "inverse-surface": "#f9f9ff",
+                    "surface-container-lowest": "#000000",
+                    "surface-container-highest": "#212630",
+                    "surface-container": "#161921",
+                    "error-dim": "#c44b5f",
+                    "on-primary": "#4100c5",
+                    "surface-variant": "#212630",
+                    "outline": "#717582",
+                    "surface-dim": "#0c0e13",
+                    "error": "#f97386",
+                    "on-background": "#e2e5f3",
+                    "surface-tint": "#cabeff",
+                    "on-secondary": "#38414f",
+                    "on-tertiary-container": "#48001b",
+                    "secondary": "#bec7d8",
+                    "tertiary-fixed-dim": "#eb6287",
+                    "secondary-fixed": "#dae3f5",
+                    "primary": "#cabeff",
+                    "on-surface": "#e2e5f3",
+                    "on-tertiary-fixed": "#000000",
+                    "primary-dim": "#7757fa",
+                    "primary-container": "#542bd6",
+                    "on-secondary-fixed": "#37404e",
+                    "on-secondary-fixed-variant": "#535c6b",
+                    "surface-bright": "#282c37",
+                    "on-tertiary": "#5e0026",
+                    "primary-fixed": "#7c5cff",
+                    "error-container": "#871c34",
+                    "on-secondary-container": "#b7c0d1",
+                    "secondary-container": "#333c4a",
+                    "on-surface-variant": "#a7abb8",
+                    "outline-variant": "#444853",
+                    "surface": "#0c0e13",
+                    "tertiary-dim": "#fc6e93",
+                    "on-tertiary-fixed-variant": "#5a0023",
+                    "on-error-container": "#ff97a3",
+                    "tertiary": "#ff85a2",
+                    "secondary-fixed-dim": "#ccd5e6",
+                    "surface-container-low": "#11131a",
+                    "tertiary-container": "#fc6e93",
+                    "surface-container-high": "#1c2028",
+                    "on-primary-fixed": "#ffffff",
+                    "on-primary-container": "#e7dfff",
+                    "inverse-primary": "#613de3",
+                    "on-error": "#490013",
+                    "on-primary-fixed-variant": "#f4edff",
+                    "primary-fixed-dim": "#704ef2",
+                    "secondary-dim": "#b0b9ca",
+                    "inverse-on-surface": "#53555b",
+                    "tertiary-fixed": "#fc6e93",
+                    "background": "#0c0e13"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {},
+            "fontFamily": {
+                    "headline": ["Space Grotesk", "sans-serif"],
+                    "display": ["Space Grotesk", "sans-serif"],
+                    "body": ["Inter", "sans-serif"],
+                    "label": ["JetBrains Mono", "monospace"]
+            },
+            "fontSize": {}
+    },
+        },
+      }
+    </script>
+</head>
+<body class="bg-background text-on-surface font-body h-screen overflow-hidden flex selection:bg-primary-container selection:text-on-primary-container">
+<!-- SideNavBar (Shared Component) -->
+<nav class="bg-surface-container-low dark:bg-surface-container-low h-screen w-64 fixed left-0 top-0 flex flex-col border-r border-outline-variant dark:border-outline-variant z-50">
+<div class="flex flex-col h-full py-4">
+<div class="px-6 pb-6 border-b border-outline-variant/30 mb-4 flex items-center gap-3">
+<div class="w-8 h-8 rounded bg-primary-container text-on-primary-container flex items-center justify-center font-headline font-bold">A</div>
+<div>
+<h1 class="font-headline text-lg font-bold text-on-surface tracking-tighter">AgentLab</h1>
+<p class="font-label text-[10px] text-on-surface-variant uppercase">v0.4.2-alpha</p>
+</div>
+</div>
+<ul class="flex-1 px-3 space-y-1 overflow-y-auto">
+<li><a class="flex items-center gap-3 px-3 py-2 rounded-DEFAULT font-body text-sm font-medium tracking-tight text-on-surface-variant dark:text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/50 transition-colors duration-150 cursor-pointer active:opacity-80" href="#"><span class="material-symbols-outlined text-lg">smart_toy</span>Agents</a></li>
+<li><a class="flex items-center gap-3 px-3 py-2 rounded-DEFAULT font-body text-sm font-medium tracking-tight text-on-surface-variant dark:text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/50 transition-colors duration-150 cursor-pointer active:opacity-80" href="#"><span class="material-symbols-outlined text-lg">history</span>Snapshots</a></li>
+<li><a class="flex items-center gap-3 px-3 py-2 rounded-DEFAULT font-body text-sm font-medium tracking-tight text-on-surface-variant dark:text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/50 transition-colors duration-150 cursor-pointer active:opacity-80" href="#"><span class="material-symbols-outlined text-lg">assignment</span>Cases</a></li>
+<li><a class="flex items-center gap-3 px-3 py-2 rounded-DEFAULT font-body text-sm font-medium tracking-tight text-on-surface-variant dark:text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/50 transition-colors duration-150 cursor-pointer active:opacity-80" href="#"><span class="material-symbols-outlined text-lg">play_arrow</span>Runs</a></li>
+<li><a class="flex items-center gap-3 px-3 py-2 rounded-DEFAULT font-body text-sm font-medium tracking-tight text-on-surface-variant dark:text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/50 transition-colors duration-150 cursor-pointer active:opacity-80" href="#"><span class="material-symbols-outlined text-lg">rocket_launch</span>Campaigns</a></li>
+<li><a class="flex items-center gap-3 px-3 py-2 rounded-DEFAULT font-body text-sm font-medium tracking-tight text-on-surface-variant dark:text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/50 transition-colors duration-150 cursor-pointer active:opacity-80" href="#"><span class="material-symbols-outlined text-lg">difference</span>Compare</a></li>
+<li><a class="flex items-center gap-3 px-3 py-2 rounded-DEFAULT font-body text-sm font-medium tracking-tight text-on-surface-variant dark:text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/50 transition-colors duration-150 cursor-pointer active:opacity-80" href="#"><span class="material-symbols-outlined text-lg">database</span>Registries</a></li>
+<li><a class="flex items-center gap-3 px-3 py-2 rounded-DEFAULT font-body text-sm font-medium tracking-tight text-primary dark:text-primary bg-primary-container/10 border-r-2 border-primary transition-colors duration-150 cursor-pointer active:opacity-80" href="#"><span class="material-symbols-outlined text-lg" style="font-variation-settings: 'FILL' 1;">chat</span>Chat</a></li>
+</ul>
+</div>
+</nav>
+<!-- Main Content Area -->
+<div class="ml-64 flex flex-col h-full w-full">
+<!-- TopAppBar (Shared Component) -->
+<header class="bg-surface dark:bg-surface h-12 w-full sticky top-0 z-40 border-b border-outline-variant dark:border-outline-variant flex items-center justify-between px-6 transition-all duration-200">
+<div class="flex items-center gap-4">
+<span class="font-headline text-base font-bold text-on-surface">Agent Evaluator</span>
+<div class="h-4 w-px bg-outline-variant"></div>
+<div class="font-label text-xs uppercase tracking-widest text-on-surface-variant">Active Target: RefundBot-v2</div>
+</div>
+<div class="flex items-center gap-3">
+<button class="text-on-surface-variant hover:text-on-surface transition-opacity"><span class="material-symbols-outlined">settings</span></button>
+<button class="text-on-surface-variant hover:text-on-surface transition-opacity"><span class="material-symbols-outlined">notifications</span></button>
+<div class="w-6 h-6 rounded-full bg-surface-container-highest border border-outline-variant overflow-hidden ml-2">
+<img class="w-full h-full object-cover" data-alt="A macro shot of a sleek, dark metallic texture with subtle indigo highlights, resembling a microscopic cross-section of an advanced processor or lab instrument surface. Lighting is moody and technical. Used as an abstract tech avatar." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBZmlVlIdm88TyqVHbI_zsmvWxZRwpFRRzN7HWipbnC3AgHcfyBT3pxk6z-QzeBL6b9WyC4gQ2RTDco_8QeV8rCN-BQ3S5pejDCSssvYFpqiVMmQCSrS1_hbnDjyH-f4AUCmpI7nZ-OrUMCMo40KXzw3e3lE3T5RcFfJTkIhUH9i8m8_MdQGAKeA-JUDh2uB4KQQX3qHRQSYl0KoEtaHvb3LfL25Kj8TZNmwDyiQDOqNgnlBadscfs52ZbCyXPjN1pXxCYgNgYQfT0"/>
+</div>
+</div>
+</header>
+<!-- Chat Workspace -->
+<main class="flex-1 flex overflow-hidden">
+<!-- LEFT PANE: Conversation (70%) -->
+<section class="flex-1 flex flex-col min-w-0 border-r border-outline-variant">
+<!-- Messages Scroll Area -->
+<div class="flex-1 overflow-y-auto p-6 space-y-6 flex flex-col">
+<!-- Message 1: User -->
+<div class="flex gap-4 max-w-4xl self-end flex-row-reverse">
+<div class="w-8 h-8 rounded-full bg-surface-container-high border border-outline flex-shrink-0 flex items-center justify-center">
+<span class="material-symbols-outlined text-sm text-on-surface-variant">person</span>
+</div>
+<div class="bg-surface-container px-4 py-3 rounded-lg rounded-tr-sm border border-outline-variant max-w-[80%] text-sm">
+<p>Why did <code class="font-label text-xs text-secondary-fixed-dim bg-surface-variant px-1 py-0.5 rounded">refund_accuracy</code> regress on the last snapshot?</p>
+</div>
+</div>
+<!-- Message 2: Assistant Analysis -->
+<div class="flex gap-4 max-w-4xl">
+<div class="w-8 h-8 rounded-full bg-primary-container border border-primary-dim flex-shrink-0 flex items-center justify-center text-on-primary-container shadow-[0_0_10px_rgba(124,92,255,0.2)]">
+<span class="material-symbols-outlined text-sm">smart_toy</span>
+</div>
+<div class="bg-surface-container px-4 py-3 rounded-lg rounded-tl-sm border border-outline-variant w-full text-sm space-y-3">
+<p class="text-on-surface">I've analyzed the recent snapshot changes. The regression primarily correlates with updates to the <code class="font-label text-xs text-tertiary-fixed-dim bg-surface-variant px-1 py-0.5 rounded">dispute_resolution</code> extraction prompt. The model is now overly sensitive to implicit apologies in user context.</p>
+<!-- Inline Tool Chips -->
+<div class="flex flex-wrap gap-2 pt-2 border-t border-outline-variant/30">
+<div class="inline-flex items-center gap-1.5 bg-surface-variant border border-outline-variant rounded pl-1.5 pr-2 py-0.5 font-label text-xs">
+<span class="material-symbols-outlined text-[14px] text-primary">build</span>
+<span>get_run_results</span>
+<span class="text-outline">· 120ms</span>
+</div>
+<div class="inline-flex items-center gap-1.5 bg-surface-variant border border-outline-variant rounded pl-1.5 pr-2 py-0.5 font-label text-xs">
+<span class="material-symbols-outlined text-[14px] text-primary">build</span>
+<span>cluster_failures</span>
+<span class="text-outline">· 450ms</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Message 3: Proposal Card 1 -->
+<div class="flex gap-4 max-w-4xl">
+<div class="w-8 h-8 rounded-full bg-transparent flex-shrink-0"></div> <!-- Spacer -->
+<div class="bg-surface-container-high p-4 rounded-lg border border-primary/40 w-full text-sm shadow-[0_4px_24px_rgba(0,0,0,0.2)] relative overflow-hidden">
+<!-- Subtle highlight line top -->
+<div class="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-primary to-primary-container"></div>
+<div class="flex items-start justify-between mb-3">
+<div>
+<div class="flex items-center gap-2 mb-1">
+<span class="material-symbols-outlined text-primary text-sm">bolt</span>
+<span class="font-label text-xs font-bold uppercase tracking-widest text-primary">Proposed Action</span>
+</div>
+<h3 class="font-label text-sm text-on-surface">launch_campaign</h3>
+</div>
+<span class="bg-surface-variant text-on-surface-variant px-2 py-1 rounded font-label text-[10px] uppercase border border-outline-variant">Requires Auth</span>
+</div>
+<div class="bg-surface-container-lowest border border-outline-variant rounded p-3 mb-4 font-label text-xs space-y-1">
+<div class="flex justify-between text-on-surface-variant"><span class="text-outline">Scope</span> <span>7 models x 24 cases = 168 runs</span></div>
+<div class="flex justify-between text-on-surface-variant"><span class="text-outline">Est. Cost</span> <span class="text-error-dim">$12.40</span></div>
+<div class="flex justify-between text-on-surface-variant"><span class="text-outline">Output</span> <span>writes to repo DB</span></div>
+</div>
+<div class="flex gap-3 mt-4">
+<button class="bg-primary hover:bg-primary-fixed text-surface-container-lowest font-body text-sm font-medium px-4 py-1.5 rounded transition-colors flex items-center gap-2">
+<span class="material-symbols-outlined text-[18px]">play_arrow</span> Confirm &amp; run
+                                </button>
+<button class="border border-outline-variant hover:bg-surface-variant text-on-surface px-4 py-1.5 rounded transition-colors font-body text-sm font-medium">
+                                    Cancel
+                                </button>
+</div>
+</div>
+</div>
+<!-- Message 4: Proposal Card 2 -->
+<div class="flex gap-4 max-w-4xl">
+<div class="w-8 h-8 rounded-full bg-transparent flex-shrink-0"></div> <!-- Spacer -->
+<div class="bg-surface-container p-4 rounded-lg border border-outline-variant border-l-2 border-l-tertiary-fixed w-full text-sm opacity-70 hover:opacity-100 transition-opacity">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-tertiary-fixed text-sm animate-pulse">pending</span>
+<span class="font-label text-sm text-on-surface">freeze_rubric</span>
+</div>
+<span class="text-outline font-label text-xs">Awaiting confirmation...</span>
+</div>
+</div>
+</div>
+<!-- Streaming Cursor -->
+<div class="flex gap-4 max-w-4xl">
+<div class="w-8 h-8 rounded-full bg-transparent flex-shrink-0"></div> <!-- Spacer -->
+<div class="flex items-center h-4">
+<div class="w-2 h-4 bg-primary animate-[pulse_1s_ease-in-out_infinite]"></div>
+</div>
+</div>
+</div>
+<!-- Chat Input Area -->
+<div class="p-4 bg-surface border-t border-outline-variant">
+<div class="relative flex items-center">
+<textarea class="w-full bg-surface-container-high border border-outline-variant rounded-lg py-3 pl-4 pr-12 text-sm text-on-surface placeholder:text-on-surface-variant/50 focus:ring-1 focus:ring-primary focus:border-primary resize-none outline-none font-body leading-tight" placeholder="Instruct agent or query data..." rows="1" style="min-height: 44px;"></textarea>
+<button class="absolute right-2 p-1.5 rounded bg-primary-container text-on-primary-container hover:bg-primary hover:text-surface-container-lowest transition-colors flex items-center justify-center">
+<span class="material-symbols-outlined text-[18px]">send</span>
+</button>
+</div>
+<div class="flex justify-between items-center mt-2 px-1">
+<span class="font-label text-[10px] text-outline">Markdown supported. ⏎ to send, ⇧⏎ for newline.</span>
+<div class="flex gap-2">
+<span class="inline-flex items-center justify-center w-5 h-5 rounded border border-outline-variant text-outline font-label text-[10px] bg-surface-variant cursor-pointer hover:border-primary">/</span>
+</div>
+</div>
+</div>
+</section>
+<!-- RIGHT PANE: Context (30%) -->
+<aside class="w-[30%] min-w-[280px] bg-surface-container-low flex flex-col">
+<!-- Sub-agents Panel -->
+<div class="p-4 border-b border-outline-variant">
+<h2 class="font-headline text-xs font-bold text-on-surface mb-3 uppercase tracking-widest flex items-center gap-2">
+<span class="material-symbols-outlined text-[16px] text-on-surface-variant">group_work</span>
+                        Sub-agents
+                    </h2>
+<ul class="space-y-2">
+<li class="flex items-center justify-between bg-surface-container p-2 rounded border border-outline-variant/50">
+<span class="font-label text-xs text-on-surface">failure-explainer</span>
+<div class="flex items-center gap-1.5">
+<span class="font-label text-[10px] text-on-surface-variant">Idle</span>
+<div class="w-1.5 h-1.5 rounded-full bg-outline-variant"></div>
+</div>
+</li>
+<li class="flex items-center justify-between bg-surface-container p-2 rounded border border-primary/30 bg-primary-container/5">
+<span class="font-label text-xs text-primary">clusterer</span>
+<div class="flex items-center gap-1.5">
+<span class="font-label text-[10px] text-primary">Active</span>
+<div class="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></div>
+</div>
+</li>
+<li class="flex items-center justify-between bg-surface-container p-2 rounded border border-outline-variant/50">
+<span class="font-label text-xs text-on-surface">regression-explainer</span>
+<div class="flex items-center gap-1.5">
+<span class="font-label text-[10px] text-on-surface-variant">Idle</span>
+<div class="w-1.5 h-1.5 rounded-full bg-outline-variant"></div>
+</div>
+</li>
+</ul>
+</div>
+<!-- Context Panel -->
+<div class="p-4 flex-1 overflow-y-auto">
+<h2 class="font-headline text-xs font-bold text-on-surface mb-3 uppercase tracking-widest flex items-center gap-2">
+<span class="material-symbols-outlined text-[16px] text-on-surface-variant">data_object</span>
+                        Context Workspace
+                    </h2>
+<div class="space-y-4">
+<div class="bg-surface-container p-3 rounded border border-outline-variant">
+<span class="block font-label text-[10px] text-on-surface-variant mb-1 uppercase">Current Snapshot</span>
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[16px] text-secondary">commit</span>
+<code class="font-label text-sm text-secondary-fixed">3c1e88b</code>
+</div>
+</div>
+<div class="bg-surface-container p-3 rounded border border-outline-variant opacity-70">
+<span class="block font-label text-[10px] text-on-surface-variant mb-1 uppercase">Target</span>
+<div class="font-label text-xs text-on-surface">RefundBot-v2</div>
+</div>
+</div>
+</div>
+</aside>
+</main>
+</div>
+</body></html>
