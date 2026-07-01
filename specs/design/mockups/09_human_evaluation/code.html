@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Eval Workbench - Human Eval</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500;700&amp;family=Space+Grotesk:wght@400;500;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "tertiary-fixed": "#fc6e93",
+                        "on-tertiary-fixed-variant": "#5a0023",
+                        "on-primary-fixed-variant": "#f4edff",
+                        "on-background": "#e2e5f3",
+                        "surface-tint": "#cabeff",
+                        "tertiary-dim": "#fc6e93",
+                        "secondary-fixed": "#dae3f5",
+                        "surface": "#0c0e13",
+                        "error": "#f97386",
+                        "inverse-on-surface": "#53555b",
+                        "surface-variant": "#212630",
+                        "tertiary": "#ff85a2",
+                        "surface-container": "#161921",
+                        "error-container": "#871c34",
+                        "on-error": "#490013",
+                        "on-primary-container": "#e7dfff",
+                        "on-secondary": "#38414f",
+                        "primary": "#cabeff",
+                        "on-tertiary": "#5e0026",
+                        "surface-container-high": "#1c2028",
+                        "tertiary-fixed-dim": "#eb6287",
+                        "secondary-fixed-dim": "#ccd5e6",
+                        "tertiary-container": "#fc6e93",
+                        "secondary-dim": "#b0b9ca",
+                        "on-tertiary-container": "#48001b",
+                        "on-secondary-fixed": "#37404e",
+                        "on-primary-fixed": "#ffffff",
+                        "secondary": "#bec7d8",
+                        "on-error-container": "#ff97a3",
+                        "on-surface": "#e2e5f3",
+                        "inverse-surface": "#f9f9ff",
+                        "surface-container-lowest": "#000000",
+                        "surface-container-low": "#11131a",
+                        "error-dim": "#c44b5f",
+                        "background": "#0c0e13",
+                        "on-secondary-fixed-variant": "#535c6b",
+                        "on-primary": "#4100c5",
+                        "primary-container": "#542bd6",
+                        "on-surface-variant": "#a7abb8",
+                        "outline-variant": "#444853",
+                        "on-tertiary-fixed": "#000000",
+                        "inverse-primary": "#613de3",
+                        "surface-dim": "#0c0e13",
+                        "surface-bright": "#282c37",
+                        "on-secondary-container": "#b7c0d1",
+                        "primary-fixed-dim": "#704ef2",
+                        "outline": "#717582",
+                        "secondary-container": "#333c4a",
+                        "surface-container-highest": "#212630",
+                        "primary-dim": "#7757fa",
+                        "primary-fixed": "#7c5cff"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {},
+                    "fontFamily": {
+                        "headline": ["Space Grotesk", "sans-serif"],
+                        "display": ["Space Grotesk", "sans-serif"],
+                        "body": ["Inter", "sans-serif"],
+                        "label": ["JetBrains Mono", "monospace"]
+                    },
+                    "fontSize": {}
+                },
+            },
+        }
+    </script>
+<style>
+        /* Custom scrollbar for data-dense layout */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #333c4a; /* secondary-container */
+            border-radius: 9999px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #535c6b; /* on-secondary-fixed-variant */
+        }
+        
+        /* Hide number input spinners */
+        input[type="number"]::-webkit-inner-spin-button,
+        input[type="number"]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        input[type="number"] {
+            -moz-appearance: textfield;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background font-body antialiased min-h-screen flex flex-col overflow-hidden selection:bg-primary-container selection:text-on-primary-container">
+<!-- TopNavBar -->
+<header class="fixed top-0 right-0 left-64 h-12 flex justify-between items-center px-6 w-auto border-b border-outline-variant bg-surface z-40">
+<div class="flex items-center gap-2 font-headline text-sm text-on-surface-variant font-medium">
+<span class="hover:text-on-surface cursor-pointer transition-colors">Runs</span>
+<span class="material-symbols-outlined text-sm">chevron_right</span>
+<span class="hover:text-on-surface cursor-pointer transition-colors">Run: alpha-8812</span>
+<span class="material-symbols-outlined text-sm">chevron_right</span>
+<span class="text-on-surface font-label text-xs bg-surface-variant px-1.5 py-0.5 rounded border border-outline-variant">tr_4k2l</span>
+</div>
+<div class="flex items-center gap-4">
+<div class="flex items-center gap-1.5 px-2 py-1 bg-error-container/20 border border-error-container rounded text-error-dim font-label text-[10px] uppercase tracking-wider">
+<span class="material-symbols-outlined text-[14px]">warning</span>
+                triage: 1 of 12 disagreements
+            </div>
+<div class="flex items-center gap-3 text-on-surface-variant">
+<button class="scale-95 active:scale-90 hover:text-on-surface transition-all">
+<span class="material-symbols-outlined text-lg">notifications</span>
+</button>
+<button class="scale-95 active:scale-90 hover:text-on-surface transition-all">
+<span class="material-symbols-outlined text-lg">help_outline</span>
+</button>
+<button class="scale-95 active:scale-90 hover:text-on-surface transition-all">
+<span class="material-symbols-outlined text-lg">account_circle</span>
+</button>
+</div>
+</div>
+</header>
+<!-- SideNavBar -->
+<nav class="h-screen w-64 fixed left-0 top-0 border-r border-outline-variant bg-surface-container-low flex flex-col py-4 z-50">
+<!-- Header -->
+<div class="px-4 mb-6">
+<div class="flex items-center gap-3 mb-4">
+<div class="w-8 h-8 rounded bg-primary-container text-on-primary-container flex items-center justify-center font-headline font-bold">
+                    E
+                </div>
+<div>
+<h1 class="font-headline text-sm font-bold text-on-surface leading-tight">eval-workbench-v1</h1>
+<p class="font-label text-[10px] text-on-surface-variant leading-tight mt-0.5">main:refund_bot</p>
+</div>
+</div>
+</div>
+<!-- Main Tabs -->
+<div class="flex-1 overflow-y-auto px-2 space-y-1 font-body text-sm font-medium tracking-tight">
+<a class="flex items-center gap-3 px-3 py-2 rounded text-on-surface-variant hover:bg-surface-variant transition-colors opacity-90 transition-all duration-100" href="#">
+<span class="material-symbols-outlined text-[18px]">smart_toy</span>
+                Agents
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 rounded text-on-surface-variant hover:bg-surface-variant transition-colors opacity-90 transition-all duration-100" href="#">
+<span class="material-symbols-outlined text-[18px]">history_toggle_off</span>
+                Snapshots
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 rounded text-on-surface-variant hover:bg-surface-variant transition-colors opacity-90 transition-all duration-100" href="#">
+<span class="material-symbols-outlined text-[18px]">fact_check</span>
+                Cases
+            </a>
+<!-- Active Tab -->
+<a class="flex items-center gap-3 px-3 py-2 rounded bg-secondary-container text-on-secondary-container border-l-2 border-primary-fixed opacity-90 transition-all duration-100" href="#">
+<span class="material-symbols-outlined text-[18px]" style="font-variation-settings: 'FILL' 1;">play_circle</span>
+                Runs
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 rounded text-on-surface-variant hover:bg-surface-variant transition-colors opacity-90 transition-all duration-100" href="#">
+<span class="material-symbols-outlined text-[18px]">rocket_launch</span>
+                Campaigns
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 rounded text-on-surface-variant hover:bg-surface-variant transition-colors opacity-90 transition-all duration-100" href="#">
+<span class="material-symbols-outlined text-[18px]">compare_arrows</span>
+                Compare
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 rounded text-on-surface-variant hover:bg-surface-variant transition-colors opacity-90 transition-all duration-100" href="#">
+<span class="material-symbols-outlined text-[18px]">inventory_2</span>
+                Registries
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 rounded text-on-surface-variant hover:bg-surface-variant transition-colors opacity-90 transition-all duration-100" href="#">
+<span class="material-symbols-outlined text-[18px]">chat_bubble</span>
+                Chat
+            </a>
+</div>
+<!-- Footer Tabs -->
+<div class="px-2 mt-auto space-y-1 font-body text-sm font-medium tracking-tight border-t border-outline-variant pt-2">
+<a class="flex items-center gap-3 px-3 py-2 rounded text-on-surface-variant hover:bg-surface-variant transition-colors opacity-90 transition-all duration-100" href="#">
+<span class="material-symbols-outlined text-[18px]">settings</span>
+                Settings
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 rounded text-on-surface-variant hover:bg-surface-variant transition-colors opacity-90 transition-all duration-100" href="#">
+<span class="material-symbols-outlined text-[18px]">menu_book</span>
+                Docs
+            </a>
+</div>
+</nav>
+<!-- Main Content Area -->
+<main class="ml-64 mt-12 h-[calc(100vh-3rem)] flex w-full">
+<!-- Left Pane: Trace Viewer (55%) -->
+<div class="w-[55%] h-full border-r border-outline-variant flex flex-col bg-surface-dim">
+<!-- Case Context Card -->
+<div class="p-4 border-b border-outline-variant bg-surface">
+<div class="flex items-start justify-between">
+<div>
+<div class="flex items-center gap-2 mb-1">
+<span class="material-symbols-outlined text-sm text-on-surface-variant">subject</span>
+<h2 class="font-headline text-sm font-bold text-on-surface">Case Context</h2>
+</div>
+<p class="font-body text-sm text-on-surface-variant">Intent: Process refund for order #8812</p>
+</div>
+<div class="flex flex-col items-end gap-1">
+<span class="font-label text-xs text-on-surface-variant">latency: 840ms</span>
+<span class="font-label text-xs text-on-surface-variant">tokens: 142 i / 48 o</span>
+</div>
+</div>
+</div>
+<!-- Trace Canvas -->
+<div class="flex-1 overflow-y-auto p-4 space-y-4">
+<!-- User Message -->
+<div class="flex flex-col max-w-[85%] mr-auto gap-1">
+<div class="flex items-center gap-2 ml-1">
+<span class="material-symbols-outlined text-[14px] text-on-surface-variant">person</span>
+<span class="font-label text-[10px] text-on-surface-variant uppercase tracking-wider">User</span>
+</div>
+<div class="bg-surface-container border border-outline-variant rounded-lg rounded-tl-sm p-3 text-sm text-on-surface">
+                        Hi, I need a refund for my last order. The item arrived broken.
+                    </div>
+</div>
+<!-- Tool Call -->
+<div class="flex flex-col w-full gap-1 my-2 pl-6 border-l-2 border-primary-fixed/30">
+<div class="flex items-center gap-2 ml-1">
+<span class="material-symbols-outlined text-[14px] text-primary-fixed">code_blocks</span>
+<span class="font-label text-[10px] text-primary-fixed uppercase tracking-wider">Tool Call: lookup_order</span>
+</div>
+<div class="bg-surface border border-outline-variant rounded-lg p-2 font-label text-xs text-on-surface-variant overflow-x-auto">
+                        {"customer_id": "auto", "recent": true}
+                    </div>
+</div>
+<!-- Tool Response -->
+<div class="flex flex-col w-full gap-1 my-2 pl-6 border-l-2 border-secondary-fixed/30">
+<div class="flex items-center gap-2 ml-1">
+<span class="material-symbols-outlined text-[14px] text-secondary-fixed">data_object</span>
+<span class="font-label text-[10px] text-secondary-fixed uppercase tracking-wider">Tool Response</span>
+</div>
+<div class="bg-surface-container-low border border-outline-variant rounded-lg p-2 font-label text-xs text-on-surface-variant overflow-x-auto">
+                        {"order_id": "8812", "status": "delivered", "eligible_for_refund": true}
+                    </div>
+</div>
+<!-- Assistant Message -->
+<div class="flex flex-col max-w-[85%] ml-auto gap-1">
+<div class="flex items-center justify-end gap-2 mr-1">
+<span class="font-label text-[10px] text-primary-dim uppercase tracking-wider">refund_bot</span>
+<span class="material-symbols-outlined text-[14px] text-primary-dim">smart_toy</span>
+</div>
+<div class="bg-primary-container/10 border border-primary-dim/30 rounded-lg rounded-tr-sm p-3 text-sm text-on-surface">
+                        I'm sorry to hear that your item arrived broken. I have located your recent order (#8812). I can process a full refund for you right now. Would you prefer the refund to your original payment method or as store credit?
+                    </div>
+</div>
+</div>
+</div>
+<!-- Right Pane: Human Scoring Panel (45%) -->
+<div class="w-[45%] h-full flex flex-col bg-surface-container-lowest">
+<div class="p-5 border-b border-outline-variant flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-on-surface-variant">fact_check</span>
+<h2 class="font-headline text-base font-bold text-on-surface">Apply rubric: refund_quality v3</h2>
+</div>
+</div>
+<div class="flex-1 overflow-y-auto p-5 space-y-6">
+<!-- Scoring Items -->
+<div class="space-y-6 bg-surface-container p-4 rounded-lg border border-outline-variant">
+<!-- 1. Cite Window (Bool) -->
+<div class="flex items-center justify-between">
+<div>
+<span class="font-body text-sm font-medium text-on-surface block">Cite Window</span>
+<span class="font-label text-xs text-on-surface-variant">Did it mention the correct order ID?</span>
+</div>
+<div class="flex items-center bg-surface border border-outline-variant rounded p-1">
+<button class="px-3 py-1 rounded-sm text-sm font-medium bg-surface-variant text-on-surface transition-colors">Pass</button>
+<button class="px-3 py-1 rounded-sm text-sm font-medium text-on-surface-variant hover:text-on-surface transition-colors">Fail</button>
+</div>
+</div>
+<!-- 2. Tone Check (Enum) -->
+<div>
+<div class="mb-2">
+<span class="font-body text-sm font-medium text-on-surface block">Tone Check</span>
+<span class="font-label text-xs text-on-surface-variant">Agent demeanor</span>
+</div>
+<div class="flex grid grid-cols-3 gap-2 bg-surface border border-outline-variant p-1 rounded">
+<button class="px-3 py-1.5 rounded-sm text-sm font-medium bg-surface-variant text-on-surface border border-outline-variant text-center transition-colors">polite</button>
+<button class="px-3 py-1.5 rounded-sm text-sm font-medium text-on-surface-variant hover:bg-surface-variant/50 text-center transition-colors">neutral</button>
+<button class="px-3 py-1.5 rounded-sm text-sm font-medium text-on-surface-variant hover:bg-surface-variant/50 text-center transition-colors">curt</button>
+</div>
+</div>
+<!-- 3. Latency Score (Int) -->
+<div class="flex items-center justify-between">
+<div>
+<span class="font-body text-sm font-medium text-on-surface block">Latency Score</span>
+<span class="font-label text-xs text-on-surface-variant">1-5 (5 = fastest)</span>
+</div>
+<input class="w-16 bg-surface border border-outline-variant rounded px-2 py-1.5 text-center font-label text-sm text-on-surface focus:outline-none focus:border-primary-fixed focus:ring-1 focus:ring-primary-fixed transition-all" max="5" min="1" type="number" value="4"/>
+</div>
+</div>
+<!-- Agreement Card -->
+<div class="bg-surface p-4 rounded-lg border border-outline-variant relative overflow-hidden">
+<div class="absolute top-0 right-0 w-2 h-full bg-error-dim/80"></div>
+<h3 class="font-headline text-sm font-bold text-on-surface mb-3 flex items-center gap-2">
+<span class="material-symbols-outlined text-sm">balance</span>
+                        LLM vs Human Agreement
+                    </h3>
+<div class="grid grid-cols-2 gap-4">
+<div class="flex items-center gap-3">
+<!-- Matrix Icon Mock -->
+<div class="grid grid-cols-2 gap-[1px] bg-outline-variant p-[1px] rounded-sm w-8 h-8">
+<div class="bg-surface-container-highest rounded-tl-sm"></div>
+<div class="bg-error-dim/40"></div>
+<div class="bg-error-dim/40"></div>
+<div class="bg-surface-container-highest rounded-br-sm"></div>
+</div>
+<div class="flex flex-col">
+<span class="font-label text-xs text-on-surface-variant">Cohen's Kappa</span>
+<span class="font-label text-sm text-on-surface font-bold">κ=0.62</span>
+</div>
+</div>
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-on-surface-variant text-2xl">scatter_plot</span>
+<div class="flex flex-col">
+<span class="font-label text-xs text-on-surface-variant">Correlation</span>
+<span class="font-label text-sm text-on-surface font-bold">r=0.81</span>
+</div>
+</div>
+</div>
+<div class="mt-3 text-xs font-body text-error-dim flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">warning</span>
+                        Model scored 'Fail' on Cite Window; Human scored 'Pass'.
+                    </div>
+</div>
+</div>
+<!-- Footer / Submit -->
+<div class="p-5 border-t border-outline-variant bg-surface-container-low mt-auto">
+<textarea class="w-full bg-surface border border-outline-variant rounded-lg p-3 text-sm text-on-surface font-body placeholder-on-surface-variant/50 focus:outline-none focus:border-primary-fixed focus:ring-1 focus:ring-primary-fixed transition-all mb-4 resize-none h-20" placeholder="Add comments to justify score (optional)..."></textarea>
+<button class="w-full bg-primary-fixed text-on-primary-fixed font-headline font-bold text-sm py-2.5 rounded-lg hover:bg-primary-dim transition-colors flex items-center justify-center gap-2">
+                    Submit human eval
+                    <span class="material-symbols-outlined text-sm">send</span>
+</button>
+</div>
+</div>
+</main>
+</body></html>

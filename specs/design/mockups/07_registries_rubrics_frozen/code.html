@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Rubrics Registry - Lab Instrument</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;family=Space+Grotesk:wght@500;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "surface-variant": "#212630",
+                      "outline": "#717582",
+                      "surface-dim": "#0c0e13",
+                      "on-background": "#e2e5f3",
+                      "error": "#f97386",
+                      "inverse-surface": "#f9f9ff",
+                      "surface-container-lowest": "#000000",
+                      "surface-container-highest": "#212630",
+                      "surface-container": "#161921",
+                      "error-dim": "#c44b5f",
+                      "on-primary": "#4100c5",
+                      "on-surface": "#e2e5f3",
+                      "primary-dim": "#7757fa",
+                      "primary-container": "#542bd6",
+                      "on-tertiary-fixed": "#000000",
+                      "on-secondary-fixed": "#37404e",
+                      "on-secondary-fixed-variant": "#535c6b",
+                      "surface-bright": "#282c37",
+                      "surface-tint": "#cabeff",
+                      "on-secondary": "#38414f",
+                      "on-tertiary-container": "#48001b",
+                      "tertiary-fixed-dim": "#eb6287",
+                      "secondary-fixed": "#dae3f5",
+                      "secondary": "#bec7d8",
+                      "primary": "#cabeff",
+                      "on-error-container": "#ff97a3",
+                      "secondary-fixed-dim": "#ccd5e6",
+                      "tertiary": "#ff85a2",
+                      "tertiary-container": "#fc6e93",
+                      "surface-container-high": "#1c2028",
+                      "surface-container-low": "#11131a",
+                      "on-tertiary": "#5e0026",
+                      "primary-fixed": "#7c5cff",
+                      "error-container": "#871c34",
+                      "on-secondary-container": "#b7c0d1",
+                      "secondary-container": "#333c4a",
+                      "on-surface-variant": "#a7abb8",
+                      "tertiary-dim": "#fc6e93",
+                      "on-tertiary-fixed-variant": "#5a0023",
+                      "outline-variant": "#444853",
+                      "surface": "#0c0e13",
+                      "secondary-dim": "#b0b9ca",
+                      "background": "#0c0e13",
+                      "inverse-on-surface": "#53555b",
+                      "tertiary-fixed": "#fc6e93",
+                      "inverse-primary": "#613de3",
+                      "on-primary-fixed": "#ffffff",
+                      "on-primary-container": "#e7dfff",
+                      "on-primary-fixed-variant": "#f4edff",
+                      "on-error": "#490013",
+                      "primary-fixed-dim": "#704ef2"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "spacing": {},
+              "fontFamily": {
+                      "headline": [
+                              "Space Grotesk"
+                      ],
+                      "display": [
+                              "Space Grotesk"
+                      ],
+                      "body": [
+                              "Inter"
+                      ],
+                      "label": [
+                              "JetBrains Mono"
+                      ]
+              },
+              "fontSize": {}
+            },
+          },
+        }
+      </script>
+</head>
+<body class="bg-background text-on-surface h-screen w-full overflow-hidden flex font-body antialiased selection:bg-primary-container selection:text-on-primary-container">
+<!-- SideNavBar (Shared Component) -->
+<nav class="bg-surface-container-low dark:bg-surface-container-low text-primary dark:text-primary font-body text-label-sm tracking-tight h-screen w-64 flex-shrink-0 border-r border-outline-variant flex flex-col py-4 z-20">
+<!-- Header -->
+<div class="px-6 mb-8 flex flex-col gap-1">
+<h1 class="font-headline text-lg font-bold text-on-surface">Lab Instrument</h1>
+<div class="flex items-center gap-2 text-on-surface-variant">
+<span class="material-symbols-outlined text-[16px]">switch_account</span>
+<span class="font-label text-xs">AgentTarget Switcher</span>
+<span class="ml-auto font-label text-[10px] bg-surface-variant px-1.5 rounded text-on-surface">v1.0.4-stable</span>
+</div>
+</div>
+<!-- Main Nav -->
+<div class="flex-1 overflow-y-auto px-3 space-y-1">
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-on-surface-variant hover:bg-surface-variant hover:text-on-surface transition-colors duration-150 ease-in-out active:scale-[0.98] group" href="#">
+<span class="material-symbols-outlined text-[20px] group-hover:text-primary-dim transition-colors">smart_toy</span>
+<span>Agents</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-on-surface-variant hover:bg-surface-variant hover:text-on-surface transition-colors duration-150 ease-in-out active:scale-[0.98] group" href="#">
+<span class="material-symbols-outlined text-[20px] group-hover:text-primary-dim transition-colors">history</span>
+<span>Snapshots</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-on-surface-variant hover:bg-surface-variant hover:text-on-surface transition-colors duration-150 ease-in-out active:scale-[0.98] group" href="#">
+<span class="material-symbols-outlined text-[20px] group-hover:text-primary-dim transition-colors">assignment</span>
+<span>Cases</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-on-surface-variant hover:bg-surface-variant hover:text-on-surface transition-colors duration-150 ease-in-out active:scale-[0.98] group" href="#">
+<span class="material-symbols-outlined text-[20px] group-hover:text-primary-dim transition-colors">play_circle</span>
+<span>Runs</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-on-surface-variant hover:bg-surface-variant hover:text-on-surface transition-colors duration-150 ease-in-out active:scale-[0.98] group" href="#">
+<span class="material-symbols-outlined text-[20px] group-hover:text-primary-dim transition-colors">rocket_launch</span>
+<span>Campaigns</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-on-surface-variant hover:bg-surface-variant hover:text-on-surface transition-colors duration-150 ease-in-out active:scale-[0.98] group" href="#">
+<span class="material-symbols-outlined text-[20px] group-hover:text-primary-dim transition-colors">difference</span>
+<span>Compare</span>
+</a>
+<!-- Active Tab -->
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg bg-secondary-container text-on-secondary-container border-r-2 border-primary active:scale-[0.98] group" href="#">
+<span class="material-symbols-outlined text-[20px] text-primary transition-colors">inventory_2</span>
+<span class="font-medium">Registries</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-on-surface-variant hover:bg-surface-variant hover:text-on-surface transition-colors duration-150 ease-in-out active:scale-[0.98] group" href="#">
+<span class="material-symbols-outlined text-[20px] group-hover:text-primary-dim transition-colors">forum</span>
+<span>Chat</span>
+</a>
+</div>
+<!-- Footer Nav -->
+<div class="px-3 mt-auto pt-4 border-t border-outline-variant space-y-1">
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-on-surface-variant hover:bg-surface-variant hover:text-on-surface transition-colors duration-150 ease-in-out active:scale-[0.98] group" href="#">
+<span class="material-symbols-outlined text-[20px] group-hover:text-primary-dim transition-colors">settings</span>
+<span>Settings</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-on-surface-variant hover:bg-surface-variant hover:text-on-surface transition-colors duration-150 ease-in-out active:scale-[0.98] group" href="#">
+<span class="material-symbols-outlined text-[20px] group-hover:text-primary-dim transition-colors">help</span>
+<span>Support</span>
+</a>
+</div>
+</nav>
+<!-- Main Content Area -->
+<main class="flex-1 flex flex-col h-screen min-w-0 bg-surface">
+<!-- TopNavBar (Shared Component) -->
+<header class="bg-surface dark:bg-surface text-primary-dim dark:text-primary-dim font-body text-sm font-medium w-full h-12 border-b border-outline-variant sticky top-0 z-50 flex items-center justify-between px-6">
+<div class="flex items-center gap-8 h-full">
+<h2 class="font-headline text-xl font-bold text-on-surface">Registries</h2>
+<!-- Navigation Links -->
+<nav class="flex items-center h-full gap-6">
+<a class="text-on-surface-variant hover:text-on-surface transition-all cursor-pointer h-full flex items-center" href="#">Tags</a>
+<a class="text-on-surface-variant hover:text-on-surface transition-all cursor-pointer h-full flex items-center" href="#">Metrics</a>
+<!-- Active Link -->
+<a class="text-primary border-b-2 border-primary pb-[11px] h-full flex items-center mt-[11px]" href="#">Rubrics</a>
+<a class="text-on-surface-variant hover:text-on-surface transition-all cursor-pointer h-full flex items-center" href="#">Extractors</a>
+</nav>
+</div>
+<!-- Search and Actions -->
+<div class="flex items-center gap-4">
+<div class="relative hidden lg:block">
+<span class="material-symbols-outlined absolute left-2 top-1/2 -translate-y-1/2 text-[18px] text-outline">search</span>
+<input class="bg-surface-container border border-outline-variant rounded-md py-1 pl-8 pr-3 text-sm text-on-surface placeholder:text-outline focus:ring-1 focus:ring-primary focus:border-primary w-48 transition-all" placeholder="Search registries..." type="text"/>
+</div>
+<button class="text-on-surface-variant hover:text-on-surface transition-all cursor-pointer">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="text-on-surface-variant hover:text-on-surface transition-all cursor-pointer">
+<span class="material-symbols-outlined">account_circle</span>
+</button>
+</div>
+</header>
+<!-- Split Workspace -->
+<div class="flex-1 flex overflow-hidden">
+<!-- Left Panel: Rubrics List -->
+<aside class="w-72 flex-shrink-0 border-r border-outline-variant bg-surface-container-low flex flex-col h-full overflow-y-auto">
+<div class="px-4 py-3 border-b border-outline-variant flex justify-between items-center sticky top-0 bg-surface-container-low z-10">
+<h3 class="font-headline text-sm font-bold text-on-surface">Rubrics (12)</h3>
+<button class="p-1 hover:bg-surface-variant rounded text-on-surface-variant transition-colors" title="New Rubric">
+<span class="material-symbols-outlined text-[18px]">add</span>
+</button>
+</div>
+<div class="flex flex-col p-2 gap-1">
+<!-- Selected Item -->
+<div class="flex items-center justify-between p-3 rounded-md bg-secondary-container border border-outline-variant cursor-pointer group">
+<div class="flex items-center gap-3 overflow-hidden">
+<span class="material-symbols-outlined text-[16px] text-primary-dim">lock</span>
+<div class="flex flex-col overflow-hidden">
+<span class="text-sm font-medium text-on-secondary-container truncate">refund_quality</span>
+<span class="font-label text-xs text-on-surface-variant">v3</span>
+</div>
+</div>
+</div>
+<!-- Other Items -->
+<div class="flex items-center justify-between p-3 rounded-md hover:bg-surface-variant border border-transparent cursor-pointer group transition-colors">
+<div class="flex items-center gap-3 overflow-hidden">
+<span class="material-symbols-outlined text-[16px] text-outline group-hover:text-on-surface-variant transition-colors">edit_document</span>
+<div class="flex flex-col overflow-hidden">
+<span class="text-sm font-medium text-on-surface truncate group-hover:text-white transition-colors">toxicity_check</span>
+<span class="font-label text-xs text-on-surface-variant">v1</span>
+</div>
+</div>
+</div>
+<div class="flex items-center justify-between p-3 rounded-md hover:bg-surface-variant border border-transparent cursor-pointer group transition-colors">
+<div class="flex items-center gap-3 overflow-hidden">
+<span class="material-symbols-outlined text-[16px] text-primary-dim">lock</span>
+<div class="flex flex-col overflow-hidden">
+<span class="text-sm font-medium text-on-surface truncate group-hover:text-white transition-colors">intent_alignment</span>
+<span class="font-label text-xs text-on-surface-variant">v2</span>
+</div>
+</div>
+</div>
+<div class="flex items-center justify-between p-3 rounded-md hover:bg-surface-variant border border-transparent cursor-pointer group transition-colors">
+<div class="flex items-center gap-3 overflow-hidden">
+<span class="material-symbols-outlined text-[16px] text-outline group-hover:text-on-surface-variant transition-colors">edit_document</span>
+<div class="flex flex-col overflow-hidden">
+<span class="text-sm font-medium text-on-surface truncate group-hover:text-white transition-colors">hallucination_eval</span>
+<span class="font-label text-xs text-on-surface-variant">v4-draft</span>
+</div>
+</div>
+</div>
+</div>
+</aside>
+<!-- Right Panel: Rubric Editor (FROZEN state) -->
+<section class="flex-1 flex flex-col h-full bg-surface-dim overflow-y-auto relative">
+<!-- Top Warning Banner -->
+<div class="bg-error-container text-on-error-container px-6 py-3 border-b border-error/30 flex items-center justify-between sticky top-0 z-10">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-[20px] text-tertiary-dim">ac_unit</span>
+<div class="flex items-center gap-2">
+<span class="font-label text-xs font-bold tracking-wider uppercase text-tertiary">FROZEN</span>
+<span class="text-sm border-l border-error/20 pl-2 ml-1">This rubric has scored traces and is immutable.</span>
+</div>
+</div>
+<button class="bg-primary-container hover:bg-primary-fixed text-on-primary-container px-4 py-1.5 rounded text-sm font-medium transition-colors flex items-center gap-2 shadow-sm border border-primary/20">
+<span class="material-symbols-outlined text-[16px]">call_split</span>
+                        Create new version (v4)
+                    </button>
+</div>
+<!-- Editor Content Wrapper -->
+<div class="p-6 md:p-8 max-w-5xl mx-auto w-full space-y-8 flex-1">
+<!-- Header/Metadata -->
+<div class="bg-surface-container rounded-lg border border-outline-variant p-6 space-y-6 shadow-sm">
+<div class="flex gap-6">
+<div class="flex-1 space-y-2">
+<label class="font-label text-xs text-outline uppercase tracking-wider">Name</label>
+<input class="w-full bg-surface-variant border border-outline-variant/50 rounded-md py-2 px-3 text-on-surface font-label text-sm disabled:opacity-70 cursor-not-allowed" disabled="" type="text" value="refund_quality"/>
+</div>
+<div class="w-32 space-y-2">
+<label class="font-label text-xs text-outline uppercase tracking-wider">Version</label>
+<input class="w-full bg-surface-variant border border-outline-variant/50 rounded-md py-2 px-3 text-on-surface font-label text-sm disabled:opacity-70 cursor-not-allowed" disabled="" type="text" value="v3"/>
+</div>
+</div>
+<div class="space-y-2">
+<label class="font-label text-xs text-outline uppercase tracking-wider">Description</label>
+<textarea class="w-full bg-surface-variant border border-outline-variant/50 rounded-md py-2 px-3 text-on-surface text-sm disabled:opacity-70 cursor-not-allowed resize-none" disabled="" rows="2">Evaluates agents on handling refund requests according to policy window and maintaining appropriate customer service tone.</textarea>
+</div>
+</div>
+<!-- Items Table -->
+<div class="space-y-4">
+<h3 class="font-headline text-lg font-bold text-on-surface border-b border-outline-variant pb-2">Scoring Items</h3>
+<div class="bg-surface-container rounded-lg border border-outline-variant overflow-hidden shadow-sm">
+<table class="w-full text-left text-sm">
+<thead class="bg-surface-variant border-b border-outline-variant text-on-surface-variant font-label text-xs uppercase tracking-wider">
+<tr>
+<th class="px-4 py-3 w-1/4">Item Name</th>
+<th class="px-4 py-3 w-1/6">Type</th>
+<th class="px-4 py-3">Prompt / Description</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant text-on-surface">
+<!-- Row 1 -->
+<tr class="hover:bg-surface-variant/30 transition-colors">
+<td class="px-4 py-3 font-medium">Cite Window</td>
+<td class="px-4 py-3">
+<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-label bg-secondary-container text-secondary border border-outline-variant">bool</span>
+</td>
+<td class="px-4 py-3 text-on-surface-variant">Did the reply cite the refund window?</td>
+</tr>
+<!-- Row 2 -->
+<tr class="hover:bg-surface-variant/30 transition-colors">
+<td class="px-4 py-3 font-medium align-top">Tone Check</td>
+<td class="px-4 py-3 align-top">
+<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-label bg-primary-container/20 text-primary border border-primary/30">enum</span>
+</td>
+<td class="px-4 py-3 text-on-surface-variant">
+<div class="mb-2">Rate the tone.</div>
+<div class="flex gap-2 flex-wrap">
+<span class="px-2 py-1 bg-surface-variant border border-outline-variant rounded text-xs font-label">polite</span>
+<span class="px-2 py-1 bg-surface-variant border border-outline-variant rounded text-xs font-label">neutral</span>
+<span class="px-2 py-1 bg-surface-variant border border-outline-variant rounded text-xs font-label">curt</span>
+</div>
+</td>
+</tr>
+<!-- Row 3 -->
+<tr class="hover:bg-surface-variant/30 transition-colors">
+<td class="px-4 py-3 font-medium">Latency Score</td>
+<td class="px-4 py-3">
+<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-label bg-tertiary-container/20 text-tertiary border border-tertiary/30">int</span>
+</td>
+<td class="px-4 py-3 text-on-surface-variant">Milliseconds for first token</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<!-- Judge Prompt Config -->
+<div class="space-y-4">
+<h3 class="font-headline text-lg font-bold text-on-surface border-b border-outline-variant pb-2">Judge Configuration</h3>
+<div class="bg-surface-container rounded-lg border border-outline-variant p-1 shadow-sm">
+<div class="bg-surface-variant/50 px-4 py-2 border-b border-outline-variant flex justify-between items-center">
+<span class="font-label text-xs text-outline uppercase">System Instruction</span>
+<span class="material-symbols-outlined text-[16px] text-outline">content_copy</span>
+</div>
+<div class="p-4 font-label text-sm text-secondary leading-relaxed bg-[#0d1017] overflow-x-auto">
+<pre class="m-0"><code>You are an impartial evaluator assessing customer service interactions.
+Analyze the provided trace and assign values for the defined scoring items.
+Adhere strictly to the requested types (bool, enum, int).
+
+Constraints:
+- Tone must be one of: [polite, neutral, curt].
+- Latency is extracted directly from trace metadata if available.</code></pre>
+</div>
+</div>
+</div>
+<!-- Footer Metadata -->
+<div class="pt-6 mt-8 border-t border-outline-variant flex items-center justify-between pb-12">
+<div class="flex gap-2">
+<span class="px-2.5 py-1 bg-surface-variant rounded-full text-xs text-on-surface-variant border border-outline-variant flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">sell</span>refunds</span>
+<span class="px-2.5 py-1 bg-surface-variant rounded-full text-xs text-on-surface-variant border border-outline-variant flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">sell</span>customer-service</span>
+<span class="px-2.5 py-1 bg-surface-variant rounded-full text-xs text-on-surface-variant border border-outline-variant flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">sell</span>v3-stable</span>
+</div>
+<div class="font-label text-xs text-outline flex items-center gap-2">
+<span class="material-symbols-outlined text-[16px]">info</span>
+                             consumes_two_traces: <span class="text-tertiary">false</span>
+</div>
+</div>
+</div>
+</section>
+</div>
+</main>
+</body></html>

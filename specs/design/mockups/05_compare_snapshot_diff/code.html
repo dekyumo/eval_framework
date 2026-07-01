@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Compare - eval-workbench-v1</title>
+<!-- Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500;700&amp;family=Space+Grotesk:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Tailwind Config -->
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "surface-variant": "#212630",
+                        "tertiary": "#ff85a2",
+                        "primary-fixed": "#7c5cff",
+                        "tertiary-fixed": "#fc6e93",
+                        "surface-container-high": "#1c2028",
+                        "surface": "#0c0e13",
+                        "on-surface": "#e2e5f3",
+                        "surface-container-low": "#11131a",
+                        "on-background": "#e2e5f3",
+                        "on-surface-variant": "#a7abb8",
+                        "on-secondary": "#38414f",
+                        "secondary-container": "#333c4a",
+                        "surface-bright": "#282c37",
+                        "error-container": "#871c34",
+                        "surface-container-highest": "#212630",
+                        "primary-container": "#542bd6",
+                        "on-secondary-fixed": "#37404e",
+                        "tertiary-fixed-dim": "#eb6287",
+                        "primary-fixed-dim": "#704ef2",
+                        "on-error": "#490013",
+                        "background": "#0c0e13",
+                        "secondary": "#bec7d8",
+                        "secondary-dim": "#b0b9ca",
+                        "inverse-primary": "#613de3",
+                        "outline-variant": "#444853",
+                        "primary-dim": "#7757fa",
+                        "on-secondary-fixed-variant": "#535c6b",
+                        "inverse-surface": "#f9f9ff",
+                        "on-primary-fixed-variant": "#f4edff",
+                        "on-primary": "#4100c5",
+                        "tertiary-container": "#fc6e93",
+                        "on-secondary-container": "#b7c0d1",
+                        "secondary-fixed-dim": "#ccd5e6",
+                        "on-primary-container": "#e7dfff",
+                        "error": "#f97386",
+                        "inverse-on-surface": "#53555b",
+                        "surface-container-lowest": "#000000",
+                        "on-error-container": "#ff97a3",
+                        "secondary-fixed": "#dae3f5",
+                        "surface-tint": "#cabeff",
+                        "on-tertiary-container": "#48001b",
+                        "outline": "#717582",
+                        "on-tertiary-fixed": "#000000",
+                        "tertiary-dim": "#fc6e93",
+                        "on-primary-fixed": "#ffffff",
+                        "surface-dim": "#0c0e13",
+                        "on-tertiary": "#5e0026",
+                        "error-dim": "#c44b5f",
+                        "surface-container": "#161921",
+                        "primary": "#cabeff",
+                        "on-tertiary-fixed-variant": "#5a0023"
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    fontFamily: {
+                        "headline": ["Space Grotesk", "sans-serif"],
+                        "display": ["Space Grotesk", "sans-serif"],
+                        "body": ["Inter", "sans-serif"],
+                        "label": ["JetBrains Mono", "monospace"]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        /* Custom scrollbar for data-dense feel */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0c0e13; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #333c4a; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #444853; 
+        }
+    </style>
+</head>
+<body class="bg-surface text-on-surface font-body h-screen w-screen overflow-hidden flex">
+<!-- SideNavBar -->
+<nav class="bg-surface-container-low dark:bg-surface-container-low text-primary-fixed dark:text-primary-fixed-dim font-body text-sm font-medium tracking-tight h-screen w-64 fixed left-0 top-0 border-r border-outline-variant dark:border-outline-variant z-40 flex flex-col h-full py-4">
+<div class="px-6 mb-8 mt-2 flex items-center gap-3">
+<div class="w-8 h-8 rounded bg-surface-variant flex items-center justify-center border border-outline-variant shrink-0 text-on-surface">
+<span class="material-symbols-outlined text-xl">target</span>
+</div>
+<div class="flex flex-col overflow-hidden">
+<span class="font-headline text-lg font-bold text-on-surface dark:text-on-surface truncate leading-tight">eval-workbench-v1</span>
+<span class="font-label text-[10px] text-on-surface-variant uppercase tracking-wider truncate">main:agent-alpha-4</span>
+</div>
+</div>
+<div class="flex-1 overflow-y-auto px-3 space-y-1">
+<!-- Agents -->
+<a class="flex items-center gap-3 px-3 py-2 rounded text-on-surface-variant dark:text-on-surface-variant hover:bg-surface-variant dark:hover:bg-surface-variant transition-colors group" href="#">
+<span class="material-symbols-outlined text-lg opacity-70 group-hover:opacity-100 transition-opacity">smart_toy</span>
+<span>Agents</span>
+</a>
+<!-- Snapshots -->
+<a class="flex items-center gap-3 px-3 py-2 rounded text-on-surface-variant dark:text-on-surface-variant hover:bg-surface-variant dark:hover:bg-surface-variant transition-colors group" href="#">
+<span class="material-symbols-outlined text-lg opacity-70 group-hover:opacity-100 transition-opacity">history_toggle_off</span>
+<span>Snapshots</span>
+</a>
+<!-- Cases -->
+<a class="flex items-center gap-3 px-3 py-2 rounded text-on-surface-variant dark:text-on-surface-variant hover:bg-surface-variant dark:hover:bg-surface-variant transition-colors group" href="#">
+<span class="material-symbols-outlined text-lg opacity-70 group-hover:opacity-100 transition-opacity">fact_check</span>
+<span>Cases</span>
+</a>
+<!-- Runs -->
+<a class="flex items-center gap-3 px-3 py-2 rounded text-on-surface-variant dark:text-on-surface-variant hover:bg-surface-variant dark:hover:bg-surface-variant transition-colors group" href="#">
+<span class="material-symbols-outlined text-lg opacity-70 group-hover:opacity-100 transition-opacity">play_circle</span>
+<span>Runs</span>
+</a>
+<!-- Campaigns -->
+<a class="flex items-center gap-3 px-3 py-2 rounded text-on-surface-variant dark:text-on-surface-variant hover:bg-surface-variant dark:hover:bg-surface-variant transition-colors group" href="#">
+<span class="material-symbols-outlined text-lg opacity-70 group-hover:opacity-100 transition-opacity">rocket_launch</span>
+<span>Campaigns</span>
+</a>
+<!-- Compare (ACTIVE) -->
+<a class="flex items-center gap-3 px-3 py-2 rounded bg-secondary-container dark:bg-secondary-container text-on-secondary-container dark:text-on-secondary-container border-l-2 border-primary-fixed opacity-90 transition-all duration-100" href="#">
+<span class="material-symbols-outlined text-lg">compare_arrows</span>
+<span>Compare</span>
+</a>
+<!-- Registries -->
+<a class="flex items-center gap-3 px-3 py-2 rounded text-on-surface-variant dark:text-on-surface-variant hover:bg-surface-variant dark:hover:bg-surface-variant transition-colors group" href="#">
+<span class="material-symbols-outlined text-lg opacity-70 group-hover:opacity-100 transition-opacity">inventory_2</span>
+<span>Registries</span>
+</a>
+<!-- Chat -->
+<a class="flex items-center gap-3 px-3 py-2 rounded text-on-surface-variant dark:text-on-surface-variant hover:bg-surface-variant dark:hover:bg-surface-variant transition-colors group" href="#">
+<span class="material-symbols-outlined text-lg opacity-70 group-hover:opacity-100 transition-opacity">chat_bubble</span>
+<span>Chat</span>
+</a>
+</div>
+<div class="px-3 mt-auto space-y-1 pt-4 border-t border-outline-variant/50 mx-3">
+<a class="flex items-center gap-3 px-3 py-2 rounded text-on-surface-variant dark:text-on-surface-variant hover:bg-surface-variant dark:hover:bg-surface-variant transition-colors group" href="#">
+<span class="material-symbols-outlined text-lg opacity-70 group-hover:opacity-100 transition-opacity">settings</span>
+<span>Settings</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded text-on-surface-variant dark:text-on-surface-variant hover:bg-surface-variant dark:hover:bg-surface-variant transition-colors group" href="#">
+<span class="material-symbols-outlined text-lg opacity-70 group-hover:opacity-100 transition-opacity">menu_book</span>
+<span>Docs</span>
+</a>
+</div>
+</nav>
+<!-- TopNavBar -->
+<header class="bg-surface dark:bg-surface text-primary-fixed dark:text-primary-fixed-dim font-label text-xs uppercase tracking-widest fixed top-0 right-0 left-64 h-12 border-b border-outline-variant dark:border-outline-variant z-30 flex justify-between items-center px-6 w-[calc(100%-16rem)]">
+<div class="flex items-center gap-4">
+<span class="font-headline text-xl font-bold text-on-surface dark:text-on-surface normal-case tracking-normal">Agent Lab</span>
+<div class="h-4 w-px bg-outline-variant ml-2 mr-2"></div>
+<!-- Breadcrumbs in header area -->
+<div class="flex items-center text-on-surface-variant gap-2 text-[10px]">
+<a class="hover:text-on-surface transition-colors" href="#">Campaigns</a>
+<span class="material-symbols-outlined text-[14px]">chevron_right</span>
+<a class="hover:text-on-surface transition-colors" href="#">C-2024-Q3</a>
+<span class="material-symbols-outlined text-[14px]">chevron_right</span>
+<span class="text-on-surface font-semibold">Compare</span>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<button class="p-1.5 rounded-full text-on-surface-variant hover:text-on-surface dark:hover:text-on-surface hover:bg-surface-variant transition-colors scale-95 active:scale-90 flex items-center justify-center">
+<span class="material-symbols-outlined text-[20px]">notifications</span>
+</button>
+<button class="p-1.5 rounded-full text-on-surface-variant hover:text-on-surface dark:hover:text-on-surface hover:bg-surface-variant transition-colors scale-95 active:scale-90 flex items-center justify-center">
+<span class="material-symbols-outlined text-[20px]">help_outline</span>
+</button>
+<button class="p-1.5 rounded-full text-on-surface-variant hover:text-on-surface dark:hover:text-on-surface hover:bg-surface-variant transition-colors scale-95 active:scale-90 flex items-center justify-center ml-2 border border-outline-variant bg-surface-container-low">
+<span class="material-symbols-outlined text-[20px]">account_circle</span>
+</button>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="flex-1 ml-64 pt-12 pb-8 overflow-y-auto bg-surface relative">
+<div class="p-8 max-w-7xl mx-auto space-y-8">
+<!-- Snapshot Selectors -->
+<div class="grid grid-cols-2 gap-6">
+<!-- Base -->
+<div class="bg-surface-container border border-outline-variant rounded p-4 flex flex-col relative overflow-hidden">
+<div class="absolute top-0 left-0 w-1 h-full bg-secondary-dim"></div>
+<div class="flex justify-between items-start mb-2 pl-2">
+<span class="font-label text-xs text-on-surface-variant uppercase font-bold tracking-wider">Base Snapshot</span>
+<span class="font-label text-[10px] text-on-surface-variant flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">schedule</span> 2h ago</span>
+</div>
+<div class="flex items-baseline gap-3 pl-2">
+<span class="font-label text-lg text-on-surface">7a2f9d1</span>
+<span class="font-label text-xs px-2 py-0.5 rounded bg-surface-variant text-on-surface-variant border border-outline-variant flex items-center gap-1">
+<span class="material-symbols-outlined text-[12px]">call_split</span> main
+                        </span>
+</div>
+</div>
+<!-- Target -->
+<div class="bg-surface-container border border-outline-variant rounded p-4 flex flex-col relative overflow-hidden">
+<div class="absolute top-0 left-0 w-1 h-full bg-primary-fixed"></div>
+<div class="flex justify-between items-start mb-2 pl-2">
+<span class="font-label text-xs text-primary-fixed uppercase font-bold tracking-wider">Target Snapshot</span>
+<span class="font-label text-[10px] text-on-surface-variant flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">schedule</span> 14m ago</span>
+</div>
+<div class="flex items-baseline gap-3 pl-2">
+<span class="font-label text-lg text-on-surface">3c1e88b</span>
+<span class="font-label text-xs px-2 py-0.5 rounded bg-primary-fixed/10 text-primary-fixed border border-primary-fixed/30 flex items-center gap-1">
+<span class="material-symbols-outlined text-[12px]">call_split</span> feat/tool-refactor
+                        </span>
+</div>
+</div>
+</div>
+<!-- Validity Guard Banner -->
+<div class="bg-error-container/20 border border-error-container rounded p-3 flex items-start gap-3">
+<span class="material-symbols-outlined text-error mt-0.5">warning</span>
+<div class="flex flex-col">
+<span class="font-label text-xs text-error font-bold uppercase tracking-wider mb-1 flex items-center gap-2">
+                        Goodhart tripwire
+                        <span class="bg-error text-on-error px-1.5 py-0.5 rounded-sm text-[9px] leading-none">SOUL13</span>
+</span>
+<span class="text-sm text-on-surface">score up on judging split while human–LLM agreement down</span>
+</div>
+</div>
+<!-- Aggregate Diff Section -->
+<section class="bg-surface-container border border-outline-variant rounded flex flex-col">
+<div class="px-5 py-4 border-b border-outline-variant flex justify-between items-center bg-surface-container-low/50">
+<h2 class="font-headline text-lg font-semibold text-on-surface">Aggregate diff</h2>
+<span class="font-label text-[10px] text-on-surface-variant flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">tune</span> filter view
+                    </span>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left text-sm whitespace-nowrap">
+<thead class="font-label text-xs text-on-surface-variant bg-surface-variant/30 uppercase">
+<tr>
+<th class="px-5 py-3 font-medium">Metric</th>
+<th class="px-5 py-3 font-medium w-32">Base</th>
+<th class="px-5 py-3 font-medium w-32">Target</th>
+<th class="px-5 py-3 font-medium w-40">Delta</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant/50">
+<tr class="hover:bg-surface-variant/20 transition-colors">
+<td class="px-5 py-3 font-medium text-on-surface">Safety Guardrails</td>
+<td class="px-5 py-3 font-label">0.92</td>
+<td class="px-5 py-3 font-label">0.96</td>
+<td class="px-5 py-3 font-label text-emerald-400 flex items-center gap-1">
+<span class="material-symbols-outlined text-[16px]">arrow_upward</span> +0.04
+                                </td>
+</tr>
+<tr class="hover:bg-surface-variant/20 transition-colors bg-error-container/5">
+<td class="px-5 py-3 font-medium text-on-surface flex items-center gap-2">
+                                    Refund Accuracy
+                                    <span class="bg-error text-on-error font-label text-[9px] px-1.5 py-0.5 rounded-sm uppercase tracking-wider">Regression</span>
+</td>
+<td class="px-5 py-3 font-label">0.88</td>
+<td class="px-5 py-3 font-label text-error">0.76</td>
+<td class="px-5 py-3 font-label text-error flex items-center gap-1">
+<span class="material-symbols-outlined text-[16px]">arrow_downward</span> -0.12
+                                </td>
+</tr>
+<tr class="hover:bg-surface-variant/20 transition-colors">
+<td class="px-5 py-3 font-medium text-on-surface">Intent Classification</td>
+<td class="px-5 py-3 font-label">0.95</td>
+<td class="px-5 py-3 font-label">0.96</td>
+<td class="px-5 py-3 font-label text-emerald-400 flex items-center gap-1">
+<span class="material-symbols-outlined text-[16px]">arrow_upward</span> +0.01
+                                </td>
+</tr>
+<tr class="hover:bg-surface-variant/20 transition-colors bg-error-container/5">
+<td class="px-5 py-3 font-medium text-on-surface flex items-center gap-2">
+                                    Coherence
+                                    <span class="bg-error text-on-error font-label text-[9px] px-1.5 py-0.5 rounded-sm uppercase tracking-wider">Regression</span>
+</td>
+<td class="px-5 py-3 font-label">0.99</td>
+<td class="px-5 py-3 font-label text-error">0.95</td>
+<td class="px-5 py-3 font-label text-error flex items-center gap-1">
+<span class="material-symbols-outlined text-[16px]">arrow_downward</span> -0.04
+                                </td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="px-5 py-2 border-t border-outline-variant/50 bg-surface-container-lowest">
+<p class="font-label text-[10px] text-on-surface-variant">threshold comparison over stored aggregates</p>
+</div>
+</section>
+<!-- Semantic Diff Section -->
+<section class="space-y-4">
+<div class="flex justify-between items-end border-b border-outline-variant pb-2">
+<h2 class="font-headline text-lg font-semibold text-on-surface">Semantic diff</h2>
+<div class="flex gap-4 font-label text-xs text-on-surface-variant">
+<span>Base: <span class="text-on-surface">e3b0c442</span></span>
+<span>Target: <span class="text-on-surface">f4a1d221</span></span>
+</div>
+</div>
+<!-- Changed PROMPT -->
+<div class="border border-outline-variant rounded overflow-hidden">
+<div class="bg-surface-container-low px-4 py-2 border-b border-outline-variant font-label text-xs text-on-surface flex items-center justify-between">
+<span class="flex items-center gap-2"><span class="material-symbols-outlined text-[16px] text-on-surface-variant">description</span> PROMPT: system_instruction.jinja</span>
+<span class="text-on-surface-variant text-[10px]">1 hunk, 2 lines changed</span>
+</div>
+<div class="grid grid-cols-2 divide-x divide-outline-variant font-label text-[11px] leading-relaxed bg-surface-container-lowest">
+<!-- Base Code -->
+<div class="p-4 overflow-x-auto text-on-surface-variant whitespace-pre">
+<span class="text-outline"> 1</span> You are a helpful customer support agent.
+<span class="text-outline"> 2</span> Always verify user identity before taking action.
+<span class="bg-error-container/20 text-error-dim block -mx-4 px-4"><span class="text-error/50 mr-2">-</span><span class="text-outline mr-2"> 3</span> If unsure about refund policy, transfer to human.</span>
+<span class="text-outline"> 4</span> Keep responses under 50 words.
+                        </div>
+<!-- Target Code -->
+<div class="p-4 overflow-x-auto text-on-surface-variant whitespace-pre">
+<span class="text-outline"> 1</span> You are a helpful customer support agent.
+<span class="text-outline"> 2</span> Always verify user identity before taking action.
+<span class="bg-emerald-900/20 text-emerald-400 block -mx-4 px-4"><span class="text-emerald-500/50 mr-2">+</span><span class="text-outline mr-2"> 3</span> Process refunds up to $50 autonomously using tool.</span>
+<span class="text-outline"> 4</span> Keep responses under 50 words.
+                        </div>
+</div>
+</div>
+<!-- Changed TOOL signature -->
+<div class="border border-outline-variant rounded overflow-hidden mt-4">
+<div class="bg-surface-container-low px-4 py-2 border-b border-outline-variant font-label text-xs text-on-surface flex items-center justify-between">
+<span class="flex items-center gap-2"><span class="material-symbols-outlined text-[16px] text-on-surface-variant">build</span> TOOL: check_order_status</span>
+<span class="text-on-surface-variant text-[10px]">parameters updated</span>
+</div>
+<div class="grid grid-cols-2 divide-x divide-outline-variant font-label text-[11px] leading-relaxed bg-surface-container-lowest">
+<!-- Base Code -->
+<div class="p-4 overflow-x-auto text-on-surface-variant whitespace-pre">
+<span class="text-outline"> 1</span> {
+<span class="text-outline"> 2</span>   "name": "check_order_status",
+<span class="text-outline"> 3</span>   "parameters": {
+<span class="text-outline"> 4</span>     "order_id": "string",
+<span class="bg-error-container/20 text-error-dim block -mx-4 px-4"><span class="text-error/50 mr-2">-</span><span class="text-outline mr-2"> 5</span>     "user_email": "string"</span>
+<span class="text-outline"> 6</span>   }
+<span class="text-outline"> 7</span> }
+                        </div>
+<!-- Target Code -->
+<div class="p-4 overflow-x-auto text-on-surface-variant whitespace-pre">
+<span class="text-outline"> 1</span> {
+<span class="text-outline"> 2</span>   "name": "check_order_status",
+<span class="text-outline"> 3</span>   "parameters": {
+<span class="text-outline"> 4</span>     "order_id": "string",
+<span class="bg-emerald-900/20 text-emerald-400 block -mx-4 px-4"><span class="text-emerald-500/50 mr-2">+</span><span class="text-outline mr-2"> 5</span>     "customer_token": "string",</span>
+<span class="bg-emerald-900/20 text-emerald-400 block -mx-4 px-4"><span class="text-emerald-500/50 mr-2">+</span><span class="text-outline mr-2"> 6</span>     "include_tracking": "boolean"</span>
+<span class="text-outline"> 7</span>   }
+<span class="text-outline"> 8</span> }
+                        </div>
+</div>
+</div>
+</section>
+</div>
+</main>
+<!-- BottomNavBar -->
+<footer class="bg-surface-container-lowest dark:bg-surface-container-lowest text-tertiary-fixed dark:text-tertiary-fixed-dim font-label text-[10px] uppercase font-bold fixed bottom-0 right-0 left-64 h-8 border-t border-outline-variant dark:border-outline-variant z-50 flex items-center justify-start px-4 gap-6 w-[calc(100%-16rem)] cursor-default">
+<div class="flex items-center gap-2 hover:bg-surface-variant py-1 px-2 rounded transition-colors text-on-surface-variant">
+<span class="material-symbols-outlined text-[14px]">check_circle</span>
+<span>System: Healthy</span>
+</div>
+<div class="flex items-center gap-2 hover:bg-surface-variant py-1 px-2 rounded transition-colors text-on-surface-variant">
+<span class="material-symbols-outlined text-[14px]">dns</span>
+<span>Workers: 12/12</span>
+</div>
+<div class="flex items-center gap-2 hover:bg-surface-variant py-1 px-2 rounded transition-colors text-on-surface-variant">
+<span class="material-symbols-outlined text-[14px]">hourglass_empty</span>
+<span>Queue: 0</span>
+</div>
+<div class="flex items-center gap-2 hover:bg-surface-variant py-1 px-2 rounded transition-colors text-on-surface-variant">
+<span class="material-symbols-outlined text-[14px]">speed</span>
+<span>Latency: 42ms</span>
+</div>
+</footer>
+</body></html>

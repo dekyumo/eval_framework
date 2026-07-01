@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>AgentTarget - Add target &amp; scan</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&amp;family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                            "on-tertiary-fixed": "#000000",
+                            "on-surface-variant": "#a7abb8",
+                            "primary-fixed": "#7c5cff",
+                            "outline-variant": "#444853",
+                            "on-secondary": "#38414f",
+                            "on-error-container": "#ff97a3",
+                            "surface-container": "#161921",
+                            "error": "#f97386",
+                            "tertiary-fixed": "#fc6e93",
+                            "on-primary-fixed": "#ffffff",
+                            "on-tertiary-fixed-variant": "#5a0023",
+                            "secondary-fixed": "#dae3f5",
+                            "tertiary-dim": "#fc6e93",
+                            "on-primary-fixed-variant": "#f4edff",
+                            "on-tertiary-container": "#48001b",
+                            "on-primary-container": "#e7dfff",
+                            "on-error": "#490013",
+                            "error-container": "#871c34",
+                            "surface-tint": "#cabeff",
+                            "on-primary": "#4100c5",
+                            "background": "#0c0e13",
+                            "tertiary": "#ff85a2",
+                            "surface": "#0c0e13",
+                            "inverse-surface": "#f9f9ff",
+                            "surface-bright": "#282c37",
+                            "on-tertiary": "#5e0026",
+                            "secondary": "#bec7d8",
+                            "on-surface": "#e2e5f3",
+                            "on-background": "#e2e5f3",
+                            "inverse-on-surface": "#53555b",
+                            "secondary-fixed-dim": "#ccd5e6",
+                            "surface-container-highest": "#212630",
+                            "tertiary-fixed-dim": "#eb6287",
+                            "tertiary-container": "#fc6e93",
+                            "secondary-dim": "#b0b9ca",
+                            "surface-dim": "#0c0e13",
+                            "primary-fixed-dim": "#704ef2",
+                            "secondary-container": "#333c4a",
+                            "on-secondary-container": "#b7c0d1",
+                            "surface-variant": "#212630",
+                            "primary-dim": "#7757fa",
+                            "surface-container-lowest": "#000000",
+                            "inverse-primary": "#613de3",
+                            "on-secondary-fixed": "#37404e",
+                            "surface-container-low": "#11131a",
+                            "primary": "#cabeff",
+                            "surface-container-high": "#1c2028",
+                            "outline": "#717582",
+                            "primary-container": "#542bd6",
+                            "on-secondary-fixed-variant": "#535c6b",
+                            "error-dim": "#c44b5f"
+                    },
+                    "borderRadius": {
+                            "DEFAULT": "0.25rem",
+                            "lg": "0.5rem",
+                            "xl": "0.75rem",
+                            "full": "9999px"
+                    },
+                    "fontFamily": {
+                            "headline": ["Space Grotesk", "sans-serif"],
+                            "display": ["Space Grotesk", "sans-serif"],
+                            "body": ["Inter", "sans-serif"],
+                            "label": ["JetBrains Mono", "monospace"]
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-background text-on-surface font-body h-screen flex overflow-hidden">
+<!-- SideNavBar -->
+<nav class="bg-surface-container dark:bg-surface-container docked left-0 h-screen w-64 border-r border-outline-variant flex flex-col h-full py-4 z-10 shrink-0">
+<!-- Header -->
+<div class="px-6 mb-8">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded bg-primary-container text-on-primary-container flex items-center justify-center">
+<span class="material-symbols-outlined font-bold">science</span>
+</div>
+<div>
+<div class="font-headline font-bold text-on-surface tracking-tight text-lg">Lab Instrument</div>
+<div class="font-label text-label-xs text-on-surface-variant text-xs mt-0.5">v0.4.2-alpha</div>
+</div>
+</div>
+</div>
+<!-- Main Nav -->
+<div class="flex-1 flex flex-col gap-1 px-3 overflow-y-auto">
+<!-- Active Tab: Agents -->
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-primary-fixed border-r-2 border-primary-fixed bg-surface-container-high opacity-80 duration-100 font-headline font-bold text-sm" href="#">
+<span class="material-symbols-outlined text-xl" style="font-variation-settings: 'FILL' 1;">smart_toy</span>
+                Agents
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-on-surface-variant hover:bg-surface-container-highest hover:text-on-surface transition-colors font-body text-sm" href="#">
+<span class="material-symbols-outlined text-xl">history</span>
+                Snapshots
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-on-surface-variant hover:bg-surface-container-highest hover:text-on-surface transition-colors font-body text-sm" href="#">
+<span class="material-symbols-outlined text-xl">fact_check</span>
+                Cases
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-on-surface-variant hover:bg-surface-container-highest hover:text-on-surface transition-colors font-body text-sm" href="#">
+<span class="material-symbols-outlined text-xl">play_circle</span>
+                Runs
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-on-surface-variant hover:bg-surface-container-highest hover:text-on-surface transition-colors font-body text-sm" href="#">
+<span class="material-symbols-outlined text-xl">rocket_launch</span>
+                Campaigns
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-on-surface-variant hover:bg-surface-container-highest hover:text-on-surface transition-colors font-body text-sm" href="#">
+<span class="material-symbols-outlined text-xl">difference</span>
+                Compare
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-on-surface-variant hover:bg-surface-container-highest hover:text-on-surface transition-colors font-body text-sm" href="#">
+<span class="material-symbols-outlined text-xl">storage</span>
+                Registries
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-on-surface-variant hover:bg-surface-container-highest hover:text-on-surface transition-colors font-body text-sm" href="#">
+<span class="material-symbols-outlined text-xl">forum</span>
+                Chat
+            </a>
+</div>
+<!-- Footer Nav -->
+<div class="mt-auto flex flex-col gap-1 px-3 pt-4 border-t border-outline-variant/30">
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-on-surface-variant hover:bg-surface-container-highest hover:text-on-surface transition-colors font-body text-sm" href="#">
+<span class="material-symbols-outlined text-xl">settings</span>
+                Settings
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-on-surface-variant hover:bg-surface-container-highest hover:text-on-surface transition-colors font-body text-sm" href="#">
+<span class="material-symbols-outlined text-xl">description</span>
+                Docs
+            </a>
+</div>
+</nav>
+<!-- Main Content Area -->
+<div class="flex-1 flex flex-col min-w-0 bg-background relative z-0">
+<!-- TopAppBar -->
+<header class="bg-surface dark:bg-surface docked top-0 w-full h-12 border-b border-outline-variant flex justify-between items-center px-4 w-full h-12 shrink-0 z-10 focus-within:ring-1 focus-within:ring-primary-fixed">
+<div class="flex items-center gap-4">
+<div class="font-headline font-bold text-primary-fixed text-lg">AgentTarget</div>
+</div>
+<div class="flex-1 max-w-md mx-4">
+<!-- Search bar on left (implied by max-w and mx-4 pulling it leftish) -->
+</div>
+<div class="flex items-center gap-2 text-on-surface-variant">
+<button class="p-2 rounded-lg hover:text-on-surface hover:bg-surface-container-highest transition-colors">
+<span class="material-symbols-outlined text-xl">terminal</span>
+</button>
+<button class="p-2 rounded-lg hover:text-on-surface hover:bg-surface-container-highest transition-colors">
+<span class="material-symbols-outlined text-xl">notifications</span>
+</button>
+<button class="p-2 rounded-lg hover:text-on-surface hover:bg-surface-container-highest transition-colors">
+<span class="material-symbols-outlined text-xl">account_circle</span>
+</button>
+</div>
+</header>
+<!-- Main Pane: Centered Stepper -->
+<main class="flex-1 overflow-y-auto p-8 flex justify-center items-start">
+<div class="w-full max-w-3xl mt-8 flex flex-col gap-8">
+<!-- Header -->
+<div>
+<h1 class="font-headline text-3xl font-bold text-on-surface">Add target &amp; scan</h1>
+<p class="font-body text-on-surface-variant mt-2">Initialize a new evaluation environment from a local repository.</p>
+</div>
+<!-- Stepper Container -->
+<div class="flex flex-col gap-6 relative border-l border-outline-variant ml-4 pl-8 py-2">
+<!-- Step 1 -->
+<div class="relative">
+<!-- Step Indicator -->
+<div class="absolute -left-[41px] top-1 w-6 h-6 rounded-full bg-surface-container-high border-2 border-primary-fixed flex items-center justify-center text-primary-fixed z-10">
+<span class="material-symbols-outlined text-sm font-bold">check</span>
+</div>
+<div class="bg-surface-container rounded-lg border border-outline-variant p-6">
+<h2 class="font-headline text-lg font-medium text-on-surface mb-4">Step 1: Add repository</h2>
+<div class="flex flex-col gap-2">
+<label class="font-label text-xs uppercase tracking-widest text-on-surface-variant">Local Path</label>
+<div class="relative">
+<input class="w-full bg-surface-container-lowest border border-outline-variant rounded-md py-2 px-3 text-on-surface font-label text-sm focus:border-primary-fixed focus:ring-1 focus:ring-primary-fixed outline-none transition-colors" readonly="" type="text" value="/home/dev/agents/refund_bot"/>
+</div>
+<div class="flex items-center gap-1.5 mt-1 text-emerald-400">
+<span class="material-symbols-outlined text-sm">check_circle</span>
+<span class="font-body text-xs font-medium">valid git repo</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Step 2 -->
+<div class="relative">
+<!-- Step Indicator -->
+<div class="absolute -left-[41px] top-1 w-6 h-6 rounded-full bg-primary-fixed border-2 border-primary-fixed flex items-center justify-center text-on-primary-fixed z-10 shadow-[0_0_10px_rgba(124,92,255,0.3)]">
+<span class="font-label text-xs font-bold">2</span>
+</div>
+<div class="bg-surface-container rounded-lg border border-primary-fixed/50 p-6 shadow-[0_0_15px_rgba(124,92,255,0.05)] ring-1 ring-primary-fixed/20">
+<h2 class="font-headline text-lg font-medium text-on-surface mb-4">Step 2: Pick agent (AgentTarget)</h2>
+<div class="flex flex-col gap-4">
+<label class="font-label text-xs uppercase tracking-widest text-on-surface-variant">Discovered Agents</label>
+<div class="flex flex-col gap-2">
+<!-- Selectable Row 1 (Selected) -->
+<button class="flex items-center gap-3 p-3 rounded-md border border-primary-fixed bg-primary-fixed/10 text-left transition-colors cursor-pointer group">
+<div class="w-4 h-4 rounded-full border-2 border-primary-fixed flex items-center justify-center">
+<div class="w-2 h-2 rounded-full bg-primary-fixed"></div>
+</div>
+<span class="font-label text-sm text-primary-fixed">refund_bot:root_agent</span>
+</button>
+<!-- Selectable Row 2 -->
+<button class="flex items-center gap-3 p-3 rounded-md border border-outline-variant bg-surface-container-lowest hover:border-outline text-left transition-colors cursor-pointer group">
+<div class="w-4 h-4 rounded-full border-2 border-outline-variant group-hover:border-outline"></div>
+<span class="font-label text-sm text-on-surface-variant group-hover:text-on-surface">refund_bot.ledger:ledger_agent</span>
+</button>
+<!-- Selectable Row 3 -->
+<button class="flex items-center gap-3 p-3 rounded-md border border-outline-variant bg-surface-container-lowest hover:border-outline text-left transition-colors cursor-pointer group">
+<div class="w-4 h-4 rounded-full border-2 border-outline-variant group-hover:border-outline"></div>
+<span class="font-label text-sm text-on-surface-variant group-hover:text-on-surface">refund_bot.policy:policy_agent</span>
+</button>
+</div>
+<div class="mt-2 border-t border-outline-variant/50 pt-4">
+<label class="font-label text-xs uppercase tracking-widest text-on-surface-variant mb-2 block">Custom Agent Path</label>
+<input class="w-full bg-surface-container-lowest border border-outline-variant rounded-md py-2 px-3 text-on-surface font-label text-sm focus:border-primary-fixed focus:ring-1 focus:ring-primary-fixed outline-none transition-colors placeholder:text-on-surface-variant/50" placeholder="module.path:agent_instance" type="text"/>
+</div>
+</div>
+</div>
+</div>
+<!-- Step 3 -->
+<div class="relative opacity-60">
+<!-- Step Indicator -->
+<div class="absolute -left-[41px] top-1 w-6 h-6 rounded-full bg-surface-container-high border-2 border-outline-variant flex items-center justify-center text-outline-variant z-10">
+<span class="font-label text-xs font-bold">3</span>
+</div>
+<div class="bg-surface-container rounded-lg border border-outline-variant p-6">
+<h2 class="font-headline text-lg font-medium text-on-surface mb-4">Step 3: Select commit &amp; scan</h2>
+<div class="flex items-center justify-between bg-surface-container-lowest border border-outline-variant rounded-md p-4">
+<div class="flex flex-col gap-1">
+<span class="font-label text-xs uppercase tracking-widest text-on-surface-variant">Target Commit</span>
+<div class="flex items-center gap-2">
+<span class="font-label text-sm text-on-surface">HEAD</span>
+<span class="text-on-surface-variant">→</span>
+<span class="font-label text-sm text-secondary-fixed">7a2f9d1</span>
+</div>
+</div>
+<div class="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-900/20 border border-emerald-900/50 text-emerald-400">
+<span class="material-symbols-outlined text-sm">check</span>
+<span class="font-body text-xs font-medium uppercase tracking-wider">Clean</span>
+</div>
+<!-- Reference for amber styling: class="text-amber-400 bg-amber-900/20 border-amber-900/50" -->
+</div>
+</div>
+</div>
+</div>
+<!-- Action Footer -->
+<div class="mt-4 flex flex-col items-end gap-3 border-t border-outline-variant/30 pt-6 mb-12">
+<button class="bg-primary-fixed hover:bg-primary-fixed-dim text-on-primary-fixed font-headline font-bold py-2.5 px-8 rounded-md transition-colors shadow-sm flex items-center gap-2 text-lg w-full sm:w-auto justify-center">
+<span class="material-symbols-outlined">radar</span>
+                        Scan
+                    </button>
+<p class="font-body text-xs text-on-surface-variant flex items-center gap-1.5 text-center sm:text-right w-full sm:w-auto">
+<span class="material-symbols-outlined text-[14px]">info</span>
+                        Scanning runs in isolation and produces an immutable snapshot.
+                    </p>
+</div>
+</div>
+</main>
+</div>
+</body></html>
