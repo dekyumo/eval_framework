@@ -96,13 +96,13 @@ export function Registries() {
   };
 
   return (
-    <div className="max-w-5xl mx-auto bg-white rounded-xl shadow-sm border border-slate-200 h-full flex flex-col overflow-hidden">
-      <div className="flex border-b border-slate-200 bg-slate-50 p-2 gap-2">
+    <div className="max-w-5xl mx-auto bg-surface-container rounded-xl border border-outline-variant h-full flex flex-col overflow-hidden text-on-surface">
+      <div className="flex border-b border-outline-variant bg-surface-container-low p-2 gap-2">
         {['datasets', 'tags', 'rubrics', 'extractors'].map(tab => (
           <button 
             key={tab}
             onClick={() => setActiveTab(tab as any)}
-            className={`px-4 py-2 text-sm font-bold capitalize rounded-md transition-colors ${activeTab === tab ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:bg-slate-200'}`}
+            className={`px-4 py-2 text-sm font-bold capitalize rounded-md transition-colors ${activeTab === tab ? 'bg-surface-container-highest text-primary-fixed' : 'text-on-surface-variant hover:bg-surface-container-high'}`}
           >
             {tab}
           </button>
@@ -112,54 +112,54 @@ export function Registries() {
       <div className="flex-1 p-6 overflow-y-auto">
         {activeTab === 'extractors' && (
           <div className="space-y-6">
-            <h2 className="text-2xl font-bold text-slate-800 mb-4">Extractors</h2>
+            <h2 className="text-2xl font-bold font-headline text-on-surface mb-4">Extractors</h2>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label htmlFor="extractor_name" className="block text-sm font-semibold text-slate-700 mb-1">Name</label>
-                <input id="extractor_name" className="w-full border border-slate-300 rounded-md p-2" placeholder="e.g. get_refund_amount" />
+                <label htmlFor="extractor_name" className="block text-sm font-semibold text-on-surface-variant mb-1">Name</label>
+                <input id="extractor_name" className="w-full bg-surface-container-highest border border-outline-variant rounded-md p-2 text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:border-primary-fixed" placeholder="e.g. get_refund_amount" />
               </div>
               <div>
-                <label htmlFor="extractor_return_type" className="block text-sm font-semibold text-slate-700 mb-1">Return Type</label>
-                <select id="extractor_return_type" className="w-full border border-slate-300 rounded-md p-2">
+                <label htmlFor="extractor_return_type" className="block text-sm font-semibold text-on-surface-variant mb-1">Return Type</label>
+                <select id="extractor_return_type" className="w-full bg-surface-container-highest border border-outline-variant rounded-md p-2 text-on-surface focus:outline-none focus:border-primary-fixed">
                   <option>bool</option><option>int</option><option>float</option><option>enum</option>
                 </select>
               </div>
             </div>
             
             <div>
-              <label htmlFor="extractor_python_code" className="block text-sm font-semibold text-slate-700 mb-1">Python Code</label>
+              <label htmlFor="extractor_python_code" className="block text-sm font-semibold text-on-surface-variant mb-1">Python Code</label>
               <textarea 
                 id="extractor_python_code"
-                className="w-full border border-slate-300 rounded-md p-4 font-mono text-sm h-64 bg-slate-50" 
+                className="w-full bg-surface-container-highest border border-outline-variant rounded-md p-4 font-mono text-sm h-64 text-on-surface focus:outline-none focus:border-primary-fixed" 
                 defaultValue="def extract(trace):\n    return True" 
               />
             </div>
             
             <div className="flex justify-end gap-3 mt-4">
-              <button className="px-4 py-2 border border-slate-300 rounded-md text-slate-700 font-medium hover:bg-slate-50">
+              <button className="px-4 py-2 border border-outline-variant rounded-md text-on-surface font-medium hover:bg-surface-container-highest transition-colors">
                 Dry Run
               </button>
               <button 
-                className="px-4 py-2 bg-indigo-600 text-white rounded-md font-medium hover:bg-indigo-700"
+                className="px-4 py-2 bg-primary-container text-on-primary-container rounded-md font-medium hover:bg-primary-fixed hover:text-white transition-colors"
                 onClick={handleSaveExtractor}
               >
                 Save Extractor
               </button>
             </div>
             
-            <div className="mt-8 pt-8 border-t border-slate-200">
-              <h3 className="text-lg font-bold text-slate-800 mb-4">Existing Extractors</h3>
+            <div className="mt-8 pt-8 border-t border-outline-variant">
+              <h3 className="text-lg font-bold font-headline text-on-surface mb-4">Existing Extractors</h3>
               {extractors.length > 0 ? (
                 <div className="space-y-2">
                   {extractors.map((e: any, i: number) => (
-                    <div key={i} className="p-3 bg-slate-50 border border-slate-200 rounded-md text-sm">
-                      <span className="font-bold text-slate-800 mr-2">{e.id}</span>
-                      <span className="text-slate-500 uppercase text-xs">{e.return_type}</span>
+                    <div key={i} className="p-3 bg-surface-container-lowest border border-outline-variant rounded-md text-sm">
+                      <span className="font-bold text-on-surface mr-2">{e.id}</span>
+                      <span className="text-on-surface-variant uppercase text-xs font-mono">{e.return_type}</span>
                     </div>
                   ))}
                 </div>
               ) : (
-                <div className="text-sm text-slate-500 italic">No extractors found.</div>
+                <div className="text-sm text-on-surface-variant italic">No extractors found.</div>
               )}
             </div>
           </div>
@@ -167,36 +167,36 @@ export function Registries() {
         
         {activeTab === 'rubrics' && (
           <div className="space-y-6">
-            <h2 className="text-2xl font-bold text-slate-800 mb-4">Rubrics</h2>
+            <h2 className="text-2xl font-bold font-headline text-on-surface mb-4">Rubrics</h2>
             <div>
-              <label htmlFor="rubric_name" className="block text-sm font-semibold text-slate-700 mb-1">Rubric Name</label>
-              <input id="rubric_name" className="w-full border border-slate-300 rounded-md p-2" placeholder="e.g. Tone Polite" />
+              <label htmlFor="rubric_name" className="block text-sm font-semibold text-on-surface-variant mb-1">Rubric Name</label>
+              <input id="rubric_name" className="w-full bg-surface-container-highest border border-outline-variant rounded-md p-2 text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:border-primary-fixed" placeholder="e.g. Tone Polite" />
             </div>
             <div>
-              <label htmlFor="rubric_instructions" className="block text-sm font-semibold text-slate-700 mb-1">Instructions</label>
-              <textarea id="rubric_instructions" className="w-full border border-slate-300 rounded-md p-2 h-32" placeholder="Instructions for the human or AI grader..." />
+              <label htmlFor="rubric_instructions" className="block text-sm font-semibold text-on-surface-variant mb-1">Instructions</label>
+              <textarea id="rubric_instructions" className="w-full bg-surface-container-highest border border-outline-variant rounded-md p-2 h-32 text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:border-primary-fixed" placeholder="Instructions for the human or AI grader..." />
             </div>
-            <div className="p-4 border border-slate-300 rounded-md bg-slate-50 space-y-4">
-              <h3 className="font-bold text-slate-700">Fields</h3>
+            <div className="p-4 border border-outline-variant rounded-md bg-surface-container-low space-y-4">
+              <h3 className="font-bold text-on-surface">Fields</h3>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label htmlFor="rubric_field_name" className="block text-sm font-semibold text-slate-700 mb-1">Field Name</label>
-                  <input id="rubric_field_name" className="w-full border border-slate-300 rounded-md p-2" placeholder="e.g. is_polite" />
+                  <label htmlFor="rubric_field_name" className="block text-sm font-semibold text-on-surface-variant mb-1">Field Name</label>
+                  <input id="rubric_field_name" className="w-full bg-surface-container-highest border border-outline-variant rounded-md p-2 text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:border-primary-fixed" placeholder="e.g. is_polite" />
                 </div>
                 <div>
-                  <label htmlFor="rubric_field_type" className="block text-sm font-semibold text-slate-700 mb-1">Field Type</label>
-                  <select id="rubric_field_type" className="w-full border border-slate-300 rounded-md p-2">
+                  <label htmlFor="rubric_field_type" className="block text-sm font-semibold text-on-surface-variant mb-1">Field Type</label>
+                  <select id="rubric_field_type" className="w-full bg-surface-container-highest border border-outline-variant rounded-md p-2 text-on-surface focus:outline-none focus:border-primary-fixed">
                     <option>Boolean</option><option>Integer</option><option>Float</option><option>Enum</option>
                   </select>
                 </div>
               </div>
-              <button className="px-3 py-1 bg-white border border-slate-300 rounded-md text-sm font-medium hover:bg-slate-50">
+              <button className="px-3 py-1 bg-surface-container-highest border border-outline-variant rounded-md text-sm font-medium hover:bg-surface-variant transition-colors text-on-surface">
                 + Add Field
               </button>
             </div>
             <div className="flex justify-end gap-3 mt-4">
               <button 
-                className="px-4 py-2 bg-indigo-600 text-white rounded-md font-medium hover:bg-indigo-700"
+                className="px-4 py-2 bg-primary-container text-on-primary-container rounded-md font-medium hover:bg-primary-fixed hover:text-white transition-colors"
                 onClick={handleSaveRubric}
               >
                 Save Rubric
@@ -207,14 +207,14 @@ export function Registries() {
 
         {activeTab === 'tags' && (
           <div className="space-y-6">
-            <h2 className="text-2xl font-bold text-slate-800 mb-4">Tags</h2>
+            <h2 className="text-2xl font-bold font-headline text-on-surface mb-4">Tags</h2>
             <div>
-              <label htmlFor="tag_name" className="block text-sm font-semibold text-slate-700 mb-1">Tag Name</label>
-              <input id="tag_name" className="w-full border border-slate-300 rounded-md p-2" placeholder="e.g. pii-leak" />
+              <label htmlFor="tag_name" className="block text-sm font-semibold text-on-surface-variant mb-1">Tag Name</label>
+              <input id="tag_name" className="w-full bg-surface-container-highest border border-outline-variant rounded-md p-2 text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:border-primary-fixed" placeholder="e.g. pii-leak" />
             </div>
             <div className="flex justify-end gap-3 mt-4">
               <button 
-                className="px-4 py-2 bg-indigo-600 text-white rounded-md font-medium hover:bg-indigo-700"
+                className="px-4 py-2 bg-primary-container text-on-primary-container rounded-md font-medium hover:bg-primary-fixed hover:text-white transition-colors"
                 onClick={handleSaveTag}
               >
                 Save Tag
@@ -225,14 +225,14 @@ export function Registries() {
 
         {activeTab === 'datasets' && (
           <div className="space-y-6">
-            <h2 className="text-2xl font-bold text-slate-800 mb-4">Datasets</h2>
+            <h2 className="text-2xl font-bold font-headline text-on-surface mb-4">Datasets</h2>
             <div>
-              <label htmlFor="dataset_name" className="block text-sm font-semibold text-slate-700 mb-1">Dataset Name</label>
-              <input id="dataset_name" className="w-full border border-slate-300 rounded-md p-2" placeholder="e.g. Flight Booking Golden Set" />
+              <label htmlFor="dataset_name" className="block text-sm font-semibold text-on-surface-variant mb-1">Dataset Name</label>
+              <input id="dataset_name" className="w-full bg-surface-container-highest border border-outline-variant rounded-md p-2 text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:border-primary-fixed" placeholder="e.g. Flight Booking Golden Set" />
             </div>
             <div className="flex justify-end gap-3 mt-4">
               <button 
-                className="px-4 py-2 bg-indigo-600 text-white rounded-md font-medium hover:bg-indigo-700"
+                className="px-4 py-2 bg-primary-container text-on-primary-container rounded-md font-medium hover:bg-primary-fixed hover:text-white transition-colors"
                 onClick={handleSaveDataset}
               >
                 Save Dataset
