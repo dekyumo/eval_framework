@@ -28,6 +28,8 @@ It should not try to reimplement Braintrust, Arize, or a full tracing/monitoring
 
 ### 1.4 Design Principles
 
+The design of such an MLOps application is based on mathematical principles that help guarantee its correctness, those are detailes in the SOUL*.md files.
+
 * Reproducibility
 * Agent-as-artifact
 * Evaluation as a scientific process
@@ -91,8 +93,16 @@ A metric is **one concept**: something attached to an evaluation case that point
   * There is no extractable ground truth; the metric is a rubric judged by an LLM and/or a human on the same axes.
   * Examples: open-ended responses, creative tasks, ambiguous outputs.
   * Includes pairwise comparison (a rubric whose output is "which of two traces is better").
+  * rubric can also be evaluated by humans
+  * a complex agent that scores a rubric, this is a useful concept to import metrics from external framework such as Ragas
 
-All three produce the same kind of result (see Score, §11.3), so they can be stored, compared, and aggregated uniformly. Some metrics imply an absolute ground truth; rubric-only metrics support relative ranking or rubric-based judgment.
+* **Pair Rubric**
+   
+  * a rubric, but to compare two traces, the scores are relative, and the binary pass/fail becomes a prefer_a/prefer_b
+
+  
+
+All four produce the same kind of result (see Score, §11.3), so they can be stored, compared, and aggregated uniformly. Some metrics imply an absolute ground truth; rubric-only metrics support relative ranking or rubric-based judgment.
 
 ## 2.4 Evaluation Run
 
@@ -147,6 +157,9 @@ The clean Git commit *is* the agent. Loading therefore works as a get-or-create 
 * otherwise the agent is instantiated from source at that commit, scanned, and persisted as a new snapshot
 
 Because identity is anchored to the commit, an unseen commit is unambiguously a new snapshot.
+
+The git repo (that contains the .git) is specified as a parameter of launching the application.
+The Kuzu database is stored in the same folder (at the same level as .git)
 
 ## 3.2 Agent Graph Extraction
 
@@ -244,27 +257,11 @@ Rerunning an older version means checking out its commit and reloading the modul
 
 This is the standard worktree-per-task isolation pattern. We drive `git worktree add` / `git worktree remove` directly (Python via subprocess or a small helper); existing tools such as `flywheel-worktree` are useful prior art but the orchestrators surveyed (hawt, wt, parsec) target interactive coding agents rather than an embedded eval runner, so we keep the dependency thin. Isolation here is about **correctness under concurrency**, not security sandboxing (see §11).
 
+We can also alternatively choose a reputable library to implement worktree isolation if reimplementation is seen as fragile or time consuming.
+
 ## 5.2 Tool Control
 
-Tool behavior must be controlled to preserve reproducibility.
-
-Supported modes:
-
-* **LIVE**
-
-  * Real tools run. Allowed only when explicitly declared (see §11.2).
-* **MOCK**
-
-  * Tools are replaced by mocks that return predefined outputs. Mocks can be generated automatically (an LLM inspects the tool to produce a mock that respects the expected schema) and are stored as inspectable code.
-* **FAULT** (fault injection)
-
-  * A mock that deliberately misbehaves, to test robustness. Two flavors:
-
-    * bad tool output — a tool returns garbage (e.g. `meow meow grrr`), an exception, or a malformed payload
-    * LLM transport errors — the model call returns HTTP errors such as `429` or `503`
-
-The default should be to avoid uncontrolled external dependencies. Fault injection is the concrete mechanism behind the robustness/resilience cases described in the addendum: there is no separate "fault engine," it is just the MOCK machinery configured to fail.
-
+Tool mocking and fault injection is specified separately
 ---
 
 # 6. Evaluation Framework
@@ -424,7 +421,9 @@ The comparison view should work like this:
 
 ## 8.2 Regression Detection
 
-The system should show the change between two versions and highlight regressions.
+The system should show the change between two versions.
+
+It can also compare folded/aggregated scores to help show regressions.
 
 It should also support rerunning older versions with newly added evaluations. This requires checking out the relevant branch or commit, reloading the module, and running the new evals against the old snapshot.
 
@@ -433,6 +432,8 @@ This is important because the evaluation suite may evolve over time, and older v
 ---
 
 # 9. Web Interface
+
+A separate specification is available for the frontend.
 
 ## 9.1 Agent Explorer
 

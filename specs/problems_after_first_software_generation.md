@@ -33,5 +33,8 @@ TLDR: the main problems after the first version are:
 - the site has been underspecified, most menus lead into pages with no buttons or raw JSON, except the "create eval" page that was fully specified
 - no way to directly specify a git root, an agent root within that git root, and then press a button to scan an agent and start generating eval traces.
 - specifying only one of the 4 agents was a mistake. Without the 4 agents, the evaluation framework cannot be used fully, which prevents dog fooding and using it to test the 4 agents. (Incidently, those 4 agents need to be in a git submodule so that the evaluation framework can switch versions, or just git worktree the whole evaluation framework)
-- creating and editing tags has not been specified (website underspecified again)
+- creating and editing tags has not been specified (website underspecified again). The tag set should be closed.
 - editing eval cases has not been specified (the generation agent is a stub, and then there's no edit page) (website underspecified again)
+- editing metrics (no route, no site)
+- editing rubrics (no route, no site)
+- editing extraction function (no route, no site)

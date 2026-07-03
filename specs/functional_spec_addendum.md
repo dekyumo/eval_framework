@@ -112,7 +112,7 @@ From the agent spec, we can derive the shape of the domain: what requests the ag
 
 The system derives three regions:
 
-## In-domain
+## In distribution
 
 Tasks the agent is expected to handle.
 
@@ -124,7 +124,7 @@ Example:
 
 ---
 
-## Out-of-domain
+## Out-of-distribution
 
 Tasks outside the agent’s intended responsibility.
 
@@ -188,6 +188,8 @@ Problem type:
 * adversarial input (prompt injection, request for credentials, PII in input)
 * client/user problem (confused, emotional, multiple requests in one)
 
+This is specified in the AGENT5 spec.
+
 ---
 
 ## 4.2 Example Generation Matrix
@@ -246,6 +248,8 @@ This is intended to prevent the “mistyped tag meant a missing test” problem.
 Evaluation cases include controlled failures:
 
 These are implemented with the MOCK / FAULT tool sandbox (functional spec §5.2): bad mock tools for data-quality faults, and HTTP errors on the LLM call for transport faults. There is no separate fault engine.
+
+This robustness evaluation also requires the mocking of tools to induce specific faults, see the fault_injector.md file.
 
 ## Dependency failures
 

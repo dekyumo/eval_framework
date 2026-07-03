@@ -1,17 +1,21 @@
 # Contract: Web frontend (SPA)
 
-`frontend/` (React + TypeScript, Vite) built into `web/static/`, served by Flask. This contract exists because gen-1's UI was underspecified: it shipped a pile of server-rendered static pages with a top navbar, showed **raw JSON**, and had **no buttons** to scan, configure, or edit anything. This spec fixes the information architecture and the required interactions. Visual language (colors, fonts, spacing, component look) comes from the Stitch-generated `specs/design/DESIGN.md`; **this file owns structure and behaviour**, `DESIGN.md` owns appearance.
+`frontend/` (React + TypeScript, Vite) built into `web/static/`, served by Flask.
+
+This document is the absolute blueprint for the frontend source code. It replaces the previous underspecified iterations. You must read this carefully and map it exactly to the `.tsx` files in `frontend/src/pages/` and `frontend/src/components/`.
+
 
 ## How to use the mockups (read this before coding the UI)
 
 There are ten reference screens in `specs/design/mockups/NN_*/`, each with a `screen.png` (the render) and a `code.html` (Stitch's static export). Use them like this:
 
-- **`screen.png` is the target look.** **`code.html` is a *structural hint*, not source.** Stitch emits one monolithic HTML file per screen with inlined Tailwind and **hardcoded placeholder data**. Read it to see layout, spacing, and class choices — then **rebuild as typed React components wired to the API**. Do **not** paste it in, do **not** keep its fake data, do **not** let each page carry its own copy of the shell.
+- **`screen.png` is the target look.** **`code.html` is a *structural hint*, not source.** Stitch emits one monolithic HTML file per screen with inlined Tailwind and **hardcoded placeholder data**. Read it to see layout, spacing, and class choices — then **rebuild as typed React components wired to the API**. Do **not** paste it in, do **not** keep its fake data, do **not** let each page carry its own copy of the shell, do **not** infer functionality only styling.
 - Every screen redraws the left rail / jobs tray / context switcher. That is a Stitch artifact of per-screen generation — in code the **shell exists once** (see Component map) and the mockups are only the *content pane*.
-- A mockup shows **one static instance** of each state (one frozen rubric, one crash trace, one FAIL chip). The real components are **driven by the domain type** — see "where the behaviour hides" in the Component map. If you build only what the PNG shows, you've built 1 of N states.
-- Mockup ↔ page mapping is listed per page below and in `DESIGN.md`.
+- A mockup shows **one static instance** of each state (one frozen rubric, one crash trace, one FAIL chip). The real components are **driven by the backend data**. If you build only what the PNG shows, you've built 1 of N states.
 
-## Architecture
+
+
+## Application Launch and Architecture
 
 ```text
 React SPA (client-side routing)  ──fetch JSON──▶  Flask /api/*  ──▶  SERVICE LAYER  ──▶  core + storage
@@ -21,125 +25,200 @@ React SPA (client-side routing)  ──fetch JSON──▶  Flask /api/*  ──
 - **The API is thin.** Every `/api/*` route is a direct call into a service-layer function (the same functions the chat operator wraps). Routes do no computation, no scoring, no business logic. If a route needs logic that doesn't exist as a service function, add the service function — do not put it in the route.
 - **Typed end to end.** Generate/maintain TypeScript types from the Pydantic domain models (e.g. export JSON Schema → `frontend/src/types/`). The UI never invents field names.
 - **No raw JSON as a primary view.** JSON is available behind a "view raw" affordance only. Every domain object has a rendered view.
+- **Git Repo Context**: The application is launched from the command line against a specific Git repository. The UI does **not** switch Git repositories dynamically.
+- **Agent Path Format**: Defining an agent uses the format `python_file_path:variable_name` (e.g., `src/agents/main.py:my_agent`). The UI must explicitly display and explain this format to the user.
+- **Routing**: One React SPA (React Router). A persistent left rail (Navigation menu) and a routed content pane.
+- **The API is thin and ID-based.** Routes reference IDs (`case_id`, `run_id`, `dataset_id`) and fetch entities. No massive JSON passing between client and server.
+- **Forms and Input**: **NEVER** use `.trim()` on every keystroke. Use debounced updates (e.g. wait 1s after typing stops) or explicit "Save" buttons so the user's cursor is not interrupted.
 
-## Stack (locked, minimal)
+## Recommended Reusable Components
 
-| Concern | Choice |
-| --- | --- |
-| Framework | React + TypeScript, Vite |
-| Routing | React Router (client-side) |
-| Data fetching | TanStack Query (server cache, retries, invalidation) over `fetch` |
-| Styling | Tailwind (tokens driven by `DESIGN.md`) |
-| Graph | one lib for the agent/lineage DAG (e.g. React Flow); do not hand-roll |
-| Charts | one lightweight lib for the response-matrix heatmap + score bars |
+The previous implementation introduced several astute component concepts that should be preserved and refactored into a proper `frontend/src/components/` directory. They elegantly encapsulate domain logic into UI primitives:
 
-No Redux, no SSR, no component-library sprawl. Keep dependencies few.
+- **`ResultView`**: A component that switches its rendering based on `Result.type`. It smartly renders booleans as high-visibility green `PASS` or red `FAIL` pills, while rendering enums or floats as standard badges. 
+- **`BlameTag`**: A visual categorization badge for errors (`caller`, `agent`, `framework`). By mapping these to specific semantic colors, it gives users instant context on whose fault a stack trace is.
+- **`MessageBubble` & `TraceView`**: A structural component that separates message parts by role (`user`, `assistant`, `tool_call`, `tool_response`) into distinct visual bubbles (e.g., tool calls styled as code blocks, assistant text as standard chat bubbles). Because it is used in Run Generation, Run Evals, and Human Feedback, it must be highly robust and upgraded to fully support Markdown rendering.
+- **`ConversationBuilder` (Replacing `CaseEditor`)**: While the previous implementation used crude string parsing (newline splitting and `indexOf(':')`), the *concept* of a dedicated widget to build multi-turn conversations is essential. This must be rebuilt as a true array-based editor where users can add/remove turns, select roles from a dropdown, and input multi-line text without it breaking.
+- **`ResponseHeatmap`**: A color-graded matrix table used in Campaigns. It computes an RGB scale based on cell float values, making large model-vs-case performance matrices instantly readable.
+- **`ConfirmCard`**: A standardized card specifically designed to render `ActionProposal`s. It consistently presents a summary string alongside "Confirm" and "Cancel" buttons, used across both the chat operator and sensitive UI writes.
+- **`LineageGraph`**: A visualizer that maps out the `AgentManifest`, differentiating the root agent from its sub-agents with distinct interactive nodes.
+- **`SplitBadge`**: A simple tag to differentiate `train` (teal) and `test` (violet) splits, making dataset partitioning immediately obvious across lists and tables.
+- **`RunTraceViewer`**: A wrapper component that provides the surrounding layout for selecting a run from a list, displaying its status, and placing the trace/exception/results in context. Because this layout is identical across Run Generation, Run Evals, and Human Eval, encapsulating the left-sidebar-list + right-content-pane layout is highly recommended.
 
-## Global shell
+## Page Blueprint: Purpose and Allowed Actions
 
-- **Repo/agent context switcher** (left rail, always visible): the currently selected repo and `AgentTarget`. Everything downstream is scoped to it. Switching re-scopes the whole app.
-- **Primary nav**: Agents · Snapshots · Cases · Runs · Campaigns · Compare · Registries (Tags/Metrics/Rubrics/Extractors) · Chat.
-- **Async job indicator**: scans, runs, and campaigns are long. Show a jobs tray with live status; never block the whole UI on one request.
-- **Empty and error states are first-class.** Every list has a designed empty state with the action that fills it. Errors from the scanner's taxonomy (CallerError / AgentError / FrameworkError) render differently: caller = "fix your input", agent = show the agent traceback, framework = "this is our bug".
+This section explicitly defines the purpose of each page and the exact list of actions and interactions a user can perform.
 
-## Component map (extract once, reuse everywhere)
+### 1. Onboarding (Scan / Add Target)
+**Purpose:** Define which agent in the repository will be tested and trigger the initial code scan to generate an Agent Snapshot.
+**User Interactions:**
+- **View Active Repo:** The user sees the absolute path to the Git repository (read-only).
+- **Select/Input Agent Target:** The user selects an agent from a dropdown of detected agents, or types an agent path (`python_file_path:variable_name`).
+- **Specify Commit:** The user types a commit hash or branch name (defaults to `HEAD`).
+- **Trigger Scan:** The user clicks a "Scan" button. 
+  - On success, the user is navigated to the Agent Graph page. 
+  - On failure, the user sees a color-coded error badge (`caller` error, `agent` error, or `framework` error) along with the full traceback.
 
-The mockups repeat a lot. Build these once and compose pages from them — do not re-implement per screen. This is the single highest-leverage instruction in this file: **most of the UI is a small set of typed primitives.**
+### 2. Agents (Agent Graph and Lineage)
+**Purpose:** Audit what the Agent is made of (tools, sub-agents, prompts) at a specific snapshot, and view the history of snapshots.
+**User Interactions:**
+- **Select Snapshot:** The user selects a historical snapshot from a dropdown.
+- **View Component Graph (Manifest):** The user sees a visual node graph (e.g. using React Flow) showing the root agent connected to its sub-agents and tools.
+- **View Node Details:** When the user clicks a node in the graph, a side panel displays the model ID, the full prompt text, and the tools (with their type signatures) available to that node.
+- **Edit Domain:** The user can edit the Agent Domain definition by typing into text areas for `description`, `in_distribution`, `distribution_margin`, and `out_of_distribution`. The user must click a "Save Distribution" button to persist these changes.
+- **Initiate Comparison:** The user selects two snapshots from dropdowns and clicks "Compare" to navigate to the comparison page.
 
-### Shell (built once, wraps every route)
-- `AppShell` — the left rail + routed `<Outlet/>` + jobs tray. **Every page renders inside this; no page owns a navbar.** (Every mockup shows it; ignore the repetition.)
-- `ContextSwitcher` — repo + `AgentTarget` selector at the rail's top; its value scopes all queries (put it in a context/store, key TanStack Query caches by it).
-- `NavRail` — Agents · Snapshots · Cases · Runs · Campaigns · Compare · Registries · Chat.
-- `JobsTray` — async scan/run/campaign progress, polling `/api/jobs`. Long actions push here; the UI never blocks on them.
+### 3. Cases & Eval Builder
+**Purpose:** Create and manage individual evaluation cases (conversations) and organize them into datasets.
+**User Interactions:**
+- **Filter/Search Cases:** The user filters the list of cases by typing a tag, or selecting a dataset, problem type, or domain position from dropdowns.
+- **Create Case via Matrix:** The user sees a matrix of Domain Position (in-distribution/distribution-margin/out-of-distribution) vs Problem Type (happy-path/technical/adversarial/client). Clicking a cell creates a new case with those properties pre-filled.
+- **Name Case:** The user types a unique name for the case.
+- **Assign Dataset:** The user selects a dataset from a dropdown to add the case to it.
+- **Build Conversation:** The user constructs a multi-turn conversation. For each turn, the user selects the role (User, Assistant, Tool) from a dropdown, and types the message content into a multi-line text area. The user can click "Add Turn" to append a new message, or click a "Remove" button next to a turn to delete it.
+- **Fault Injection:** faults can be injected into the case with the fault injector
+- **Assign Split:** The user selects `train` (displayed with a teal badge) or `test` (displayed with a visually prominent violet badge) from a dropdown.
+- **Attach Metrics:** The user selects existing Extractors (and types the expected ground truth) or Rubrics to be evaluated against this case.
+- **Save Case:** The user clicks "Save" to persist the case.
 
-### Typed primitives (the behaviour lives in the type, not the page)
-| Component | Renders | Driven by | Where it hides / the gotcha |
-| --- | --- | --- | --- |
-| `ResultView` | one `Result` | `Result.type` | bool→pass/fail pill, enum→chip, int/float→value + fold stats. Mockup 04 shows one of each — build the **switch on type**, not four hand-placed widgets. |
-| `AggregateView` | folded `AggregateResult` | `type` | mean/stdev vs proportion vs counts; used in Compare (05) and Run results (04). |
-| `TraceView` | `Trace.parts[]` | `MessagePart.kind` | text / tool_call / tool_response / media each a distinct block; **a crash (`exception`) is a first-class red card, not an error toast** (mockups 04, 09). |
-| `SplitBadge` | `EvalCase.split` | `split` | `optimisation` = teal outline, `judging` = locked/sacred violet; judging must *look* protected (mockup 03). |
-| `BlameTag` | scanner/runner error | error category | caller = amber, agent = rose (+ traceback), framework = violet-magenta. Drives the error states in onboarding (01) and everywhere a job fails. |
-| `ConfirmCard` | an `ActionProposal` | — | one component for **both** the chat operator (10) and any UI write button. Summarizes effects; primary "Confirm", ghost "Cancel". See "Write-action confirmation". |
-| `DomainRegions` | `AgentDomain` | — | in/margin/ood editable chips (mockup 02); PATCHes the snapshot. |
-| `LineageGraph` | `AgentManifest` | edge types | React Flow; nodes = agent/subagent/tool/model/prompt, selected node glows indigo, detail drawer shows fingerprint + source (mockup 02). |
-| `ResponseHeatmap` | `ResponseMatrix` | cell value | models × cases, green→red; side panels (difficulty/ability/clusters/thinning) read from `analysis/`, never computed here (mockup 06). |
-| `RubricEditor` | `Rubric` | `frozen` | **frozen ⇒ entire form read-only + "Create new version"**; item rows switch control by item type (mockup 07). |
-| `ExtractorEditor` | `Extractor` | — | fingerprinted source + "run on sample" preview list of typed results; revise via AGENT4 (mockup 08). |
-| `AgreementCard` | human vs LLM `Result`s | item type | confusion matrix + Cohen's κ for bool/enum, correlation for int/float; from `analysis/agreement.py` (mockup 09). |
-| `EmptyState` | any empty list | — | names the action that fills it ("No agents yet — Add a repository"). Reused by every list. |
+### 4. Run Generation (Trace Generation)
+**Purpose:** Execute the Agent against a Dataset to generate Traces (the raw interactions), independent of scoring.
+**User Interactions:**
+- **Select Inputs:** The user selects a Snapshot and a Dataset from dropdowns.
+- **Run Generation:** The user clicks "Generate Traces". The UI displays a progress indicator in a jobs tray so the user is not blocked.
+- **View Trace List:** The user sees a list of generated runs, named using the format `CaseName-SnapshotHash-Timestamp`.
+- **View Trace Details:** When the user clicks a generation, they see the execution trace.
+  - User and Assistant messages are rendered as Markdown.
+  - Tool calls are rendered as distinct blocks showing the tool name and formatted JSON arguments.
+  - Tool responses are rendered as distinct blocks showing the tool name and formatted JSON output.
+  - If the agent crashed, the exception stack trace is displayed at the bottom of the trace with a red background.
+  - Token counts and latency are displayed at the bottom.
+- **Rerun Generation:** The user clicks "Rerun" on a specific trace or "Run Missing" to generate traces for cases that don't have one yet.
 
-**Rule of thumb for the implementer:** if you're about to write the same chip/badge/bubble markup on a second page, stop and lift it into one of the components above. The type→component switches (`ResultView`, `TraceView`, `RubricEditor`) are exactly the states the static mockups *don't* show; get them right and the rest is layout.
+### 5. Run Evals (Trace Scoring & Summary)
+**Purpose:** Score previously generated traces using Extractors and Rubrics.
+**User Interactions:**
+- **Select Inputs:** The user selects a Snapshot and a Dataset from dropdowns.
+- **Trigger Scoring:** The user clicks "Run Evaluations" if there are evaluations for this snapshot and dataset that have not been run.
+- **View Score Summary:** The user sees an aggregate summary at the top of the page: R2/MAPE for float metrics, F1 for booleans/enums, and average scores for rubrics.
+- **View Individual Scores:** The user clicks a scored trace to see its results. 
+  - For booleans, the user sees a green PASS or red FAIL badge. 
+  - For other types, the user sees the extracted value.
+  - If ground truth exists, it is displayed alongside the extracted value.
+  - For Rubrics, the user can read the text `rationale` generated by the LLM judge.
+- **Run Again:** The user clicks "Score Again" to rerun the evaluation for a specific trace.
+- **Display:** if the scoring has been run, it is possible to flatten the rubrics (rubric_a.score1 to rubric_a_score_1) and use the various folding functions (% true, average, R2, MAPE, F1 score) to display a score for the snapshot and dataset
 
-## Pages and required interactions
+### 6. Compare
+**Purpose:** Compare two Agent Snapshots to detect regressions and understand structural changes.
+**User Interactions:**
+- **Select Snapshots:** The user selects Snapshot A and Snapshot B from dropdowns.
+- **View Semantic Diff:** The user reads a list of prompts and tools that were added, removed, or changed between the two snapshots.
+- **View Regressions:** The user sees a list of metrics that degraded in performance between Snapshot A and Snapshot B.
 
-### 1. Onboarding / Add target (the flow gen-1 lacked)
-_Mockup: `mockups/01_add_target_scan_onboarding/`._
-`add repo → pick agent → scan`.
-- Add a repo by path (validated server-side: exists, is a git repo). No `AGENT_ENTRYPOINT` env var — the path is entered here.
-- The UI lists candidate agents in the repo (root + sub-agents the scanner can enumerate) and lets the user pick the `AgentTarget` (or type an `agent_path`).
-- Pick a commit (default: HEAD; must be clean — dirty tree shows the `DirtyRepositoryError` inline).
-- **Scan button.** Runs the scanner; on success routes to the new snapshot's Agent view.
+### 7. Campaigns (Item Response Theory)
+**Purpose:** Evaluate a single dataset across multiple different Judge Models to determine item difficulty and model ability.
+**User Interactions:**
+- **Launch Campaign:** The user chooses a name for the campaign, selects a Snapshot, an EvalDataset, types a comma-separated list of models, and clicks "Launch".
+- **Separator between running and analysing a campaign**
+- **Select finished campaign**: The user selects a generated and scored campaign
+- **Select Metric to Analyze:** The user selects a specific Extractor field or Rubric item from a dropdown.
+- **View Response Matrix:** The user sees a heatmap grid of models (rows) vs cases (columns). Cell colors correspond to the metric score (e.g., green for pass, red for fail, gradient for floats).
+- **View IRT (for boolean)/Regression (for float):** The user sees the calculated "Item Difficulty" for each case and "Model Ability" for each model based on the selected metric.
 
-### 2. Agent / lineage view
-_Mockup: `mockups/02_agent_lineage/`._
-- The manifest as a **graph**: root agent → sub-agents (`DELEGATES_TO`), tools (`USES_TOOL`), model, prompts. Click a node → detail panel (prompt text + fingerprint, tool signature + source, model id).
-- The **commit DAG** for this target (`ON_TOP_OF`), each commit a snapshot; select two → Compare.
-- The detected **`AgentDomain`** (description + in/margin/ood regions), **editable inline** and saved back to the snapshot.
+### 8. Registries
+The registries manage reusable evaluation criteria and metadata. These must be split into separate pages or distinct, fully-featured tabs.
 
-### 3. Cases + Eval builder
-_Mockup: `mockups/03_eval_case_builder/`._
-- Dataset list; a case list filterable by tag / problem_type / domain_position / split.
-- **Case editor** (not raw JSON): the multi-turn `conversation`, `domain_position`, `problem_type`, `split`, tags, and attached `metrics`. Intent classification appears here only as an enum metric, never as a core field.
-- **Domain × problem builder**: a matrix (domain_position × problem_type) to generate/populate coverage; "copy case" (duplicate-and-edit).
-- **Held-out guard (SOUL13)**: `split` is prominent; optimisation vs judging is visually distinct; the UI warns when an optimisation action would read judging cases.
+#### 8.1 Datasets
+**Purpose:** Manage named groups of Eval Cases.
+**User Interactions:**
+- **Create Dataset:** The user clicks "New Dataset", types a unique name, and clicks "Save".
+- **Rename Dataset:** The user edits the name of an existing dataset and clicks "Save".
+- **Delete Dataset:** The user clicks "Delete" to remove a dataset. This button is disabled if any EvalCase is currently assigned to the dataset.
 
-### 4. Run + trace viewer
-_Mockup: `mockups/04_trace_viewer_scoring/`._
-- Trigger a run (or campaign) from a dataset + snapshot; shows in the jobs tray.
-- **Trace viewer**: rendered message parts (text, tool_call, tool_response, media) as a conversation, not JSON. A crash trace shows its exception as a first-class, scorable outcome. Latency/tokens shown.
-- Per-run **results** rendered by type (bool → pass/fail, enum → chip, int/float → value + fold stats), with the judge/human rationale.
+#### 8.2 Tags
+**Purpose:** Manage tags for filtering cases.
+**User Interactions:**
+- **Create/Edit Tag:** The user types a unique name, selects a color, and clicks "Save".
+- **Delete Tag:** The user clicks "Delete" to remove a tag. This button is disabled if the tag is assigned to any cases (usage count > 0).
 
-### 5. Compare
-_Mockup: `mockups/05_compare_snapshot_diff/` (note the amber SOUL13 validity-guard banner)._
-- Snapshot-vs-snapshot and run-vs-run. Aggregates diffed; regressions surfaced by a **threshold comparison over stored aggregates** (a UI concern, not a bespoke module). Semantic diff of prompts/tools between the two snapshots.
+#### 8.3 Rubrics
+**Purpose:** Create LLM-as-a-judge grading criteria.
+**User Interactions:**
+- **Create/Edit Rubric:** The user types a unique name and the main instructions ("You are a critic...").
+- **Manage Fields:** The user can add multiple fields. For each field, the user types a name, selects a return type (Float, Boolean, Enum, Integer) from a dropdown, and types the field-specific LLM prompt. For Enums, the user types the allowed values.
+- **View Frozen State:** If a rubric has already been used to score a run, all text inputs and dropdowns are disabled (read-only) to preserve audit history. 
+- **Create New Version:** If a rubric is frozen, the user clicks "Create New Version" to duplicate the rubric into a new, editable instance.
 
-### 6. Campaign + response matrix (SOUL9)
-_Mockup: `mockups/06_campaign_response_matrix/`._
-- Configure a campaign (dataset + model panel); launch; watch progress.
-- **Response-matrix heatmap** (models × cases). Derived views: item difficulty, model ability, co-failure clusters, redundant-pair (thinning) suggestions. These are read from `analysis/`, not computed client-side.
+#### 8.4 Extractors
+**Purpose:** Write Python functions to extract structured data from a Trace.
+**User Interactions:**
+- **Create/Edit Extractor:** The user types a name, selects a return type (String, Float, Boolean, Enum), and writes Python code in a dedicated code editor block.
+- **Dry-run (Test):** The user clicks "Run on sample trace" to execute their Python code against a sample trace and see the output before saving.
+- **Save/Version:** When the user clicks "Save" on an extractor that has already been used, it automatically creates a new version to preserve audit history.
+- **AGENT4**: the extractor author agent can be used to draft extraction functions
 
-### 7. Editable registries (gen-1 showed these read-only)
-_Mockups: `mockups/07_registries_rubrics_frozen/` (frozen rubric = read-only + "new version"), `mockups/08_extractor_authoring/` (AGENT4 draft→run→confirm)._
-Full CRUD editors, each rendered (not JSON), each respecting immutability rules from `object_model.md`:
-- **Tags**: create / rename / delete-if-unused (count 0).
-- **Metrics**: strategy, result_type, enum values, extractor/verifier/rubric refs, ground truth, comparator.
-- **Rubrics**: items (name/type/enum/prompt), judge prompt; **frozen rubrics are read-only** — editing offers "create new version".
-- **Extractors**: show the fingerprinted source (read-only source, editable via AGENT4 flow), run against a sample trace to preview the value.
+### 9. Human Eval
+**Purpose:** Allow humans to grade traces to establish ground truth or audit the LLM judge.
+**User Interactions:**
+- **Search Generation:** The user selects a RunGeneration from a dropdown by its display name.
+- **Read Trace:** The user views the formatted execution trace (same format as Run Generation).
+- **Input Scores:** The user sees a Rubric and manually inputs their scores for each field.
+- **View Agreement:** The user sees a confusion matrix and Cohen's kappa score comparing their manual human scores to the LLM judge's scores.
 
-### 8. Human eval
-_Mockup: `mockups/09_human_evaluation/` (note the "1 of 12 disagreements" triage framing — spend human attention only on disagreements)._
-- Present a run + a rubric; capture human `Result`s (source=human) and comments. Show human–LLM agreement (confusion matrix / kappa for bool/enum, correlation for int/float) from `analysis/agreement.py`.
+### 10. Chat Operator
+**Purpose:** A conversational interface to the evaluation framework.
+**User Interactions:**
+- **Send Message:** The user types a message and hits enter to chat with the AGENT1 operator. The chat displays user messages, assistant messages, and tool outputs.
+- **Confirm Actions:** When the assistant proposes a destructive or expensive action (e.g., launching a scan or a campaign), the UI displays a confirmation card summarizing the action. The user must explicitly click "Confirm" to execute it or "Cancel" to abort.
 
-### 9. Chat operator
-_Mockup: `mockups/10_chat_operator/` (read tools = inline chips, no confirm; write/expensive = ActionProposal confirm card)._
-- The AGENT1 chat pane (streamed). Read tools run freely; **write/expensive tools return an `ActionProposal` that the UI renders as a confirm card** (see `chat_operator.md`) — the human clicks to execute. No silent writes.
+## API Routes
 
-## Write-action confirmation (mirror of the chat contract)
+All routes deal with IDs and rely entirely on the service layer for business logic. They closely map to the endpoints exposed in `web/routes/__init__.py`:
 
-Any destructive or expensive action (scan, run, campaign launch, delete, freeze) triggered from the UI shows a confirm step with a clear summary of effects. Cheap reads are immediate. This mirrors the chat operator's read-vs-confirm split so the two clients behave identically against the service layer.
+### Config & Environment
+- `GET /api/health`
+- `GET /api/config/judge-models` (Provides default judge model and allowed panel)
+- `GET /api/jobs` (Polling endpoint for async tasks)
+- `GET /api/repo` (Returns Git repo info from the CLI launch path)
+- `GET /api/repo/agents` (Enumerates discoverable agents)
 
-## API shape (sketch)
+### Snapshots & Scanner
+- `POST /api/scan` (Takes `agent_path`, `commit`, triggers generation of a new Agent Snapshot)
+- `GET /api/snapshots`
+- `GET /api/snapshots/<id>`
+- `PATCH /api/snapshots/<id>/domain` (Updates the `AgentDomain`)
 
-`/api/repos`, `/api/repos/{id}/agents` (enumerate targets), `/api/scan` (POST target+commit), `/api/snapshots/{id}` (+ `/domain` PATCH), `/api/cases` (CRUD), `/api/datasets`, `/api/runs` (POST + GET trace), `/api/campaigns` (POST + matrix GET), `/api/compare`, `/api/tags|metrics|rubrics|extractors` (CRUD), `/api/human-eval`, `/api/chat` (stream), `/api/jobs` (async status). Each maps 1:1 to a service function.
+### Cases
+- `GET | POST /api/cases`
+- `GET /api/cases/<id>`
+- `POST /api/cases/<id>/copy` (Duplicates a case for easy editing)
 
-## Tests
+### Runs (Generation & Evaluation)
+- `GET /api/runs?snapshot_id=...` (List runs)
+- `GET /api/runs/status?snapshot_id=&dataset_id=` (Checks how many traces/evals are missing for a dataset)
+- `POST /api/runs/generate` (Executes the agent against a dataset to generate traces)
+- `POST /api/runs/evaluate` (Scores generated traces against the dataset's metrics)
+- `GET /api/runs/<id>` (Fetch a specific run trace)
+- `POST /api/runs/<id>/rerun` (Regenerates the trace for a specific run)
+- `POST /api/runs/<id>/rescore` (Re-evaluates the trace for a specific run)
+- `GET /api/runs/<id>/scored` (Fetches the scoring results and rationales for a run)
 
-- **Type sync test**: TS types match the exported Pydantic JSON Schema (fails if the domain model drifts).
-- **Component tests** (Vitest + Testing Library) for the typed primitives: `TraceView` renders each part kind (incl. a crash card); `ResultView` renders per `type`; `RubricEditor` is read-only + offers "new version" when `frozen`; delete-tag disabled when count > 0; `BlameTag` renders each error category.
-- **Shell singleton test**: routed pages render inside a single `AppShell`; no page defines its own navbar (guards against the gen-1 per-page-navbar regression).
-- **Flow test**: add repo → pick agent → scan → land on Agent view (mocked API).
-- **No-raw-JSON guard**: assert primary object views are rendered components, JSON only behind "view raw".
-- **API contract test** (pytest): every `/api/*` route calls a real service function (no logic in routes).
+### Registries
+- `GET | POST /api/tags`, `DELETE /api/tags/<name>`
+- `GET | POST /api/datasets`, `PATCH | DELETE /api/datasets/<id>`
+- `GET | POST /api/rubrics`, `GET | DELETE /api/rubrics/<id>`, `POST /api/rubrics/<id>/new-version`
+- `GET | POST /api/extractors`
 
-Definition of done: the full loop (add repo → pick agent → scan → build case → run → view trace → score → compare) is doable **entirely in the UI**, with no env vars and no raw-JSON editing, and the type-sync + flow tests pass.
+### Campaigns & Compare
+- `GET /api/compare?a=&b=` (Compares two snapshot IDs for diffs and regressions)
+- `GET | POST /api/campaigns`
+- `GET /api/campaigns/<id>/matrix` (Fetches the heatmap matrix for a campaign)
+
+### Human Evaluation
+- `GET | POST /api/human-eval`
+- `GET /api/agreement/<rubric_id>` (Calculates Cohen's kappa and confusion matrix)
+
+## Tests Requirements
+- **Web UI Tests (Playwright)**: The entire flow must be covered by E2E testing to ensure user interactions work (e.g., building a typed rubric with fields, creating uniquely named datasets, dry-running extractors).
+- **API Contract Tests**: No logic in routes; all routes parse parameters into IDs and call the service layer.
