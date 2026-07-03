@@ -2,6 +2,7 @@ import json
 from typing import TypeVar, Type, Optional, List
 from pydantic import BaseModel
 import kuzu
+import time
 
 T = TypeVar('T', bound=BaseModel)
 
@@ -67,6 +68,8 @@ class BaseRepository:
                     val = {}
                 elif 'str' in ann:
                     val = ""
+                elif 'float' in ann and field_name == 'created_at':
+                    val = time.time()
                 else:
                     val = None
                     

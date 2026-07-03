@@ -25,7 +25,7 @@ export function Campaigns() {
   };
     const handleLaunch = async () => {
       try {
-        await fetch('/api/campaigns/', {
+        await fetch('/api/campaigns', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
