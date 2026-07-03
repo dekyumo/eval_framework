@@ -1,6 +1,22 @@
 # Contract: Scoring, Extraction, and the Response Matrix
 
-`services/scoring.py` + `analysis/metrics.py` + `analysis/response_matrix.py` + `extraction/extractor.py`. Scoring is easy; the only hard part is **extraction** (trace → typed value). The response matrix is "a design matrix + a log-linear model" (the implementer's own insight) — literally a Rasch/1PL IRT model via logistic regression.
+
+There are several kinds of scores and metrics:
+- if there is a golden truth for a run, then we can compare our run with this reference run, this is the philosophy of the current google ADK evaluation framework
+- if there is an extraction function (a function from a trace to a bool/float/int/enum), and a ground truth for each trace, we can compare the value extracted from the trace with a provided ground truth (the ground truth has to be provided per eval case)
+- if there is a verification function (as in RLVR), it is a function from a conversation trace to a boolean EvalPassed:True/False
+- if there is a rubric (as in LLM as judge), we can send the Trace and rubric to a judging LLM. By extension, we can use Agent-as-judge to have a full agentic workflow outputting rubric results.
+- if we use a rubric, we can also give a human evaluation for that rubric as well
+- if we use external metrics (for example, from Ragas), then we first have to translate our Trace and its MessagePart to that library's native trace, and run the metric (usually an agent as judge).
+- if a score is a float, it can be transformed into a boolean with a threshold, same as the usual two class classification problem
+- because extraction functions can return None, we have to handle missing values
+- each output score in a rubric behaves like a separate metric (so rubric_a.legibility_score can be flattened to rubric_a_legibility_score if needed to present all scores in a flattened view)
+
+
+`services/scoring.py` + `analysis/metrics.py` + `analysis/response_matrix.py` + `extraction/extractor.py`. 
+
+For binary scores, the response matrix is "a design matrix + a log-linear model" (the implementer's own insight) — literally a Rasch/1PL IRT model via logistic regression.
+For float scores, the response matrix is "a design matric + a regression model". This also gives case difficulties and model ability scores.
 
 ## 1. Scoring an eval run
 
@@ -17,7 +33,7 @@ def score_run(run: EvalRun, case: EvalCase) -> ScoredEvalRun:
 - `verifier` → `VerifierEvaluator`: run `verifier_ref(input, output)`; map to a typed `Result`.
 - `rubric` → `RubricEvaluator`: LLM judge (or human) applies the rubric → one `Result` per item.
 
-**No LLM call computes a number directly.** The judge returns a typed `Result` (e.g. `bool` per rubric item) with a `confidence`; everything numeric afterwards is deterministic folding.
+**No LLM call computes a number directly.** The judge returns a typed `Result` (e.g. `bool` per rubric item) .
 
 ## 2. Comparators (deterministic metric)
 
@@ -40,7 +56,7 @@ def load_extractor(ref: str) -> Callable[[Trace], Any]: ...   # import, verify f
 def run_extractor(ref: str, trace: Trace) -> Any: ...          # deterministic, no I/O
 ```
 
-Authoring loop (AGENT4, `agent_spec/AGENT4_extractor_author.md`): given example traces + target type + NL description → draft `extract` → **run it against the example traces and show outputs** → human confirms or edits → store fingerprinted. Draft-run-confirm, never autonomous (SOUL12). The stored function then runs deterministically forever.
+Authoring loop (AGENT4, `agent_spec/AGENT4_extractor_author.md`): given a description by the user and if available some example traces, produces some python code to extract values from a trace. Draft-run-confirm, never autonomous (SOUL12). The stored function then runs deterministically forever.
 
 Failure handling: if `extract` raises on a trace, the metric yields a `Result` of the right type with a sentinel + `confidence="low"` and the exception in `rationale` — extraction failure is itself a (bad) observation, not a crash of the scorer.
 
@@ -85,6 +101,8 @@ def fit_irt(rm: ResponseMatrix) -> tuple[dict, dict]:
     ability = coefficients_for_model_block(clf)   # model coefficients
     difficulty = -coefficients_for_case_block(clf) # NEGATED case coefficients = difficulty
     return ability, difficulty
+
+## adapt for regression/float
 ```
 
 Notes:

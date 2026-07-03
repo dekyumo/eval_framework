@@ -58,6 +58,7 @@ class Result(BaseModel):
     enum_values: list[str] | None = None     # required when type == "enum"
     confidence: Confidence | None = None      # judges/humans set this; deterministic may omit
     rationale: str | None = None
+    traceback: str | None = None             # set if an extractor crashes during evaluation
     source: ResultSource
 
 class AggregateResult(BaseModel):
@@ -128,13 +129,14 @@ class RubricItem(BaseModel):
     name: str
     type: ResultType
     enum_values: list[str] | None = None
-    prompt: str                              # objective, anchored ("did the reply cite the refund window?")
+    prompt: str = ""                         # objective, anchored ("did the reply cite the refund window?")
 
 class Rubric(BaseModel):
     id: str
     name: str
     items: list[RubricItem]
     default_judge_prompt: str
+    judge_model_id: str = "gemini-2.5-flash" # which model to use as the judge
     consumes_two_traces: bool = False        # pairwise rubric
     version: int
     fingerprint: str
@@ -204,7 +206,7 @@ class ToolNode(BaseModel):
     name: str
     signature: str
     source_fingerprint: str
-    reaches_external: bool                   # declared external access (functional spec §11.2)
+    reaches_external: bool = False           # declared external access (functional spec §11.2)
 
 class ModelNode(BaseModel):
     id: str                                  # fully qualified, pinned (reject "latest")
@@ -283,7 +285,7 @@ class ResponseMatrix(BaseModel):
     campaign_id: str
     models: list[str]                        # rows
     case_ids: list[str]                      # columns
-    cell: dict[tuple[str, str], float]       # (model, case) -> aggregated outcome in [0,1] or mean
+    cell: dict[str, float]                   # "model|case" -> aggregated outcome in [0,1] or mean (dict keys must be strings for JSON)
     # derivations (see contracts/scoring_extraction_response_matrix.md):
     #   difficulty[case]  via logistic regression item coefficients (Rasch/1PL)
     #   ability[model]    via the same regression's model coefficients

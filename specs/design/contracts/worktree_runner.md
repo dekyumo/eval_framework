@@ -95,3 +95,8 @@ def main():
 - exception inside `run_case` → worktree still removed (finally), and the failure becomes a `Trace` with `exception` set.
 - venv cache hit on the second repetition (no rebuild).
 - orphan sweep: pre-create a fake stale worktree dir → startup prune removes it.
+
+## The library hypothesis
+
+If the implementing model decides that re-implementing worktree isolation from scratch is too dangerous and too brittle, it can replace it with a
+well known implementing library of its choice.

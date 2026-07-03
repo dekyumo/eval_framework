@@ -1,40 +1,29 @@
-# Contract: AgentScanner (FRAGILE)
+# Contract: AgentScanner and Code Explorer (AGENT2)
 
-`scanner/scanner.py`. Turns a clean commit of an agent-under-test into an `AgentManifest`. This is the most ADK-version-sensitive component; it is fenced so that when it fails, blame is attributable to one of three causes, never to "oopsie".
+`scanner/scanner.py` and `agents/code_explorer/`. The scanner pipeline turns a clean Git commit of an agent-under-test into an `AgentManifest` and an `AgentDomain`. 
 
-## Responsibility
+This process is strictly divided into two phases:
+1. **Deterministic Scan (`scanner.py`)**: A fragile but highly constrained, LLM-free extraction of the agent's structural manifest (prompts, tools, sub-agents).
+2. **Semantic Exploration (AGENT2 / `code_explorer`)**: An LLM-assisted draft of the agent's operational domain boundaries (what it can and cannot do).
 
-Given an **`AgentTarget` (repo + `agent_path`)** and a clean commit, produce a deterministic `AgentManifest` for **that specific agent** (agents, tools, models, prompts, edges) by combining **instantiation** (what ADK exposes when the agent object is built) with **AST inspection** (what only the source reveals: tool bodies, hooks, code flow). A repo may hold several agents; `agent_path` selects which one (root agent or a specific sub-agent).
+## 1. Deterministic Scanner (`scanner.py`)
 
-It does **not** run the agent. It instantiates and reads structure.
+### Responsibility
+Given an **`AgentTarget` (repo + `agent_path`)** and a clean commit, produce a deterministic `AgentManifest` for **that specific agent** (agents, tools, models, prompts, edges) by combining **instantiation** (what ADK exposes when the agent object is built) with **AST inspection** (what only the source reveals: tool bodies, hooks, code flow). 
 
-## Interface
+It does **not** run the agent. It strictly instantiates and reads structure.
 
-```python
-def scan(target: AgentTarget, commit: str) -> AgentManifest: ...
-```
+### Mechanism & Isolation
+Instantiation happens inside a Worktree subprocess (see `worktree_runner.md`), so scanning a faulty or malicious commit never crashes or pollutes the main framework process.
 
-`AgentTarget = (repo_path, agent_path, name)` — see `object_model.md` §7. Identity of the resulting snapshot is `(commit, agent_path)`, so two agents in the same commit produce two distinct snapshots that share the repo's Kuzu DB. `scan` is a pure function of `(target, commit)` — same inputs ⇒ byte-identical manifest (prompts/tools fingerprinted from source, not runtime).
+1. **Preconditions**: Check if repo exists, commit exists, and the tree is clean.
+2. **Resolve Path**: Find the target (e.g. `pkg.mod:root_agent`).
+3. **Instantiate (Subprocess)**: The Worktree runner executes a tiny introspection script that imports the agent and outputs a JSON dump of the ADK object graph (models, raw prompt templates, sub-agent edges).
+4. **AST Scan (Main Process)**: Uses Python's `ast` module to read the agent's source code files. It extracts exact tool function signatures and raw source code segments.
+5. **Reconciliation**: Merges the ADK object graph with the AST scan to create the `AgentManifest`. Prompts and Tools are hashed/fingerprinted based on their normalized raw text.
 
-## Preconditions (checked first; violations are CALLER faults)
-
-1. `target.repo_path` exists and is a git repository → else `RepoNotFoundError`.
-2. `commit` exists in that repo → else `CommitNotFoundError`.
-3. Working tree at the resolved checkout is clean (no modified/untracked tracked files) → else `DirtyRepositoryError`.
-4. `target.agent_path` is non-empty → else `AgentEntrypointNotFound` (checked at resolution).
-
-Instantiation happens inside a WorktreeRunner checkout at `commit` (see `worktree_runner.md`), in a subprocess, so scanning an old commit never pollutes the main process.
-
-## Output reconciliation
-
-1. **Locate the target agent.** Resolve `target.agent_path` (e.g. `"pkg.mod:root_agent"` or a sub-agent symbol). This comes from the `AgentTarget` chosen in the UI — **not** from a hard-coded `AGENT_ENTRYPOINT`. The default convention is `agent.py` exposing `root_agent`, offered by the UI's agent picker. Not found → `AgentEntrypointNotFound`.
-2. **Instantiate** in the worktree subprocess. From the ADK object read: agent tree (sub-agents via `agent.sub_agents`), per-agent model id, and the **raw instruction template before `.format`** (ADK exposes the template; fingerprint that, so two commits with the same template share a `PromptNode`).
-3. **AST scan** (Tree-sitter if available, else `ast`) of the agent package for what instantiation cannot give reliably: tool function definitions + signatures + source, registered callbacks/hooks, and which agent references which tool. AGENT2 (`code_explorer`) may assist but the scanner must have a deterministic non-LLM fallback — the manifest must be reproducible without any LLM call.
-4. **Merge** into `AgentManifest`; fingerprint prompts (raw template) and tools (normalized source). Reconcile against the agent's existing Kuzu DB: reuse `PromptNode`/`ToolNode` when a fingerprint already exists (do not duplicate).
-
-## Error taxonomy (the blame fence)
-
-`scanner/errors.py`. Every raised error is exactly one category. Unexpected exceptions are wrapped, never leaked as the wrong category.
+### Error Taxonomy (The Blame Fence)
+When the scanner fails, it is critical to attribute blame correctly. All exceptions inherit from `ScannerError`.
 
 | Exception | Category | Meaning / who is to blame |
 | --- | --- | --- |
@@ -42,54 +31,24 @@ Instantiation happens inside a WorktreeRunner checkout at `commit` (see `worktre
 | `AgentEntrypointNotFound`, `UnsupportedAgentStructure`, `AgentImportError` | **AgentError** | The agent-under-test is malformed/unsupported. Carries the agent's underlying traceback. |
 | `ScannerInternalError` | **FrameworkError** | A bug in the scanner. Wraps any unexpected exception with full context. |
 
-Base class hierarchy:
+## 2. Semantic Code Explorer (AGENT2)
 
-```python
-class ScannerError(Exception): ...
-class CallerError(ScannerError): ...        # RepoNotFound, CommitNotFound, DirtyRepository
-class AgentError(ScannerError):             # carries .agent_traceback
-    def __init__(self, msg, agent_traceback: str | None = None): ...
-class FrameworkError(ScannerError): ...      # ScannerInternalError
-```
+### Responsibility
+After the deterministic `AgentManifest` is built, the framework needs to establish an `AgentDomain`. The domain defines the operational boundaries of the agent (used later to categorize evaluation cases).
 
-Rule: the top-level `scan` body is wrapped so any exception that is **not** already a `ScannerError` becomes a `FrameworkError`. `AgentImportError` is raised only when the failure is provably inside the agent's own import/instantiation (the subprocess returns a structured failure with the agent's traceback). This is what makes "wrong agent" vs "our bug" testable.
+Because understanding the boundaries of an agent requires reading and comprehending its instructions and tool capabilities, this is delegated to **AGENT2 (`code_explorer`)**.
 
-## Pseudocode
+### Mechanism
+AGENT2 acts as a domain expert and Product Manager.
+1. **Input**: It is fed the deterministic structure extracted by the scanner (the ADK agent definition, instructions, and the source code for its tools).
+2. **Process**: The LLM analyzes the prompts and tool capabilities.
+3. **Output**: It generates a structured `AgentDomain` object consisting of:
+    - `description`: A high-level explanation of the agent's functionality.
+    - `in_domain`: A list of tasks the agent is explicitly designed to handle.
+    - `out_of_domain`: A list of tasks the agent is fundamentally incapable of, or explicitly restricted from handling.
+    - `domain_margin`: Tasks that represent edge cases or exist in a gray area of the agent's capabilities.
 
-```python
-def scan(target: AgentTarget, commit: str) -> AgentManifest:
-    try:
-        _check_repo(target.repo_path)        # -> RepoNotFoundError
-        _check_commit(target.repo_path, commit)  # -> CommitNotFoundError
-        with WorktreeRunner(target.repo_path, commit) as wt:   # -> DirtyRepositoryError if dirty
-            entry = resolve_agent_path(wt.path, target.agent_path)  # -> AgentEntrypointNotFound
-            inst = wt.run_introspection(entry)           # subprocess; structured result
-            if inst.failed:
-                raise AgentImportError(inst.message, agent_traceback=inst.traceback)
-            ast_info = ast_scan(wt.path / entry.package) # tools, hooks, refs (no LLM)
-            manifest = reconcile(inst, ast_info)         # -> UnsupportedAgentStructure if shapes conflict
-            fingerprint_prompts_and_tools(manifest)
-            return manifest
-    except ScannerError:
-        raise
-    except Exception as e:
-        raise ScannerInternalError(f"scan({target.agent_path}@{commit}) failed unexpectedly") from e
-```
+### Integration
+The `AgentDomain` produced by AGENT2 is saved to the `AgentSnapshot`. It is treated as a **draft**. A human operator views this draft in the UI (on the `Agents.tsx` page) and can edit or refine the boundaries before saving the final domain definition. 
 
-**Domain detection.** After the manifest is built, the snapshot's `AgentDomain` (description + in/margin/ood regions) is drafted from the agent's prompts and tool docstrings. Keep this out of the deterministic `scan`: it is an LLM-assisted draft (AGENT2) that a human edits in the UI, stored on the `AgentSnapshot`. The manifest stays LLM-free and reproducible.
-
-`wt.run_introspection` runs a tiny script in the worktree venv that imports the entrypoint and prints JSON: `{agents, models, raw_prompts, subagent_edges}` or `{failed: true, message, traceback}`. The parent never imports agent code.
-
-## Tests (`tests/test_scanner.py` + `tests/fixtures/agents/`)
-
-Fixtures are tiny ADK agents committed into the fixture repos:
-- `good_single/` — one agent, one tool, one prompt. Assert manifest equals a stored golden JSON.
-- `good_multi/` — root + two sub-agents, shared prompt across two. Assert edges + prompt dedup (same fingerprint). Targeting a sub-agent's `agent_path` yields a snapshot rooted at that sub-agent; two targets in the same commit → two snapshot ids sharing one repo DB.
-- `missing_entrypoint/` — no `root_agent` → expect `AgentEntrypointNotFound` (AgentError).
-- `import_boom/` — raises on import → expect `AgentImportError` carrying the agent traceback (AgentError).
-- `unsupported/` — a structure the reconciler can't map → `UnsupportedAgentStructure` (AgentError).
-- dirty tree → `DirtyRepositoryError` (CallerError); bad path → `RepoNotFoundError`; bad sha → `CommitNotFoundError`.
-- determinism: `scan()` twice on the same commit ⇒ identical manifest.
-- blame test: monkeypatch the reconciler to raise a random `ValueError` ⇒ surfaces as `FrameworkError`, **not** `AgentError`.
-
-Definition of done: every row of the error-taxonomy table has a passing test, and the two golden manifests match.
+By separating the deterministic structural scan from the LLM-assisted domain draft, the framework ensures the core `AgentManifest` remains byte-identical and perfectly reproducible for any given commit, while still automating the tedious documentation of the agent's operational boundaries.
