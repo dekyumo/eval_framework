@@ -16,16 +16,16 @@ The extracted value will typically be compared to a ground truth provided by the
 """
 
 from google.adk.agents import LlmAgent
+from pydantic import BaseModel, Field
 
 from textwrap import dedent
 
 import inspect
-from domain.trace import Trace, MessagePart
+from src.eval_workbench.domain.trace import Trace, MessagePart
 trace_declaration = inspect.getsource(Trace)
 message_part_declaration = inspect.getsource(MessagePart)
 
-prompt = 
-f"""You are an expert in writing python code for agentic systems. 
+prompt = f"""You are an expert in writing python code for agentic systems. 
 You are asked to write a python function that will take a trace as input and return a value of interest.
 
 # Input type definition for the new function
@@ -57,14 +57,14 @@ Now, the user will ask you to write a function that takes a trace as input and r
 Return the code for the new function, without any additional text or comments.
 
 """
-def ExtractorReturnType(BaseModel):
+class ExtractorReturnType(BaseModel):
     python_code: str = Field(description="The python code for the new function.")
     implementation_notes: str = Field(description="Any implementation notes the requester may want to know, in markdown format.")
 
 root_agent = LlmAgent(
-    name="extractor-author",
+    name="extractor_author",
     description="Writes python code to extract a value from a trace.",
     instruction=prompt,
-    output_type=ExtractorReturnType,
+    output_schema=ExtractorReturnType,
     model="gemini-2.0-flash",
 )

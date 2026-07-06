@@ -1,2 +1,8 @@
 __pycache__/
 .env
+node_modules/
+
+
+# warts
+TODO.txt
+scripts/refresh_certs.py
