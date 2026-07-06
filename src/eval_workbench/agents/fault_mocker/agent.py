@@ -1,6 +1,7 @@
 """Fault mocker agent (AGENT3)."""
 
 from google.adk.agents import LlmAgent
+from pydantic import BaseModel, Field
 
 
 prompt = """You are an expert python programmer specialised in writing mock tool implementations for unit testing of google ADK agents.
@@ -33,8 +34,8 @@ Here is a typology of fault types:
 ## Example 1:
 
 Input:
-def database_get_tool(id: str) -> dict:
-    return conn.execute(f"SELECT * FROM main_table WHERE id = {id}").fetchone()
+def database_get_tool(record_id: str) -> dict:
+    return conn.execute(f"SELECT * FROM main_table WHERE id = {{record_id}}").fetchone()
 
 Output:
 import random, time
@@ -53,14 +54,14 @@ def get_mocked_tool(type: str, original_tool) -> Callable:
         func2 = lambda id: return new ArgumentParser().parse_args(["--help"])
         return random.choice([func1, func2])
     if type == "correctness":
-        func1 = lambda id: {"id": id, "name": "Stack exception occurred during execution"}
-        func2 = lambda id: {"id": id, "nnaammee": "John Doe"}
-        func3 = lambda id: {id: "id", "name": "John Doe"}
+        func1 = lambda id: {{"id": id, "name": "Stack exception occurred during execution"}}
+        func2 = lambda id: {{"id": id, "nnaammee": "John Doe"}}
+        func3 = lambda id: {{id: "id", "name": "John Doe"}}
         return random.choice([func1, func2, func3])
     if type == "partial_failure":
-        func1 = lambda id: {"id": id, "name": "John Walter Springfi~"}
-        func2 = lambda id: {"id": id, "name": "N/A"
-        func3 = lambda id: {"id": id, "name": original_tool(id)["name"][3:]}
+        func1 = lambda id: {{"id": id, "name": "John Walter Springfi~"}}
+        func2 = lambda id: {{"id": id, "name": "N/A"
+        func3 = lambda id: {{"id": id, "name": original_tool(id)["name"][3:]}}
         return random.choice([func1, func2])
     ...
 
@@ -71,7 +72,7 @@ You will output a function that generates mocked tools with given constraints.
 
 """
 
-def MockToolReturnType(BaseModel):
+class MockToolReturnType(BaseModel):
     mocked_tool_source_code: str = Field(description="The source code for the mocked tool")
 
 
@@ -79,6 +80,6 @@ root_agent = LlmAgent(
     name="FaultMocker",
     description="Generates mocked_tools.py for fault injection",
     instruction=prompt,
-    output_type=MockToolReturnType,
+    output_schema=MockToolReturnType,
     model="gemini-2.5-flash",
 )

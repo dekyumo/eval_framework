@@ -1,103 +1,191 @@
 import { useState, useEffect } from 'react';
 import { TraceView } from '../components/TraceView';
+import { SnapshotSelect } from '../components/SnapshotSelect';
+import { Button } from '../components/ui/Button';
+import { Select } from '../components/ui/Select';
+import { Heading, Text } from '../components/ui/Typography';
+import { PageContainer, PagePane, BorderedSection } from '../components/ui/PageLayout';
 
 export function Runs() {
-  const [traces, setTraces] = useState<any[]>([]);
+  const [runs, setRuns] = useState<any[]>([]);
+  const [snapshots, setSnapshots] = useState<any[]>([]);
+  const [datasets, setDatasets] = useState<any[]>([]);
+  const [selectedSnapshotId, setSelectedSnapshotId] = useState('');
+  const [selectedDatasetId, setSelectedDatasetId] = useState('');
+  const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [isRerunning, setIsRerunning] = useState(false);
+
+  const refreshRuns = async () => {
+    const runsRes = await fetch('/api/runs');
+    const data = await runsRes.json();
+    if (Array.isArray(data)) {
+      setRuns(data);
+    }
+    return data;
+  };
 
   useEffect(() => {
-    fetch('/api/runs')
-      .then(res => res.json())
-      .then(data => {
-        if (Array.isArray(data)) {
-          setTraces(data.map(run => run.trace));
-        }
-      })
-      .catch(console.error);
+    Promise.all([
+      fetch('/api/agents/snapshots').then(res => res.json()),
+      fetch('/api/registries/datasets').then(res => res.json()),
+      refreshRuns(),
+    ]).then(([snapsData, datasetsData]) => {
+      if (Array.isArray(snapsData)) setSnapshots(snapsData);
+      if (Array.isArray(datasetsData)) setDatasets(datasetsData);
+    }).catch(console.error);
   }, []);
 
-    const handleGenerate = async () => {
-      // In a real implementation, the backend would handle the loop over dataset cases.
-      // Here, we fetch cases, and generate a run for the first one found (or all of them)
-      try {
-        const casesRes = await fetch('/api/cases');
-        const cases = await casesRes.json();
-        const datasetCases = cases.filter((c: any) => c.dataset_id === 'DayTrip Tests' || true); // simplify for now
-        
-        for (const c of datasetCases) {
-          await fetch('/api/runs/generate', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              snapshot_id: 'HEAD:a_single_agent.day_trip:root_agent',
-              case_id: c.id,
-              model_id: 'gemini-2.5-flash'
-            })
-          });
-        }
-        
-        // Refetch traces
-        const runsRes = await fetch('/api/runs');
-        const data = await runsRes.json();
-        if (Array.isArray(data)) {
-          setTraces(data.map((run: any) => run.trace));
-        }
-      } catch (err) {
-        console.error(err);
-      }
-    };
+  const handleGenerate = async () => {
+    if (!selectedSnapshotId || !selectedDatasetId) {
+      alert('Please select a snapshot and a dataset');
+      return;
+    }
 
-    return (
-    <div className="max-w-6xl mx-auto flex h-full gap-6">
-      <div className="w-1/3 bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
-        <div className="p-4 border-b border-slate-200 bg-slate-50">
-          <h2 className="text-lg font-bold text-slate-800">Run Generation</h2>
-          <div className="mt-3 space-y-2">
-            <select aria-label="Snapshot" className="w-full border border-slate-300 rounded p-1.5 text-sm">
-              <option>Select Snapshot...</option>
-              <option>HEAD:a_single_agent.day_trip:root_agent</option>
-            </select>
-            <select aria-label="Dataset" className="w-full border border-slate-300 rounded p-1.5 text-sm">
-              <option>Select Dataset...</option>
-              <option>DayTrip Tests</option>
-            </select>
-            <button 
-              className="w-full bg-indigo-600 text-white font-medium py-1.5 rounded text-sm hover:bg-indigo-700"
+    const dataset = datasets.find(d => d.id === selectedDatasetId);
+    if (!dataset) return;
+
+    setIsGenerating(true);
+    try {
+      const caseIds: string[] = dataset.case_ids || [];
+      for (const case_id of caseIds) {
+        await fetch('/api/runs/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            snapshot_id: selectedSnapshotId,
+            case_id,
+            model_id: 'gemini-2.5-flash',
+            force: false,
+          }),
+        });
+      }
+      await refreshRuns();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handleRerun = async () => {
+    const run = runs.find(r => r.id === selectedRunId);
+    if (!run) return;
+
+    setIsRerunning(true);
+    try {
+      const res = await fetch('/api/runs/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          snapshot_id: run.snapshot_id,
+          case_id: run.case_id,
+          model_id: run.model_id,
+          force: true,
+        }),
+      });
+      if (!res.ok) {
+        console.error('Rerun failed', await res.text());
+        return;
+      }
+      const updated = await res.json();
+      await refreshRuns();
+      if (updated?.id) {
+        setSelectedRunId(updated.id);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsRerunning(false);
+    }
+  };
+
+  const selectedRun = runs.find(r => r.id === selectedRunId) ?? null;
+
+  return (
+    <PageContainer variant="full">
+      <PagePane variant="sidebar" className="h-full flex flex-col">
+        <BorderedSection position="header" className="flex-col gap-3 items-stretch">
+          <Heading level={3}>Run Generation</Heading>
+          <div className="space-y-2">
+            <SnapshotSelect
+              aria-label="Snapshot"
+              value={selectedSnapshotId}
+              onChange={e => setSelectedSnapshotId(e.target.value)}
+              snapshots={snapshots}
+              placeholder="Select Snapshot..."
+            />
+            <Select
+              aria-label="Dataset"
+              value={selectedDatasetId}
+              onChange={e => setSelectedDatasetId(e.target.value)}
+            >
+              <option value="">Select Dataset...</option>
+              {datasets.map(d => (
+                <option key={d.id} value={d.id}>{d.name}</option>
+              ))}
+            </Select>
+            <Button
+              variant="cta"
+              className="w-full text-center"
               onClick={handleGenerate}
               id="generate-traces-btn"
+              disabled={isGenerating}
             >
-              Generate Traces
-            </button>
+              {isGenerating ? 'Generating...' : 'Generate Traces'}
+            </Button>
           </div>
-        </div>
+        </BorderedSection>
         <div className="flex-1 overflow-y-auto p-2">
-          {traces.length > 0 ? (
-            traces.map((trace: any) => (
-              <div key={trace.id} className="trace-item p-3 bg-indigo-50 border border-indigo-100 rounded-md cursor-pointer mb-2">
-                <div className="text-sm font-medium text-indigo-900 truncate">{trace.id}</div>
-                <div className="text-xs text-indigo-600 mt-1">{trace.latency_ms || 0}ms</div>
+          {runs.length > 0 ? (
+            runs.map((run: any) => (
+              <div
+                key={run.id}
+                className={`trace-item p-3 border rounded-md cursor-pointer mb-2 transition-colors ${
+                  selectedRunId === run.id
+                    ? 'bg-surface-container-highest border-primary-fixed'
+                    : 'bg-surface-container-lowest border-outline-variant hover:border-primary-fixed'
+                }`}
+                onClick={() => setSelectedRunId(run.id)}
+              >
+                <Text variant="body" as="div" className="font-medium truncate">
+                  {run.case_id} • {run.id}
+                </Text>
+                <Text variant="caption" as="div" className="mt-1 font-mono">
+                  {run.trace?.latency_ms || 0}ms
+                </Text>
               </div>
             ))
           ) : (
-            <div className="p-4 text-center text-sm text-slate-500 italic">No traces available.</div>
+            <div className="p-4 text-center">
+              <Text variant="muted" className="italic">No traces available.</Text>
+            </div>
           )}
         </div>
-      </div>
+      </PagePane>
 
-      <div className="flex-1 bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
-        <div className="p-4 border-b border-slate-200 bg-slate-50 flex justify-between items-center">
-          <h2 className="text-lg font-bold text-slate-800">Trace Detail</h2>
-          <button className="px-3 py-1 bg-white border border-slate-300 rounded text-sm font-medium text-slate-700 hover:bg-slate-50">
-            Rerun
-          </button>
-        </div>
+      <PagePane variant="sidebar" className="flex-1 h-full flex flex-col">
+        <BorderedSection position="header">
+          <Heading level={3}>Trace Detail</Heading>
+          <Button
+            variant="normal"
+            size="sm"
+            onClick={handleRerun}
+            disabled={!selectedRun || isRerunning}
+          >
+            {isRerunning ? 'Rerunning...' : 'Rerun'}
+          </Button>
+        </BorderedSection>
         <div className="flex-1 overflow-hidden">
-          {traces.length > 0 ? (
-            <TraceView trace={traces[0]} />
+          {selectedRun ? (
+            <TraceView trace={selectedRun.trace} />
           ) : (
-            <div className="flex items-center justify-center h-full text-slate-500 text-sm">No trace selected</div>
+            <div className="flex items-center justify-center h-full">
+              <Text variant="muted" className="italic">Select a trace to view details</Text>
+            </div>
           )}
         </div>
-      </div>
-    </div>
+      </PagePane>
+    </PageContainer>
   );
 }

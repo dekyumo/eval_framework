@@ -19,6 +19,10 @@ class BaseRepository:
         """
         self.conn.execute(query, {"from_id": from_id, "to_id": to_id})
 
+    def _delete_node(self, label: str, pk_field: str, pk_val: str):
+        query = f"MATCH (n:{label} {{{pk_field}: $pk_val}}) DETACH DELETE n"
+        self.conn.execute(query, {"pk_val": pk_val})
+
     def _save_node(self, label: str, pk_field: str, model: BaseModel):
         schema_def = NODE_TABLES.get(label, "")
         allowed_fields = [p.strip().split(" ")[0] for p in schema_def.split(",") if "PRIMARY KEY" not in p]
@@ -50,6 +54,7 @@ class BaseRepository:
         self.conn.execute(query, params)
 
     def _parse_node_data(self, node_data, model_class: Type[T]) -> T:
+        from pydantic_core import PydanticUndefined
         parsed_data = {}
         for field_name, field_info in model_class.model_fields.items():
             val = node_data.get(field_name)
@@ -61,18 +66,23 @@ class BaseRepository:
                     pass
                     
             if val == "" or val is None:
-                ann = str(field_info.annotation).lower()
-                if 'list' in ann:
-                    val = []
-                elif 'dict' in ann:
-                    val = {}
-                elif 'str' in ann:
-                    val = ""
-                elif 'float' in ann and field_name == 'created_at':
-                    val = time.time()
+                if field_info.default is not PydanticUndefined:
+                    val = field_info.default
+                elif field_info.default_factory is not None:
+                    val = field_info.default_factory()
                 else:
-                    val = None
-                    
+                    ann = str(field_info.annotation).lower()
+                    if 'list' in ann:
+                        val = []
+                    elif 'dict' in ann:
+                        val = {}
+                    elif 'str' in ann:
+                        val = ""
+                    elif 'float' in ann and field_name == 'created_at':
+                        val = time.time()
+                    else:
+                        val = None
+                        
             parsed_data[field_name] = val
             
         return model_class.model_validate(parsed_data)
@@ -98,17 +108,19 @@ class BaseRepository:
 from src.eval_workbench.domain.tag import Tag
 class TagRepository(BaseRepository):
     def save(self, tag: Tag):
-        self._save_node("Tag", "name", tag)
-    def get(self, name: str) -> Optional[Tag]:
-        return self._get_node("Tag", "name", name, Tag)
+        self._save_node("Tag", "id", tag)
+    def get(self, id: str) -> Optional[Tag]:
+        return self._get_node("Tag", "id", id, Tag)
+    def delete(self, id: str):
+        self._delete_node("Tag", "id", id)
 
 from src.eval_workbench.domain.case import EvalCase
 class EvalCaseRepository(BaseRepository):
     def save(self, case: EvalCase):
         self._save_node("EvalCase", "id", case)
         for tag in case.tags:
-            self.conn.execute("MERGE (t:Tag {name: $name})", {"name": tag})
-            self._create_edge("TAGGED", "EvalCase", "Tag", case.id, tag, from_pk="id", to_pk="name")
+            self.conn.execute("MERGE (t:Tag {id: $id}) ON CREATE SET t.name = $id, t.color = '#31C48D'", {"id": tag})
+            self._create_edge("TAGGED", "EvalCase", "Tag", case.id, tag, from_pk="id", to_pk="id")
     def get(self, id: str) -> Optional[EvalCase]:
         return self._get_node("EvalCase", "id", id, EvalCase)
 
@@ -118,6 +130,8 @@ class RubricRepository(BaseRepository):
         self._save_node("Rubric", "id", rubric)
     def get(self, id: str) -> Optional[Rubric]:
         return self._get_node("Rubric", "id", id, Rubric)
+    def delete(self, id: str):
+        self._delete_node("Rubric", "id", id)
         
 from src.eval_workbench.domain.extractor import Extractor
 class ExtractorRepository(BaseRepository):
@@ -125,6 +139,8 @@ class ExtractorRepository(BaseRepository):
         self._save_node("Extractor", "id", ext)
     def get(self, id: str) -> Optional[Extractor]:
         return self._get_node("Extractor", "id", id, Extractor)
+    def delete(self, id: str):
+        self._delete_node("Extractor", "id", id)
 
 from src.eval_workbench.domain.fault import FaultConfig
 class FaultConfigRepository(BaseRepository):
@@ -146,6 +162,8 @@ class EvalDatasetRepository(BaseRepository):
         self._save_node("EvalDataset", "id", ds)
     def get(self, id: str) -> Optional[EvalDataset]:
         return self._get_node("EvalDataset", "id", id, EvalDataset)
+    def delete(self, id: str):
+        self._delete_node("EvalDataset", "id", id)
 
 from src.eval_workbench.domain.human_eval import HumanEval
 class HumanEvalRepository(BaseRepository):
@@ -181,10 +199,10 @@ class SnapshotRepository(BaseRepository):
         self.conn.execute("MERGE (c:Commit {hash: $hash})", {"hash": snap.commit_hash})
         self._create_edge("SNAPSHOT_OF", "Snapshot", "Commit", snap.id, snap.commit_hash, from_pk="id", to_pk="hash")
         
-        # Save domain if exists and create edge
-        if snap.domain:
-            self._save_node("AgentDomain", "snapshot_id", snap.domain)
-            self._create_edge("HAS_DOMAIN", "Snapshot", "AgentDomain", snap.id, snap.domain.snapshot_id, from_pk="id", to_pk="snapshot_id")
+        # Save distribution if exists and create edge
+        if snap.distribution:
+            self._save_node("AgentDistribution", "snapshot_id", snap.distribution)
+            self._create_edge("HAS_DISTRIBUTION", "Snapshot", "AgentDistribution", snap.id, snap.distribution.snapshot_id, from_pk="id", to_pk="snapshot_id")
             
         # Save manifest nodes
         for model in snap.manifest.models:

@@ -1,142 +1,369 @@
 import { useState, useEffect } from 'react';
-import { SplitBadge } from '../components/SplitBadge';
+import { Button } from '../components/ui/Button';
+import { PageContainer, PagePane } from '../components/ui/PageLayout';
+import { CaseGenerationPane } from '../components/cases/CaseGenerationPane';
+import { CaseAgentInputPane } from '../components/cases/CaseAgentInputPane';
+import { CaseOthersPane } from '../components/cases/CaseOthersPane';
+import { CaseListPane } from '../components/cases/CaseListPane';
+import type { ConversationTurn, InputMode, MetricRow } from '../components/cases/types';
+
+function parseJsonObject(text: string, label: string): Record<string, unknown> | null {
+  if (!text.trim()) return null;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    throw new Error(`${label} must be valid JSON`);
+  }
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+    throw new Error(`${label} must be a JSON object`);
+  }
+  return parsed as Record<string, unknown>;
+}
 
 export function Cases() {
   const [cases, setCases] = useState<any[]>([]);
+  const [datasets, setDatasets] = useState<any[]>([]);
+  const [rubrics, setRubrics] = useState<any[]>([]);
+  const [extractors, setExtractors] = useState<any[]>([]);
+  const [snapshots, setSnapshots] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
+
+  const [turns, setTurns] = useState<ConversationTurn[]>([{ role: 'user', content: '' }]);
+  const [caseName, setCaseName] = useState('');
+  const [metrics, setMetrics] = useState<MetricRow[]>([]);
+  const [distributionPosition, setDistributionPosition] = useState('in');
+  const [problemType, setProblemType] = useState('happy');
+  const [split, setSplit] = useState('test');
+  const [datasetId, setDatasetId] = useState('');
+  const [snapshotId, setSnapshotId] = useState('');
+  const [toolFaultEnabled, setToolFaultEnabled] = useState(false);
+  const [toolFaultName, setToolFaultName] = useState('google_search');
+  const [toolFaultType, setToolFaultType] = useState('interface');
+  const [caseAgentPrompt, setCaseAgentPrompt] = useState('');
+  const [isGeneratingCase, setIsGeneratingCase] = useState(false);
+  const [sessionStateJson, setSessionStateJson] = useState('');
+  const [inputMode, setInputMode] = useState<InputMode>('turns');
+  const [inputPayloadJson, setInputPayloadJson] = useState('');
+  const [jsonError, setJsonError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Fetch from backend
-    fetch('/api/cases')
-      .then(res => res.json())
-      .then(data => {
-        if (Array.isArray(data)) setCases(data);
-        setLoading(false);
-      })
-      .catch(err => {
-        console.error(err);
-        setLoading(false);
-      });
+    Promise.all([
+      fetch('/api/cases').then(res => res.json()),
+      fetch('/api/registries/datasets').then(res => res.json()),
+      fetch('/api/registries/rubrics').then(res => res.json()),
+      fetch('/api/registries/extractors').then(res => res.json()),
+      fetch('/api/agents/snapshots').then(res => res.json()),
+    ]).then(([casesData, datasetsData, rubricsData, extractorsData, snapshotsData]) => {
+      if (Array.isArray(casesData)) setCases(casesData);
+      if (Array.isArray(datasetsData)) {
+        setDatasets(datasetsData);
+        if (datasetsData.length > 0) setDatasetId(datasetsData[0].id);
+      }
+      if (Array.isArray(rubricsData)) setRubrics(rubricsData);
+      if (Array.isArray(extractorsData)) setExtractors(extractorsData);
+      if (Array.isArray(snapshotsData)) {
+        setSnapshots(snapshotsData);
+        if (snapshotsData.length > 0) setSnapshotId(snapshotsData[0].id);
+      }
+      setLoading(false);
+    }).catch(err => {
+      console.error(err);
+      setLoading(false);
+    });
   }, []);
 
-    const handleSaveCase = async () => {
-      try {
-        const payload = {
-          id: `case_${Date.now()}`,
-          name: (document.getElementById('case_name') as HTMLInputElement).value || 'Unnamed Case',
-          dataset_id: (document.getElementById('case_dataset') as HTMLSelectElement).value,
-          domain_position: (document.getElementById('case_domain_position') as HTMLSelectElement).value as any,
-          problem_type: (document.getElementById('case_problem_type') as HTMLSelectElement).value as any,
-          split: (document.getElementById('case_split') as HTMLSelectElement).value as any,
-          target_agent_path: 'a_single_agent.day_trip:root_agent',
-          conversation: [{role: 'user', kind: 'text', text: 'dummy'}], // Minimal conversation
-          expected_rubrics: [],
-          expected_extractors: [],
-          tag_ids: [],
-          fault_ids: []
-        };
-        await fetch('/api/cases/', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-        
-        // Refresh
-        const res = await fetch('/api/cases');
-        const data = await res.json();
-        if (Array.isArray(data)) setCases(data);
-      } catch (e) {
-        console.error(e);
+  const applyGeneratedCase = (draft: any) => {
+    if (draft.name) setCaseName(draft.name);
+    if (draft.distribution_position) setDistributionPosition(draft.distribution_position);
+    if (draft.problem_type) setProblemType(draft.problem_type);
+    if (draft.split) setSplit(draft.split);
+    if (Array.isArray(draft.conversation) && draft.conversation.length > 0) {
+      setInputMode('turns');
+      setTurns(
+        draft.conversation.map((turn: any) => {
+          if (turn.kind === 'media' || turn.role === 'user_media') {
+            return {
+              role: 'user_media',
+              content: turn.text || '',
+              media_mime: turn.media_mime || '',
+              media_base64: turn.media_base64 || '',
+              fileName: turn.text || 'uploaded media',
+            };
+          }
+          return {
+            role: turn.role || 'user',
+            content: turn.text || turn.content || '',
+          };
+        })
+      );
+    }
+    if (draft.tool_fault) {
+      setToolFaultEnabled(true);
+      setToolFaultName(draft.tool_fault.tool_name || 'google_search');
+      setToolFaultType(draft.tool_fault.fault_type || 'interface');
+    } else {
+      setToolFaultEnabled(false);
+    }
+    if (Array.isArray(draft.metrics)) {
+      setMetrics(draft.metrics);
+    }
+  };
+
+  const handleGenerateCase = async () => {
+    if (!caseAgentPrompt.trim() || !snapshotId) return;
+    setIsGeneratingCase(true);
+    try {
+      const res = await fetch('/api/cases/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          snapshot_id: snapshotId,
+          specification: caseAgentPrompt,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        console.error(data.error || 'Case generation failed');
+        return;
       }
+      applyGeneratedCase(data);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsGeneratingCase(false);
+    }
+  };
+
+  const resetForm = () => {
+    setTurns([{ role: 'user', content: '' }]);
+    setCaseName('');
+    setMetrics([]);
+    setDistributionPosition('in');
+    setProblemType('happy');
+    setSplit('test');
+    setToolFaultEnabled(false);
+    setToolFaultName('google_search');
+    setToolFaultType('interface');
+    setCaseAgentPrompt('');
+    setSessionStateJson('');
+    setInputMode('turns');
+    setInputPayloadJson('');
+    setJsonError(null);
+  };
+
+  const handleAddTurn = () => {
+    setTurns([...turns, { role: 'user', content: '' }]);
+  };
+
+  const handleTurnChange = (index: number, field: string, value: string) => {
+    const newTurns = [...turns];
+    newTurns[index] = { ...newTurns[index], [field]: value };
+    setTurns(newTurns);
+  };
+
+  const handleMediaUpload = (index: number, file: File | null) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = String(reader.result || '');
+      const base64 = result.includes(',') ? result.split(',')[1] : result;
+      const newTurns = [...turns];
+      newTurns[index] = {
+        ...newTurns[index],
+        role: 'user_media',
+        media_mime: file.type || 'application/octet-stream',
+        media_base64: base64,
+        fileName: file.name,
+        content: file.name,
+      };
+      setTurns(newTurns);
     };
+    reader.readAsDataURL(file);
+  };
 
-    return (
-      <div className="max-w-6xl mx-auto flex h-full gap-6">
-      {/* List / Matrix Pane */}
-      <div className="w-1/3 bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
-        <div className="p-4 border-b border-slate-200 bg-slate-50">
-          <h2 className="text-lg font-bold text-slate-800">Cases & Evals</h2>
-        </div>
-        <div className="flex-1 overflow-y-auto p-2 space-y-1">
-          {cases.map(c => (
-            <div key={c.id} className="p-3 rounded-md hover:bg-slate-50 cursor-pointer border border-transparent hover:border-slate-200">
-              <div className="font-medium text-slate-800 mb-1">{c.name}</div>
-              <div className="flex flex-wrap items-center gap-2 mt-2">
-                <SplitBadge split={c.split} />
-                <span className="text-xs text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">{c.domain_position} • {c.problem_type}</span>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
+  const rubricResultType = (rubricRef: string) => {
+    const rubric = rubrics.find(r => r.id === rubricRef);
+    return rubric?.items?.[0]?.type || 'bool';
+  };
 
-      {/* Editor Pane */}
-      <div className="flex-1 bg-white rounded-xl shadow-sm border border-slate-200 p-6 overflow-y-auto">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-bold text-slate-800">Edit Case</h2>
-          <button className="new-case-btn bg-indigo-50 text-indigo-600 font-medium py-1.5 px-4 rounded-md shadow-sm transition-colors border border-indigo-200 hover:bg-indigo-100">
+  const conversationPayload = () =>
+    turns.map(t => {
+      if (t.role === 'user_media') {
+        return {
+          role: 'user',
+          kind: 'media',
+          media_mime: t.media_mime,
+          media_base64: t.media_base64,
+          text: t.fileName || t.content || 'media',
+        };
+      }
+      return { role: t.role, kind: 'text', text: t.content };
+    });
+
+  const handleRemoveTurn = (index: number) => {
+    setTurns(turns.filter((_, i) => i !== index));
+  };
+
+  const handleSaveCase = async () => {
+    setJsonError(null);
+    for (const turn of turns) {
+      if (turn.role === 'user_media' && !turn.media_base64) {
+        console.error('Wait for the media upload to finish before saving.');
+        return;
+      }
+    }
+
+    let session_state: Record<string, unknown> | null = null;
+    let input_payload: Record<string, unknown> | null = null;
+    try {
+      session_state = parseJsonObject(sessionStateJson, 'Session state');
+      if (inputMode === 'json') {
+        input_payload = parseJsonObject(inputPayloadJson, 'Agent input');
+        if (!input_payload) {
+          setJsonError('Agent input JSON is required when using structured input mode.');
+          return;
+        }
+      }
+    } catch (err) {
+      setJsonError(err instanceof Error ? err.message : 'Invalid JSON');
+      return;
+    }
+
+    try {
+      const payload = {
+        id: `case_${crypto.randomUUID().substring(0, 8)}`,
+        name: caseName || 'Unnamed Case',
+        dataset_id: datasetId,
+        distribution_position: distributionPosition,
+        problem_type: problemType,
+        split,
+        target_agent_path: 'a_single_agent.day_trip:root_agent',
+        conversation: inputMode === 'json' ? [] : conversationPayload(),
+        session_state,
+        input_payload,
+        metrics: metrics.map(m => {
+          if (m.strategy === 'rubric') {
+            return {
+              id: m.id,
+              name: m.name,
+              strategy: m.strategy,
+              result_type: rubricResultType(m.rubric_ref),
+              rubric_ref: m.rubric_ref,
+            };
+          }
+          return {
+            id: m.id,
+            name: m.name,
+            strategy: m.strategy,
+            result_type: 'bool',
+            extractor_ref: m.extractor_ref,
+            ground_truth: m.ground_truth,
+            comparator: 'eq',
+          };
+        }),
+        expected_rubrics: [],
+        expected_extractors: [],
+        tag_ids: [],
+        fault_ids: [],
+        tool_fault: toolFaultEnabled
+          ? { tool_name: toolFaultName, fault_type: toolFaultType }
+          : null,
+        source: 'manual',
+      };
+      await fetch('/api/cases/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      const res = await fetch('/api/cases');
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        setCases(data);
+        setSelectedCaseId(payload.id);
+      }
+
+      resetForm();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  return (
+    <PageContainer variant="standard">
+      <PagePane
+        variant="content"
+        title="Edit Case"
+        headerActions={
+          <Button variant="normal" className="new-case-btn" size="sm" onClick={resetForm}>
             New Case
-          </button>
-        </div>
-        
+          </Button>
+        }
+      >
         <div className="space-y-6">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label htmlFor="case_name" className="block text-sm font-semibold text-slate-700 mb-1">Case Name</label>
-              <input id="case_name" className="w-full border border-slate-300 rounded-md p-2" defaultValue="Refund request" />
-            </div>
-            <div>
-              <label htmlFor="case_dataset" className="block text-sm font-semibold text-slate-700 mb-1">Dataset</label>
-              <select id="case_dataset" className="w-full border border-slate-300 rounded-md p-2">
-                <option>DayTrip Tests</option>
-                <option>default_dataset</option>
-              </select>
-            </div>
-          </div>
+          <CaseGenerationPane
+            snapshots={snapshots}
+            snapshotId={snapshotId}
+            onSnapshotChange={setSnapshotId}
+            caseAgentPrompt={caseAgentPrompt}
+            onPromptChange={setCaseAgentPrompt}
+            onGenerate={handleGenerateCase}
+            isGenerating={isGeneratingCase}
+          />
 
-          <div className="grid grid-cols-3 gap-4">
-            <div>
-              <label htmlFor="case_domain_position" className="block text-sm font-semibold text-slate-700 mb-1">Domain Position</label>
-              <select id="case_domain_position" className="w-full border border-slate-300 rounded-md p-2">
-                <option>in</option><option>margin</option><option>ood</option>
-              </select>
-            </div>
-            <div>
-              <label htmlFor="case_problem_type" className="block text-sm font-semibold text-slate-700 mb-1">Problem Type</label>
-              <select id="case_problem_type" className="w-full border border-slate-300 rounded-md p-2">
-                <option>happy</option><option>technical</option><option>adversarial</option><option>client</option>
-              </select>
-            </div>
-            <div>
-              <label htmlFor="case_split" className="block text-sm font-semibold text-slate-700 mb-1">Split</label>
-              <select id="case_split" className="w-full border border-slate-300 rounded-md p-2">
-                <option>judging</option><option>optimisation</option>
-              </select>
-            </div>
-          </div>
+          <CaseAgentInputPane
+            inputMode={inputMode}
+            onInputModeChange={setInputMode}
+            sessionStateJson={sessionStateJson}
+            onSessionStateChange={setSessionStateJson}
+            inputPayloadJson={inputPayloadJson}
+            onInputPayloadChange={setInputPayloadJson}
+            turns={turns}
+            onAddTurn={handleAddTurn}
+            onRemoveTurn={handleRemoveTurn}
+            onTurnChange={handleTurnChange}
+            onMediaUpload={handleMediaUpload}
+            jsonError={jsonError}
+          />
 
-          <div className="pt-4 border-t border-slate-200">
-            <h3 className="font-bold text-slate-800 mb-3">Conversation Builder</h3>
-            <div className="bg-slate-50 border border-slate-200 rounded-md p-4 space-y-4">
-              <div className="flex gap-3">
-                <select className="border border-slate-300 rounded-md p-2 text-sm w-32 bg-white">
-                  <option>user</option><option>assistant</option>
-                </select>
-                <textarea className="flex-1 border border-slate-300 rounded-md p-2 text-sm h-20" defaultValue="Hello, I want a refund." />
-                <button className="text-red-500 hover:text-red-700 font-bold px-2">×</button>
-              </div>
-              <button className="text-sm text-indigo-600 font-bold hover:underline">+ Add Turn</button>
-            </div>
-          </div>
+          <CaseOthersPane
+            caseName={caseName}
+            onCaseNameChange={setCaseName}
+            datasetId={datasetId}
+            onDatasetChange={setDatasetId}
+            datasets={datasets}
+            distributionPosition={distributionPosition}
+            onDistributionChange={setDistributionPosition}
+            problemType={problemType}
+            onProblemTypeChange={setProblemType}
+            split={split}
+            onSplitChange={setSplit}
+            metrics={metrics}
+            onMetricsChange={setMetrics}
+            rubrics={rubrics}
+            extractors={extractors}
+            toolFaultEnabled={toolFaultEnabled}
+            onToolFaultEnabledChange={setToolFaultEnabled}
+            toolFaultName={toolFaultName}
+            onToolFaultNameChange={setToolFaultName}
+            toolFaultType={toolFaultType}
+            onToolFaultTypeChange={setToolFaultType}
+          />
 
-          <button 
-            className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 px-6 rounded-md shadow-sm transition-colors"
-            onClick={handleSaveCase}
-          >
+          <Button variant="cta" onClick={handleSaveCase}>
             Save Case
-          </button>
+          </Button>
+
+          <CaseListPane
+            cases={cases}
+            loading={loading}
+            selectedCaseId={selectedCaseId}
+            onSelectCase={setSelectedCaseId}
+          />
         </div>
-      </div>
-    </div>
+      </PagePane>
+    </PageContainer>
   );
 }
