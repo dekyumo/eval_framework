@@ -195,6 +195,10 @@ class _CallCollector(cst.CSTVisitor):
                 continue
             self.calls.add(name)
 
+    def leave_FunctionDef(self, original_node: cst.FunctionDef) -> None:
+        if original_node is self.target:
+            self.in_target = False
+
 
 def _calls_in_function(entry: IndexedFunction) -> set[str]:
     collector = _CallCollector(entry.node)

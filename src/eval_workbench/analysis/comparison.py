@@ -95,6 +95,8 @@ def diff_summary(diff: SemanticDiff) -> dict:
             + len(diff.added_prompts) + len(diff.removed_prompts) + len(diff.changed_prompts)
         ),
     }
+
+
 class RegressionDetection(BaseModel):
     metric_name: str
     old_score: float

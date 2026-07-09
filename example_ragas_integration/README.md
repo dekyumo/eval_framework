@@ -10,7 +10,7 @@ Automate the translation from a **Ragas metric** to an **ADK custom metric** (Py
 
 This path relies on a **frontier-tier model** to read Ragas source and emit equivalent ADK eval artifacts. The model needs the searchable full source of ragas and the ADK to succeed.
 
-## 2. `scanario2_compat_layer/` — runtime compatibility layer
+## 2. `scenario2_compat_layer/` — runtime compatibility layer
 
 Keep Ragas metrics as-is and bridge the runtimes:
 
