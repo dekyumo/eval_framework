@@ -4,11 +4,41 @@ import { Button } from '../components/ui/Button';
 import { Heading, Text, FormLabel } from '../components/ui/Typography';
 import { PageContainer, PagePane, BorderedSection } from '../components/ui/PageLayout';
 
+interface DiffChange {
+  type: 'added' | 'removed' | 'modified';
+  component: string;
+  name: string;
+  detail: string;
+}
+
+interface CompareSummary {
+  tools_added: number;
+  tools_removed: number;
+  tools_modified: number;
+  prompts_added: number;
+  prompts_removed: number;
+  prompts_modified: number;
+  total_changes: number;
+}
+
+interface CompareResult {
+  changes: DiffChange[];
+  summary: CompareSummary;
+}
+
+function changeBadgeClass(type: DiffChange['type']): string {
+  if (type === 'added') return 'bg-semantic-pass/20 text-semantic-pass';
+  if (type === 'removed') return 'bg-semantic-fail/20 text-semantic-fail';
+  return 'bg-orange-500/20 text-orange-400';
+}
+
 export function Compare() {
   const [snapshots, setSnapshots] = useState<any[]>([]);
   const [selectedSnapshotA, setSelectedSnapshotA] = useState('');
   const [selectedSnapshotB, setSelectedSnapshotB] = useState('');
-  const [diff, setDiff] = useState<any>(null);
+  const [result, setResult] = useState<CompareResult | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetch('/api/agents/snapshots')
@@ -19,17 +49,52 @@ export function Compare() {
       .catch(console.error);
   }, []);
 
-  const handleCompare = () => {
-    setDiff({
-      changes: [
-        { type: 'added', component: 'Tool', name: 'WebSearchTool', detail: 'Added search functionality' },
-        { type: 'modified', component: 'Agent', name: 'planner_agent', detail: 'Model updated from gemini-2.0-flash to gemini-2.5-flash' }
-      ],
-      regressions: [
-        { case_id: 'case_1', metric: 'is_achievable', base: 'True', head: 'False' }
-      ]
-    });
+  const handleCompare = async () => {
+    if (!selectedSnapshotA || !selectedSnapshotB) {
+      setError('Select both snapshots before comparing.');
+      return;
+    }
+    if (selectedSnapshotA === selectedSnapshotB) {
+      setError('Choose two different snapshots.');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    setResult(null);
+    try {
+      const res = await fetch('/api/agents/compare', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          snapshot_a: selectedSnapshotA,
+          snapshot_b: selectedSnapshotB,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || 'Comparison failed');
+        return;
+      }
+      setResult({ changes: data.changes || [], summary: data.summary });
+    } catch (e) {
+      console.error(e);
+      setError('Comparison failed');
+    } finally {
+      setLoading(false);
+    }
   };
+
+  const summaryRows = result
+    ? [
+        ['Tools added', result.summary.tools_added],
+        ['Tools removed', result.summary.tools_removed],
+        ['Tools modified', result.summary.tools_modified],
+        ['Prompts added', result.summary.prompts_added],
+        ['Prompts removed', result.summary.prompts_removed],
+        ['Prompts modified', result.summary.prompts_modified],
+      ]
+    : [];
 
   return (
     <PageContainer variant="standard">
@@ -57,28 +122,40 @@ export function Compare() {
               placeholder="Select snapshot..."
             />
           </div>
-          <Button 
+          <Button
             variant="cta"
             onClick={handleCompare}
+            disabled={loading}
           >
-            Compare
+            {loading ? 'Comparing…' : 'Compare'}
           </Button>
         </div>
+        {error && (
+          <Text variant="muted" className="text-semantic-fail mt-4 text-sm">{error}</Text>
+        )}
       </PagePane>
-      
+
       <div className="grid grid-cols-2 gap-6">
         <PagePane variant="sidebar" title="Semantic Diff" className="w-auto">
           <div className="p-4 space-y-3">
-            {diff ? (
-              diff.changes.map((c: any, i: number) => (
-                <BorderedSection key={i} className="flex-col items-stretch gap-2 cursor-default">
-                  <div className="flex justify-between items-center mb-1">
-                    <span className="font-bold text-on-surface font-mono text-sm">{c.component} • {c.name}</span>
-                    <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded font-mono ${c.type === 'added' ? 'bg-semantic-pass/20 text-semantic-pass' : 'bg-orange-500/20 text-orange-400'}`}>{c.type}</span>
-                  </div>
-                  <Text variant="muted" className="text-xs">{c.detail}</Text>
-                </BorderedSection>
-              ))
+            {result ? (
+              result.changes.length > 0 ? (
+                result.changes.map((c, i) => (
+                  <BorderedSection key={i} className="flex-col items-stretch gap-2 cursor-default">
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="font-bold text-on-surface font-mono text-sm">{c.component} • {c.name}</span>
+                      <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded font-mono ${changeBadgeClass(c.type)}`}>
+                        {c.type}
+                      </span>
+                    </div>
+                    <Text variant="muted" className="text-xs">{c.detail}</Text>
+                  </BorderedSection>
+                ))
+              ) : (
+                <div className="text-center">
+                  <Text variant="muted" className="italic">No tool or prompt differences between these snapshots.</Text>
+                </div>
+              )
             ) : (
               <div className="text-center">
                 <Text variant="muted" className="italic">No comparison active.</Text>
@@ -86,23 +163,22 @@ export function Compare() {
             )}
           </div>
         </PagePane>
-        
-        <PagePane variant="sidebar" title="Regressions" className="w-auto">
+
+        <PagePane variant="sidebar" title="Summary" className="w-auto">
           <div className="p-4 space-y-3">
-            {diff ? (
-              diff.regressions.map((r: any, i: number) => (
-                <BorderedSection key={i} className="justify-between items-center cursor-default">
-                  <div>
-                    <span className="font-bold text-on-surface font-mono text-sm block">{r.case_id}</span>
-                    <Text variant="caption" className="font-mono text-xs mt-1">{r.metric}</Text>
-                  </div>
-                  <div className="flex gap-2 items-center font-mono text-xs">
-                    <span className="text-semantic-pass bg-semantic-pass/10 px-1.5 py-0.5 rounded">{r.base}</span>
-                    <Text variant="muted" as="span">→</Text>
-                    <span className="text-semantic-fail bg-semantic-fail/10 px-1.5 py-0.5 rounded">{r.head}</span>
-                  </div>
+            {result ? (
+              <>
+                <BorderedSection className="justify-between items-center cursor-default">
+                  <span className="font-bold text-on-surface">Total changes</span>
+                  <span className="font-mono text-primary-fixed font-bold">{result.summary.total_changes}</span>
                 </BorderedSection>
-              ))
+                {summaryRows.map(([label, count]) => (
+                  <BorderedSection key={label} className="justify-between items-center cursor-default">
+                    <span className="text-on-surface-variant text-sm">{label}</span>
+                    <span className="font-mono text-on-surface text-sm">{count}</span>
+                  </BorderedSection>
+                ))}
+              </>
             ) : (
               <div className="text-center">
                 <Text variant="muted" className="italic">No comparison active.</Text>
