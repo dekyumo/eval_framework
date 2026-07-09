@@ -1,6 +1,7 @@
 from flask import Blueprint, jsonify, request, current_app
 
 from src.eval_workbench.services import agents as agents_service
+from src.eval_workbench.services import comparison as comparison_service
 from src.eval_workbench.services.errors import ServiceError
 
 agents_bp = Blueprint("agents", __name__)
@@ -20,6 +21,24 @@ def get_snapshot(id):
     if snapshot:
         return jsonify(snapshot)
     return jsonify({}), 404
+
+
+@agents_bp.route("/compare", methods=["POST"])
+def compare_snapshots():
+    data = request.json or {}
+    snapshot_a = data.get("snapshot_a")
+    snapshot_b = data.get("snapshot_b")
+    if not snapshot_a or not snapshot_b:
+        return jsonify({"error": "snapshot_a and snapshot_b are required"}), 400
+    try:
+        result = comparison_service.compare_snapshots(
+            current_app.config["REPO_PATH"],
+            snapshot_a,
+            snapshot_b,
+        )
+        return jsonify(result)
+    except ServiceError as exc:
+        return jsonify({"error": exc.message}), exc.status_code
 
 
 @agents_bp.route("/scan", methods=["POST"])

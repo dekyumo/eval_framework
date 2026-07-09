@@ -24,9 +24,16 @@ def list_datasets(repo_path: str) -> list[dict]:
     return [item.model_dump() for item in items]
 
 
+def _rubric_to_api(rubric: Rubric) -> dict:
+    data = rubric.model_dump()
+    for item in data.get("items", []):
+        item["description"] = item.get("prompt", "")
+    return data
+
+
 def list_rubrics(repo_path: str) -> list[dict]:
     items = RubricRepository(conn(repo_path)).get_all("Rubric", "id", Rubric)
-    return [item.model_dump() for item in items]
+    return [_rubric_to_api(item) for item in items]
 
 
 def list_extractors(repo_path: str) -> list[dict]:
@@ -60,7 +67,7 @@ def create_rubric(repo_path: str, data: dict) -> dict:
             item["prompt"] = item["description"]
     rubric = Rubric(**payload)
     RubricRepository(conn(repo_path)).save(rubric)
-    return rubric.model_dump()
+    return _rubric_to_api(rubric)
 
 
 def create_extractor(repo_path: str, data: dict) -> dict:

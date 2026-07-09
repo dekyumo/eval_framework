@@ -5,7 +5,7 @@ from src.eval_workbench.services import human_eval as human_eval_service
 from src.eval_workbench.services import repo as repo_service
 
 
-def create_app(repo_path=None):
+def create_app(repo_path=None, log_raw_otel: bool = False, otel_trace_dump_path: str | None = None):
     current_dir = os.path.dirname(os.path.abspath(__file__))
     static_root = os.path.abspath(os.path.join(current_dir, "static"))
     static_assets = os.path.join(static_root, "assets")
@@ -13,6 +13,8 @@ def create_app(repo_path=None):
     # Built-in static route only serves /assets/* so SPA paths like /agents reach serve().
     app = Flask(__name__, static_folder=static_assets, static_url_path="/assets")
     app.config["REPO_PATH"] = repo_path or os.getcwd()
+    if otel_trace_dump_path:
+        app.config["OTEL_TRACE_DUMP_PATH"] = otel_trace_dump_path
 
     from src.eval_workbench.web.routes.agents import agents_bp
     from src.eval_workbench.web.routes.cases import cases_bp
@@ -25,6 +27,11 @@ def create_app(repo_path=None):
     app.register_blueprint(runs_bp, url_prefix="/api/runs")
     app.register_blueprint(campaigns_bp, url_prefix="/api/campaigns")
     app.register_blueprint(registries_bp, url_prefix="/api/registries")
+
+    if log_raw_otel:
+        from src.eval_workbench.web.routes.otel import otel_bp
+
+        app.register_blueprint(otel_bp)
 
     @app.route("/api/health")
     def health_check():
@@ -45,7 +52,7 @@ def create_app(repo_path=None):
     @app.route("/", defaults={"path": ""})
     @app.route("/<path:path>")
     def serve(path):
-        if path.startswith("api/"):
+        if path.startswith("api/") or path.startswith("v1/"):
             return jsonify({"error": "Not Found"}), 404
         if path != "" and os.path.exists(os.path.join(static_root, path)):
             return send_from_directory(static_root, path)
