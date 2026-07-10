@@ -6,6 +6,7 @@ import asyncio
 import json
 import uuid
 from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
 from google.adk.agents import LlmAgent
@@ -102,7 +103,7 @@ def _tool_calls_from_trace(trace_parts: list[dict[str, Any]]) -> list[ToolCall]:
             continue
         name = part.get("tool_name", "")
         result = _summarize_result(part.get("tool_response"))
-        for call in reversed(calls):
+        for call in calls:
             if call.name == name and not call.result:
                 call.result = result
                 break
@@ -160,6 +161,16 @@ async def _run_blueprint_async(
     )
 
 
+def _run_coro_sync(coro):
+    """Run a coroutine to completion, including when already inside an event loop."""
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        return asyncio.run(coro)
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        return executor.submit(asyncio.run, coro).result()
+
+
 def run_blueprint(repo_path: str, blueprint: dict) -> dict:
     """Build an ADK LlmAgent from the blueprint, resolve its tools from the
     shared registry, run it synchronously to completion, and return a
@@ -169,5 +180,5 @@ def run_blueprint(repo_path: str, blueprint: dict) -> dict:
     """
     model = AgentBlueprint.model_validate(blueprint)
     tool_fns = resolve_tools(repo_path, model.tools)
-    result = asyncio.run(_run_blueprint_async(model, tool_fns))
+    result = _run_coro_sync(_run_blueprint_async(model, tool_fns))
     return result.model_dump()

@@ -1,5 +1,6 @@
 from unittest.mock import patch
 
+import asyncio
 import pytest
 
 from src.eval_workbench.domain.blueprint import AgentBlueprint, BlueprintPreset, BlueprintRunResult, ToolCall
@@ -90,3 +91,51 @@ def test_run_blueprint_with_stubbed_runner(tmp_path):
     assert result["tool_calls"]
     assert result["tool_calls"][0]["name"] == "list_tags"
     assert result["tool_calls"][0]["result"]
+
+
+def test_tool_calls_from_trace_pairs_repeated_tools_in_order():
+    trace_parts = [
+        {"kind": "tool_call", "tool_name": "foo", "tool_args": {"i": 1}},
+        {"kind": "tool_call", "tool_name": "foo", "tool_args": {"i": 2}},
+        {"kind": "tool_response", "tool_name": "foo", "tool_response": "first"},
+        {"kind": "tool_response", "tool_name": "foo", "tool_response": "second"},
+    ]
+    calls = blueprints_service._tool_calls_from_trace(trace_parts)
+    assert len(calls) == 2
+    assert calls[0].args == {"i": 1}
+    assert calls[0].result == "first"
+    assert calls[1].args == {"i": 2}
+    assert calls[1].result == "second"
+
+
+def test_run_blueprint_from_running_event_loop(tmp_path):
+    expected = BlueprintRunResult(
+        blueprint=AgentBlueprint(
+            agent_name="reader",
+            instruction="List tags.",
+            tools=["list_tags"],
+        ),
+        final_output="Done.",
+        transcript=[],
+        tool_calls=[],
+    )
+
+    async def invoke_from_loop() -> dict:
+        with patch(
+            "src.eval_workbench.services.blueprints.resolve_tools",
+            return_value=[lambda: []],
+        ), patch(
+            "src.eval_workbench.services.blueprints._run_blueprint_async",
+            return_value=expected,
+        ):
+            return blueprints_service.run_blueprint(
+                str(tmp_path),
+                {
+                    "agent_name": "reader",
+                    "instruction": "List tags.",
+                    "tools": ["list_tags"],
+                },
+            )
+
+    result = asyncio.run(invoke_from_loop())
+    assert result["final_output"] == "Done."
