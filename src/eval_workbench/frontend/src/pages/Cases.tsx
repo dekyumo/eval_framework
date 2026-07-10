@@ -306,7 +306,7 @@ export function Cases() {
               gym_ref: agenticGymRef,
               user_tools: csvToList(agenticUserTools),
               solver_tools: csvToList(agenticSolverTools),
-              max_turns: Number(agenticMaxTurns) || 10,
+              max_turns: agenticMaxTurns,
               termination_method: agenticTerminationMethod,
             }
           : null,

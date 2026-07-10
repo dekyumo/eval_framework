@@ -99,7 +99,8 @@ def create_gym(repo_path: str, data: dict) -> dict:
     payload = dict(data)
     payload.pop("repo_path", None)
     if not payload.get("id"):
-        payload["id"] = payload.get("name", "").strip().lower().replace(" ", "-")
+        slug = payload.get("name", "").strip().lower().replace(" ", "-")
+        payload["id"] = "".join(ch for ch in slug if ch.isalnum() or ch in "-_")
     if not payload.get("id"):
         raise ServiceError("Gym requires a name", 400)
     if not payload.get("class_path", "").strip():

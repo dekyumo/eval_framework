@@ -30,7 +30,7 @@ def load_gym(class_path: str, config: dict) -> Any:
 
 def load_agent(agent_path: str) -> Any:
     """Import an agent via `module.path:variable`."""
-    module_path, var_name = agent_path.split(":")
+    module_path, var_name = agent_path.split(":", 1)
     module = importlib.import_module(module_path)
     return getattr(module, var_name)
 
