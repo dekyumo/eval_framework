@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import csv
+import io
 import json
 from dataclasses import dataclass, field
 
@@ -182,6 +184,44 @@ def render_markdown_report(
     return "\n".join(lines)
 
 
+def render_csv_report(
+    snapshot: dict,
+    outcomes: list[CaseRunOutcome],
+    agent_path: str,
+    commit: str,
+    dataset_name: str,
+) -> str:
+    snapshot_id = snapshot["id"]
+    columns = [
+        "snapshot_id", "agent_path", "commit", "dataset_name",
+        "case_id", "case_name", "run_id", "skipped", "skip_reason",
+        "metric_name", "result_type", "result_value", "result_source",
+    ]
+    buf = io.StringIO()
+    writer = csv.DictWriter(buf, fieldnames=columns)
+    writer.writeheader()
+
+    for outcome in outcomes:
+        base = {
+            "snapshot_id": snapshot_id,
+            "agent_path": agent_path,
+            "commit": commit,
+            "dataset_name": dataset_name,
+            "case_id": outcome.case.id,
+            "case_name": outcome.case.name or outcome.case.id,
+            "run_id": outcome.run_id or "",
+            "skipped": outcome.skipped,
+            "skip_reason": outcome.skip_reason or "",
+        }
+        if outcome.skipped:
+            writer.writerow({**base, "metric_name": "", "result_type": "", "result_value": "", "result_source": ""})
+        else:
+            for result in outcome.results:
+                writer.writerow({**base, "metric_name": result.name, "result_type": result.type, "result_value": result.value, "result_source": result.source})
+
+    return buf.getvalue()
+
+
 def run_headless_benchmark(
     repo_path: str,
     agent_path: str,
@@ -189,6 +229,8 @@ def run_headless_benchmark(
     dataset_name: str,
     tags: list[str] | None = None,
     model_id: str = "gemini-2.5-flash",
+    output_format: str = "markdown",
+    output_path: str | None = None,
 ) -> str:
     agent_name = agent_path.split(":")[-1]
     snapshot = agents_service.scan(
@@ -265,4 +307,20 @@ def run_headless_benchmark(
             stats["kind"] = "float"
             extractor_aggregates[name] = stats
 
-    return render_markdown_report(snapshot, outcomes, rubric_aggregates, extractor_aggregates)
+    if output_format == "csv":
+        content = render_csv_report(
+            snapshot, outcomes,
+            agent_path=agent_path, commit=commit, dataset_name=dataset_name,
+        )
+    else:
+        content = render_markdown_report(snapshot, outcomes, rubric_aggregates, extractor_aggregates)
+
+    if output_path is not None:
+        resolved = str(output_path)
+        with open(resolved, "w", encoding="utf-8", newline="") as fh:
+            fh.write(content)
+        if output_format == "csv":
+            return f"Evals CSV data output at {resolved}"
+        return f"Markdown file output at {resolved}"
+
+    return content

@@ -17,3 +17,4 @@ Mathematically adjacent concepts:
 - mind mapping
 - design of experiments: to try and cover most of the domain
 - illumination in global optimisation (as in the GEPA paper)
+- presentations from Arize/Braintrust/Hamel Husain echo the same concern: coverage (basketball court analogy) but minimal (evals 'saturate' with no new cases that are meaningful, cost problem)
