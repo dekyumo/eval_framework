@@ -22,6 +22,8 @@ if __name__ == "__main__":
     parser.add_argument("--dataset", help="Eval dataset name to run")
     parser.add_argument("--tags", nargs="*", default=[], help="Optional case tags to filter on")
     parser.add_argument("--model", default="gemini-2.5-flash", help="Model id for trace generation")
+    parser.add_argument("--format", choices=["markdown", "csv"], default="markdown", help="Output format")
+    parser.add_argument("--output", default=None, help="Write output to this file path instead of stdout")
     args = parser.parse_args()
 
     repo_path = os.path.abspath(args.repo)
@@ -44,6 +46,8 @@ if __name__ == "__main__":
                 dataset_name=args.dataset,
                 tags=args.tags,
                 model_id=args.model,
+                format=args.format,
+                output_path=args.output,
             )
             print(report)
         except ServiceError as exc:
