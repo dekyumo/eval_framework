@@ -1,6 +1,7 @@
 from src.eval_workbench.extraction import extractor as extractor_module
 from src.eval_workbench.domain.case import EvalCase, EvalDataset
 from src.eval_workbench.domain.extractor import Extractor
+from src.eval_workbench.domain.gym import Gym
 from src.eval_workbench.domain.rubric import Rubric
 from src.eval_workbench.domain.tag import Tag
 from src.eval_workbench.services._conn import conn
@@ -9,6 +10,7 @@ from src.eval_workbench.storage.repositories import (
     EvalCaseRepository,
     EvalDatasetRepository,
     ExtractorRepository,
+    GymRepository,
     RubricRepository,
     TagRepository,
 )
@@ -38,6 +40,11 @@ def list_rubrics(repo_path: str) -> list[dict]:
 
 def list_extractors(repo_path: str) -> list[dict]:
     items = ExtractorRepository(conn(repo_path)).get_all("Extractor", "id", Extractor)
+    return [item.model_dump() for item in items]
+
+
+def list_gyms(repo_path: str) -> list[dict]:
+    items = GymRepository(conn(repo_path)).get_all("Gym", "id", Gym)
     return [item.model_dump() for item in items]
 
 
@@ -86,6 +93,30 @@ def create_extractor(repo_path: str, data: dict) -> dict:
     dumped = extractor.model_dump()
     dumped["python_code"] = python_code
     return dumped
+
+
+def create_gym(repo_path: str, data: dict) -> dict:
+    payload = dict(data)
+    payload.pop("repo_path", None)
+    if not payload.get("id"):
+        slug = payload.get("name", "").strip().lower().replace(" ", "-")
+        payload["id"] = "".join(ch for ch in slug if ch.isalnum() or ch in "-_")
+    if not payload.get("id"):
+        raise ServiceError("Gym requires a name", 400)
+    if not payload.get("class_path", "").strip():
+        raise ServiceError("Gym requires a class_path", 400)
+    gym = Gym(**payload)
+    GymRepository(conn(repo_path)).save(gym)
+    return gym.model_dump()
+
+
+def delete_gym(repo_path: str, gym_id: str) -> None:
+    connection = conn(repo_path)
+    cases = EvalCaseRepository(connection).get_all("EvalCase", "id", EvalCase)
+    in_use = any(getattr(case.agentic_user, "gym_ref", None) == gym_id for case in cases)
+    if in_use:
+        raise ServiceError("Gym is in use by a case and cannot be deleted", 400)
+    GymRepository(connection).delete(gym_id)
 
 
 def delete_tag(repo_path: str, tag_id: str) -> None:

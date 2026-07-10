@@ -28,6 +28,7 @@ from src.eval_workbench.runner.trace_events import (
     append_trace_parts_from_event,
     empty_token_totals,
 )
+from src.eval_workbench.runner.agentic_sim import run_agentic_simulation
 
 
 def _build_trace(
@@ -106,46 +107,26 @@ async def run_agent_flow():
     trace_parts: list = []
     token_totals = empty_token_totals()
 
-    runner = InMemoryRunner(agent=agent, app_name="eval_workbench")
     session_state = case.get("session_state") or {}
-    await runner.session_service.create_session(
-        app_name="eval_workbench",
-        user_id="user1",
-        session_id="session1",
-        state=session_state,
-    )
-
-    input_payload = case.get("input_payload")
-    messages = case.get("conversation", [])
+    agentic = case.get("agentic_user")
 
     start_time = time.time()
 
     try:
-        if input_payload:
-            if messages:
-                raise ValueError("Eval case cannot set both input_payload and conversation turns")
-            filtered_payload = filter_input_payload(agent, input_payload)
-            trace_parts.append(structured_input_trace_part(filtered_payload))
-            new_msg = build_structured_input_message(filtered_payload)
-            await _consume_runner_events(runner, new_msg, trace_parts, token_totals)
+        if agentic:
+            seed_user_text = _seed_user_text(case.get("conversation", []))
+            trace_parts, token_totals = await run_agentic_simulation(
+                solver_agent=agent,
+                agentic_user=agentic,
+                session_state=session_state,
+                seed_user_text=seed_user_text,
+                model_id=model_id,
+                gym_class_path=case["_gym_class_path"],
+            )
         else:
-            idx = 0
-            while idx < len(messages):
-                message = messages[idx]
-                role = message.get("role", "user")
-                if role not in ("user", "user_media"):
-                    idx += 1
-                    continue
-
-                batch_parts: list[types.Part] = []
-                while idx < len(messages) and messages[idx].get("role", "user") in ("user", "user_media"):
-                    genai_parts, trace_part = build_genai_parts(messages[idx])
-                    batch_parts.extend(genai_parts)
-                    trace_parts.append(trace_part)
-                    idx += 1
-
-                new_msg = types.Content(role="user", parts=batch_parts)
-                await _consume_runner_events(runner, new_msg, trace_parts, token_totals)
+            trace_parts, token_totals = await _run_conversation(
+                agent, case, session_state, trace_parts, token_totals
+            )
 
         latency = (time.time() - start_time) * 1000.0
         print(json.dumps(_build_trace(
@@ -170,6 +151,58 @@ async def run_agent_flow():
             fault_config=fault_config,
             exception=traceback.format_exc(),
         )))
+
+
+def _seed_user_text(conversation: list) -> str:
+    """Return the opening user turn's text for an agentic-user simulation."""
+    for message in conversation:
+        if message.get("role") in ("user", "user_media"):
+            return message.get("text") or ""
+    raise ValueError("agentic_user case requires an opening user turn in conversation")
+
+
+async def _run_conversation(
+    agent, case: dict, session_state: dict, trace_parts: list, token_totals: dict
+) -> tuple[list, dict]:
+    """Run the standard input_payload / fixed-conversation flow."""
+    runner = InMemoryRunner(agent=agent, app_name="eval_workbench")
+    await runner.session_service.create_session(
+        app_name="eval_workbench",
+        user_id="user1",
+        session_id="session1",
+        state=session_state,
+    )
+
+    input_payload = case.get("input_payload")
+    messages = case.get("conversation", [])
+
+    if input_payload:
+        if messages:
+            raise ValueError("Eval case cannot set both input_payload and conversation turns")
+        filtered_payload = filter_input_payload(agent, input_payload)
+        trace_parts.append(structured_input_trace_part(filtered_payload))
+        new_msg = build_structured_input_message(filtered_payload)
+        await _consume_runner_events(runner, new_msg, trace_parts, token_totals)
+    else:
+        idx = 0
+        while idx < len(messages):
+            message = messages[idx]
+            role = message.get("role", "user")
+            if role not in ("user", "user_media"):
+                idx += 1
+                continue
+
+            batch_parts: list[types.Part] = []
+            while idx < len(messages) and messages[idx].get("role", "user") in ("user", "user_media"):
+                genai_parts, trace_part = build_genai_parts(messages[idx])
+                batch_parts.extend(genai_parts)
+                trace_parts.append(trace_part)
+                idx += 1
+
+            new_msg = types.Content(role="user", parts=batch_parts)
+            await _consume_runner_events(runner, new_msg, trace_parts, token_totals)
+
+    return trace_parts, token_totals
 
 
 def main():
