@@ -21,12 +21,16 @@ def create_app(repo_path=None, log_raw_otel: bool = False, otel_trace_dump_path:
     from src.eval_workbench.web.routes.runs import runs_bp
     from src.eval_workbench.web.routes.campaigns import campaigns_bp
     from src.eval_workbench.web.routes.registries import registries_bp
+    from src.eval_workbench.web.routes.governance import governance_bp
+    from src.eval_workbench.web.routes.blueprints import blueprints_bp
 
     app.register_blueprint(agents_bp, url_prefix="/api/agents")
     app.register_blueprint(cases_bp, url_prefix="/api/cases")
     app.register_blueprint(runs_bp, url_prefix="/api/runs")
     app.register_blueprint(campaigns_bp, url_prefix="/api/campaigns")
     app.register_blueprint(registries_bp, url_prefix="/api/registries")
+    app.register_blueprint(governance_bp, url_prefix="/api/governance")
+    app.register_blueprint(blueprints_bp, url_prefix="/api/blueprints")
 
     if log_raw_otel:
         from src.eval_workbench.web.routes.otel import otel_bp

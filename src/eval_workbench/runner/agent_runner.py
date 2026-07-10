@@ -3,7 +3,6 @@ import subprocess
 import os
 import tempfile
 from pathlib import Path
-from src.eval_workbench.ssl_config import ssl_env_for_subprocess
 from src.eval_workbench.runner.worktree import WorktreeRunner
 from src.eval_workbench.domain.snapshot import AgentSnapshot
 from src.eval_workbench.domain.case import EvalCase
@@ -49,7 +48,7 @@ class AgentRunner:
             # Let's just point directly to it.
             exec_script_path = Path(__file__).parent / "exec_script.py"
             
-            env = ssl_env_for_subprocess(os.environ.copy())
+            env = os.environ.copy()
             framework_root = Path(__file__).resolve().parents[3]
             env["PYTHONPATH"] = os.pathsep.join([str(wt.path), str(framework_root)])
             

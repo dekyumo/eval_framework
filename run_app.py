@@ -1,22 +1,24 @@
-import dotenv
-
-dotenv.load_dotenv()
-
-from src.eval_workbench.ssl_config import configure_process_ssl
-
-configure_process_ssl()
-
 import argparse
 import os
 import sys
-from src.eval_workbench.web.app import create_app
 
-if __name__ == "__main__":
+
+import dotenv
+
+    
+
+
+def main() -> None:
     parser = argparse.ArgumentParser(description="Eval Workbench")
     parser.add_argument("repo", help="Path to the target git repository")
+    parser.add_argument(
+        "--mode",
+        choices=["web", "headless", "mcp"],
+        default="web",
+        help="web: Flask UI (default); headless: benchmark report; mcp: stdio MCP server",
+    )
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=5000)
-    parser.add_argument("--headless", action="store_true", help="Run benchmark without the web UI")
     parser.add_argument("--agent_path", help="Agent import path, e.g. a_single_agent.day_trip:root_agent")
     parser.add_argument("--commit", default="HEAD", help="Git commit or branch to evaluate")
     parser.add_argument("--dataset", help="Eval dataset name to run")
@@ -26,14 +28,29 @@ if __name__ == "__main__":
     parser.add_argument("--output", default=None, help="Write output to this file path instead of stdout")
     args = parser.parse_args()
 
+    
+
     repo_path = os.path.abspath(args.repo)
     if not os.path.isdir(repo_path):
         print(f"Error: {repo_path} is not a directory.", file=sys.stderr)
         sys.exit(1)
 
-    if args.headless:
+    dotenv.load_dotenv()
+
+    
+
+    if args.mode == "mcp":
+        # Run MCP immediately to avoid print/logs that will pollute stdout.
+        from src.eval_workbench.mcp.server import build_server
+
+        build_server(repo_path).run(transport="stdio")
+        sys.exit(0)
+
+    
+
+    if args.mode == "headless":
         if not args.agent_path or not args.dataset:
-            print("Error: --headless requires --agent_path and --dataset", file=sys.stderr)
+            print("Error: --mode headless requires --agent_path and --dataset", file=sys.stderr)
             sys.exit(2)
         from src.eval_workbench.services.benchmark import run_headless_benchmark
         from src.eval_workbench.services.errors import ServiceError
@@ -59,7 +76,9 @@ if __name__ == "__main__":
         sys.exit(0)
 
     if not os.path.isdir(os.path.join(repo_path, ".git")):
-        print(f"Warning: {repo_path} does not appear to be a git repository.")
+        print(f"Warning: {repo_path} does not appear to be a git repository.", file=sys.stderr)
+
+    from src.eval_workbench.web.app import create_app
 
     otel_trace_dump_path = None
     if args.log_raw_otel:
@@ -92,3 +111,7 @@ if __name__ == "__main__":
         otel_trace_dump_path=otel_trace_dump_path,
     )
     app.run(host=args.host, port=args.port, debug=True, use_reloader=False)
+
+
+if __name__ == "__main__":
+    main()

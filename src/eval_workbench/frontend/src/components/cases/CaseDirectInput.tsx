@@ -48,7 +48,7 @@ export function CaseDirectInput({
           <option value="json">Structured JSON input</option>
         </Select>
         <Text variant="muted" as="p" className="mt-1 text-xs">
-          Use either conversation turns or a JSON payload for agents with an input_schema — not both.
+          Agents that have an input_schema need an input object (the dictionary will be cast to the appropriate pydantic class)
         </Text>
       </div>
 

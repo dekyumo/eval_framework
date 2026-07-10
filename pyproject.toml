@@ -14,6 +14,7 @@ dependencies = [
     "kuzu",
     "google-adk",
     "litellm",
+    "mcp>=1.27,<2",
     "scikit-learn",
     "numpy",
     "scipy",
@@ -21,6 +22,9 @@ dependencies = [
     "opentelemetry-proto",
     "libcst",
 ]
+
+[project.scripts]
+eval-workbench-mcp = "src.eval_workbench.mcp.server:main"
 
 [project.optional-dependencies]
 dev = [

@@ -1,0 +1,92 @@
+from unittest.mock import patch
+
+import pytest
+
+from src.eval_workbench.domain.blueprint import AgentBlueprint, BlueprintPreset, BlueprintRunResult, ToolCall
+from src.eval_workbench.mcp.registry import TOOL_NAMES, build_registry, resolve_tools
+from src.eval_workbench.services import blueprints as blueprints_service
+from src.eval_workbench.services.errors import ServiceError
+
+
+def test_list_presets_returns_all_building_blocks():
+    presets = blueprints_service.list_presets()
+    assert len(presets) == len(BlueprintPreset)
+    names = {item["preset"] for item in presets}
+    assert names == {preset.value for preset in BlueprintPreset}
+    for item in presets:
+        assert item["instruction"]
+        assert isinstance(item["tools"], list)
+        assert item["tools"]
+
+
+def test_preset_blueprint_scanner():
+    blueprint = blueprints_service.preset_blueprint("Scanner")
+    assert blueprint["agent_name"] == "Scanner"
+    assert blueprint["tools"] == ["scan_agent", "get_snapshot", "list_snapshots"]
+    assert blueprint["instruction"]
+
+
+def test_preset_blueprint_unknown_raises():
+    with pytest.raises(ServiceError) as exc:
+        blueprints_service.preset_blueprint("NotAPreset")
+    assert exc.value.status_code == 400
+
+
+def test_run_blueprint_unknown_tool_raises(tmp_path):
+    with pytest.raises(ServiceError) as exc:
+        blueprints_service.run_blueprint(
+            str(tmp_path),
+            {
+                "agent_name": "test",
+                "instruction": "do things",
+                "tools": ["no_such_tool"],
+            },
+        )
+    assert exc.value.status_code == 400
+    assert "Unknown tool" in exc.value.message
+
+
+def test_run_blueprint_with_stubbed_runner(tmp_path):
+    expected = BlueprintRunResult(
+        blueprint=AgentBlueprint(
+            agent_name="reader",
+            instruction="List tags.",
+            tools=["list_tags"],
+        ),
+        final_output="Done listing tags.",
+        transcript=[
+            {"role": "assistant", "text": "Called list_tags({})"},
+            {"role": "tool", "text": "list_tags: [{\"id\": \"t1\"}]"},
+            {"role": "assistant", "text": "Done listing tags."},
+        ],
+        tool_calls=[ToolCall(name="list_tags", args={}, result='[{"id": "t1"}]')],
+    )
+
+    def fake_list_tags() -> list[dict]:
+        return [{"id": "t1", "name": "test"}]
+
+    with (
+        patch(
+            "src.eval_workbench.services.blueprints.resolve_tools",
+            return_value=[fake_list_tags],
+        ),
+        patch(
+            "src.eval_workbench.services.blueprints._run_blueprint_async",
+            return_value=expected,
+        ) as run_async,
+    ):
+        result = blueprints_service.run_blueprint(
+            str(tmp_path),
+            {
+                "agent_name": "reader",
+                "instruction": "List tags.",
+                "tools": ["list_tags"],
+            },
+        )
+
+    run_async.assert_awaited_once()
+    assert result["final_output"] == "Done listing tags."
+    assert result["transcript"]
+    assert result["tool_calls"]
+    assert result["tool_calls"][0]["name"] == "list_tags"
+    assert result["tool_calls"][0]["result"]

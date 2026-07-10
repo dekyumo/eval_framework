@@ -9,7 +9,6 @@ import { Compare } from './pages/Compare';
 import { Campaigns } from './pages/Campaigns';
 import { Registries } from './pages/Registries';
 import { HumanEval } from './pages/HumanEval';
-import { ChatOperator } from './pages/ChatOperator';
 
 export default function App() {
   return (
@@ -25,7 +24,6 @@ export default function App() {
           <Route path="/campaigns" element={<Campaigns />} />
           <Route path="/registries" element={<Registries />} />
           <Route path="/human-eval" element={<HumanEval />} />
-          <Route path="/chat" element={<ChatOperator />} />
         </Route>
       </Routes>
     </BrowserRouter>

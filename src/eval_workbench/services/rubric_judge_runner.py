@@ -13,7 +13,6 @@ from pydantic import BaseModel, Field, create_model
 
 from src.eval_workbench.domain.rubric import Rubric
 from src.eval_workbench.domain.trace import Trace
-from src.eval_workbench.ssl_config import configure_process_ssl
 
 _APP_NAME = "eval_workbench"
 
@@ -75,7 +74,6 @@ def _judge_instruction(rubric: Rubric) -> str:
 
 
 async def _run_rubric_judge_async(rubric: Rubric, trace_text: str) -> BaseModel:
-    configure_process_ssl()
     output_schema = build_rubric_output_schema(rubric)
     agent = LlmAgent(
         name="rubric_judge",

@@ -12,16 +12,12 @@ Project root
 |   pyproject.toml 
 |   run_app.py : the main entry point for the app
 |   TODO.txt
-+---scripts
-|       refresh_certs.py
-|       
 +---specs : root dir for all the specs written before generating the app
 |   |   functional_spec.md
 |   |   functional_spec_addendum.md
 |   |   python_objects.md
 |   |   
 |   +---agent_spec : the ADK agents that will provide services inside the app
-|   |       AGENT1_chat_agent.md : a general agent with access to all the routes as tools
 |   |       AGENT2_code_explore.md : an agent that looks at ADK agent code and guesses their purpose
 |   |       AGENT3_code_mocker_and_failure_injector.md : makes mocked tools that can fail on cue
 |   |       AGENT4_extractor_author.md : makes functions from traces to bool/int/float, to help validate traces
@@ -35,7 +31,6 @@ Project root
 |   |   |   
 |   |   +---contracts
 |   |   |       agent_scanner.md : description of the ADK object exploration and ast reading that help agent2 understand the agent
-|   |   |       chat_operator.md : a description of the code around agent1
 |   |   |       fault_injector.md : spec for fault injection/agent3
 |   |   |       scoring_extraction_response_matrix.md : spec for IRT/SOUL9
 |   |   |       web_frontend.md : spec for the web frontend
@@ -51,7 +46,6 @@ Project root
 |   |       +---07_registries_rubrics_frozen
 |   |       +---08_extractor_authoring
 |   |       +---09_human_evaluation
-|   |       \---10_chat_operator
 |   |       
 |   \---spec_of_the_spec : the mathematical and software development principles underlying the evaluation workbench
 |           SOUL10_FAULT_INJECTION.md : we can inject faults into the tools
@@ -74,9 +68,6 @@ Project root
 |       +---agents : the agents described in the spec
 |       |   +---case_writer : writes eval cases
 |       |   |       agent.py
-|       |   +---chat_operator : general helper
-|       |   |   |   agent.py
-|       |   |   |   tools.py
 |       |   +---code_explorer : analyses ADK agents
 |       |   |   |   agent.py
 |       |   +---extractor_author : writes functions from traces to bool/int/str
@@ -150,7 +141,6 @@ Project root
 |       |   |   |       Agents.tsx : look at the agent scan results
 |       |   |   |       Campaigns.tsx : launches campaigns (IRT)
 |       |   |   |       Cases.tsx : adds test cases
-|       |   |   |       ChatOperator.tsx : general chat/AGENT1
 |       |   |   |       Compare.tsx : compare an agent between two scans
 |       |   |   |       Evals.tsx : run the metrics on the generated Cases
 |       |   |   |       HumanEval.tsx : give a human eval on a rubric

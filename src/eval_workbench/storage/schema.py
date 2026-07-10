@@ -2,7 +2,7 @@ import kuzu
 
 NODE_TABLES = {
     "Commit": "hash STRING, branch STRING, ts INT64, PRIMARY KEY (hash)",
-    "Snapshot": "id STRING, agent_target STRING, commit_hash STRING, branch STRING, timestamp DOUBLE, manifest STRING, distribution STRING, sampling_params STRING, dependency_lock STRING, framework_commit STRING, PRIMARY KEY (id)",
+    "Snapshot": "id STRING, agent_target STRING, commit_hash STRING, branch STRING, timestamp DOUBLE, manifest STRING, distribution STRING, sampling_params STRING, dependency_lock STRING, framework_commit STRING, governance STRING, PRIMARY KEY (id)",
     "AgentDistribution": "snapshot_id STRING, description STRING, regions STRING, editable BOOL, PRIMARY KEY (snapshot_id)",
     "AgentNode": "key STRING, snapshot_id STRING, name STRING, model_id STRING, prompt_id STRING, PRIMARY KEY (key)",
     "ToolNode": "id STRING, name STRING, signature STRING, source_fingerprint STRING, reaches_external BOOL, PRIMARY KEY (id)",
@@ -42,6 +42,7 @@ def _migrate_schema(conn: kuzu.Connection):
         "ALTER TABLE EvalCase ADD session_state STRING",
         "ALTER TABLE EvalCase ADD input_payload STRING",
         "ALTER TABLE EvalCase ADD agentic_user STRING",
+        "ALTER TABLE Snapshot ADD governance STRING",
     ]
     for sql in migrations:
         try:
