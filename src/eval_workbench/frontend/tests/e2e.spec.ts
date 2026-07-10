@@ -76,6 +76,14 @@ test.describe('E2E Eval Framework Flow - Day Trip Agent', () => {
       await page.getByRole('button', { name: 'Save Distribution' }).click();
     });
 
+    await test.step('Save NIST AI RMF profile business justification', async () => {
+      await expect(page.getByRole('heading', { name: 'NIST AI RMF Profile' })).toBeVisible({ timeout: 15000 });
+      const businessCase = 'Agent run costs about $0.10 vs $1.00 for a human reviewer.';
+      await page.getByLabel('Business case').fill(businessCase);
+      await page.getByRole('button', { name: 'Save Profile' }).click();
+      await expect(page.getByLabel('Business case')).toHaveValue(businessCase);
+    });
+
     // ==========================================
     // 3. REGISTRIES (Tags, Extractors, Rubrics, Datasets)
     // ==========================================
@@ -403,21 +411,6 @@ test.describe('E2E Eval Framework Flow - Day Trip Agent', () => {
       await page.getByLabel('is_achievable').selectOption('True');
       
       await page.getByRole('button', { name: 'Submit Grade' }).click();
-    });
-
-    // ==========================================
-    // 9. CHAT OPERATOR
-    // ==========================================
-    await test.step('Talk to AGENT1', async () => {
-      await page.getByRole('link', { name: 'Chat Operator' }).click();
-      await expect(page).toHaveURL(/\/chat/);
-
-      const chatInput = page.getByPlaceholder(/Ask the operator/i);
-      await chatInput.fill('Can you show me the latest snapshot for the Day Trip agent?');
-      await page.getByRole('button', { name: 'Send' }).click();
-
-      // Ensure our message shows up in the chat window
-      await expect(page.getByText('Can you show me the latest snapshot for the Day Trip agent?')).toBeVisible();
     });
 
   });

@@ -1,6 +1,7 @@
 from typing import Literal, Any
 from pydantic import BaseModel
 from src.eval_workbench.domain.manifest import AgentManifest
+from src.eval_workbench.domain.governance import GovernanceProfile
 
 class AgentTarget(BaseModel):
     repo_path: str                           # git repo root of the agent-under-test (a sibling repo)
@@ -29,3 +30,4 @@ class AgentSnapshot(BaseModel):
     sampling_params: dict                    # temperature, top_p... (part of the agent, not the run)
     dependency_lock: str                     # contents/hash of the lockfile at the commit
     framework_commit: str | None = None
+    governance: GovernanceProfile | None = None   # NIST AI RMF profile (persisted like distribution)

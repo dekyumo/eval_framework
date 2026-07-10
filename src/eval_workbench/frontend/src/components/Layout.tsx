@@ -12,7 +12,6 @@ const NAV_ITEMS = [
   { to: '/campaigns', icon: 'rocket_launch', label: 'Campaigns' },
   { to: '/registries', icon: 'storage', label: 'Registries' },
   { to: '/human-eval', icon: 'person', label: 'Human Eval' },
-  { to: '/chat', icon: 'forum', label: 'Chat Operator' },
 ];
 
 export function Layout() {

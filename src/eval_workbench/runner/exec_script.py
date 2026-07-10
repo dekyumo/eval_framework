@@ -10,10 +10,6 @@ import dotenv
 
 dotenv.load_dotenv()
 
-from src.eval_workbench.ssl_config import configure_process_ssl
-
-configure_process_ssl()
-
 from datetime import datetime
 from google.genai import types
 from google.adk.runners import InMemoryRunner

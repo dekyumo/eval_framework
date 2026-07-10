@@ -11,14 +11,12 @@ from google.genai import types
 
 from src.eval_workbench.agents.code_explorer.agent import CodeExplorerOutput
 from src.eval_workbench.agents.code_explorer.agent import root_agent as code_explorer_agent
-from src.eval_workbench.ssl_config import configure_process_ssl
 
 _APP_NAME = "eval_workbench"
 _USER_ID = "scanner"
 
 
 async def _run_code_explorer_async(agent_scan_result: str) -> CodeExplorerOutput:
-    configure_process_ssl()
     session_id = f"code_explorer_{uuid.uuid4().hex[:8]}"
     runner = InMemoryRunner(agent=code_explorer_agent, app_name=_APP_NAME)
     await runner.session_service.create_session(

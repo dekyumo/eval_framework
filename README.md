@@ -94,7 +94,7 @@ Typical workflow:
 Run a benchmark without starting the web server:
 
 ```bash
-python run_app.py .\adk_tutorial --headless `
+python run_app.py .\adk_tutorial --mode headless `
   --agent_path "a_single_agent.day_trip:root_agent" `
   --commit HEAD `
   --dataset "DayTrip Tests"
