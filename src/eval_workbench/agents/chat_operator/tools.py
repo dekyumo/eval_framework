@@ -17,8 +17,8 @@ def list_cases(tags: list[str] | None = None) -> list:
     return [c.model_dump() for c in cases.list_cases(tags)]
 
 
-def compare_snapshots(a: str, b: str) -> dict:
-    return comparison.compare_snapshots(a, b)
+def compare_snapshots(a: str, b: str, repo_path: str) -> dict:
+    return comparison.compare_snapshots(repo_path, a, b)
 
 
 def propose_scan(agent_path: str, commit: str = "HEAD") -> ActionProposal:

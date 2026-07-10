@@ -6,6 +6,7 @@ import { CaseAgentInputPane } from '../components/cases/CaseAgentInputPane';
 import { CaseOthersPane } from '../components/cases/CaseOthersPane';
 import { CaseListPane } from '../components/cases/CaseListPane';
 import type { ConversationTurn, InputMode, MetricRow } from '../components/cases/types';
+import { snapshotAgentPath } from '../utils/snapshotLabel';
 
 function parseJsonObject(text: string, label: string): Record<string, unknown> | null {
   if (!text.trim()) return null;
@@ -232,6 +233,13 @@ export function Cases() {
     }
 
     try {
+      const snapshot = snapshots.find(s => s.id === snapshotId);
+      const target_agent_path = snapshotAgentPath(snapshot);
+      if (!target_agent_path) {
+        setJsonError('Select a snapshot in Automatic Case Generation to set the target agent.');
+        return;
+      }
+
       const payload = {
         id: `case_${crypto.randomUUID().substring(0, 8)}`,
         name: caseName || 'Unnamed Case',
@@ -239,7 +247,7 @@ export function Cases() {
         distribution_position: distributionPosition,
         problem_type: problemType,
         split,
-        target_agent_path: 'a_single_agent.day_trip:root_agent',
+        target_agent_path,
         conversation: inputMode === 'json' ? [] : conversationPayload(),
         session_state,
         input_payload,

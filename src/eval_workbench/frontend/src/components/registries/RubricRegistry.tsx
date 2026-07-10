@@ -8,7 +8,8 @@ import { BorderedSection } from '../ui/PageLayout';
 interface RubricItem {
   name: string;
   type: string;
-  description: string;
+  description?: string;
+  prompt?: string;
 }
 
 interface Rubric {
@@ -207,7 +208,11 @@ export function RubricRegistry({ rubrics, onFetchAll }: RubricRegistryProps) {
                   setRubricName(e.name);
                   setRubricInstructions(e.instructions || '');
                   setRubricDefaultJudgePrompt(e.default_judge_prompt || 'Please evaluate the trace based on the following instructions: {instructions}');
-                  setRubricFields(e.items || []);
+                  setRubricFields((e.items || []).map((item: RubricItem) => ({
+                    name: item.name,
+                    type: item.type,
+                    description: item.description || item.prompt || '',
+                  })));
                 }}
                 className={selectedRubricId === e.id ? 'bg-surface-container-highest border-primary-fixed' : 'bg-surface-container-lowest border-outline-variant hover:border-primary-fixed'}
               >
@@ -219,7 +224,11 @@ export function RubricRegistry({ rubrics, onFetchAll }: RubricRegistryProps) {
                     setRubricName(e.name);
                     setRubricInstructions(e.instructions || '');
                     setRubricDefaultJudgePrompt(e.default_judge_prompt || 'Please evaluate the trace based on the following instructions: {instructions}');
-                    setRubricFields(e.items || []);
+                    setRubricFields((e.items || []).map((item: RubricItem) => ({
+                    name: item.name,
+                    type: item.type,
+                    description: item.description || item.prompt || '',
+                  })));
                   }}
                 >
                   {e.name}
