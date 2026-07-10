@@ -46,7 +46,7 @@ if __name__ == "__main__":
                 dataset_name=args.dataset,
                 tags=args.tags,
                 model_id=args.model,
-                format=args.format,
+                output_format=args.format,
                 output_path=args.output,
             )
             print(report)

@@ -57,35 +57,35 @@ print(summary)
 
 ---
 
-## 3. Classification metrics with sklearn
+## 3. Bool metrics: convention and pass rates
 
-When `result_type == "bool"`, treat it as a binary classification problem: the agent's answer is the prediction, there is an implied ground truth in the rubric. Use sklearn to compute precision, recall, F1, and the confusion matrix.
+**Convention**: `result_value=True` means "criterion met / agent passed this check". Higher pass rate is always better. This is consistent with the sklearn convention (positive label = the desired outcome).
+
+The CSV has no ground-truth column for rubric items. The judge verdict *is* the label — there is no separate prediction to compare it against. Do not fabricate a `y_true = [1] * n` vector; that produces trivially misleading precision/recall values.
+
+The natural metric for bool rubric items is the **pass rate**:
 
 ```python
-from sklearn.metrics import precision_score, recall_score, f1_score, confusion_matrix
-
 bool_df = df[df["result_type"] == "bool"].copy()
-bool_df["value"] = (bool_df["result_value"].str.strip().str.lower() == "true").astype(int)
+bool_df["passed"] = bool_df["result_value"].str.strip().str.lower() == "true"
 
-# If you have a ground-truth column; otherwise compare metric-by-metric
-for metric, grp in bool_df.groupby("metric_name"):
-    y = grp["value"].values
-    # y is the judge verdict; if all expected to be 1, compare against ones
-    y_true = [1] * len(y)
-    print(f"\n{metric}")
-    print(f"  precision={precision_score(y_true, y):.3f}  recall={recall_score(y_true, y):.3f}  f1={f1_score(y_true, y):.3f}")
-    print(confusion_matrix(y_true, y))
+pass_rate = (
+    bool_df.groupby("metric_name")["passed"]
+    .agg(pass_rate="mean", n="count")
+    .round(3)
+)
+print(pass_rate)
 ```
 
-For numeric metrics (`int` / `float`), use regression metrics:
+sklearn classification metrics (`precision_score`, `recall_score`, `f1_score`) are meaningful here only when you have a ground-truth label to compare against — i.e. when comparing `llm_judge` verdicts to `human` verdicts for the same case (see section 9), or when running deterministic extractors with known ground truth.
+
+For numeric metrics (`int` / `float`) with ground truth from a deterministic extractor, use regression metrics. Ground truth comes from the case definition and is captured by the framework during scoring; if you need it in the CSV, re-run with a deterministic extractor that emits both predicted and ground-truth values:
 
 ```python
 from sklearn.metrics import r2_score, mean_absolute_percentage_error
 
-num_df = df[df["result_type"].isin(["int", "float"])].copy()
-num_df["value"] = num_df["result_value"].astype(float)
-
-# Example: compare predicted vs expected if you have expected values merged in
+# Requires a separate ground-truth column (not present in the default CSV).
+# Use when you have merged in expected values from your case definitions.
 # r2 = r2_score(y_true, y_pred)
 # mape = mean_absolute_percentage_error(y_true, y_pred)
 ```

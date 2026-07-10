@@ -187,8 +187,6 @@ def render_markdown_report(
 def render_csv_report(
     snapshot: dict,
     outcomes: list[CaseRunOutcome],
-    rubric_aggregates: dict[str, dict],
-    extractor_aggregates: dict[str, dict],
     agent_path: str,
     commit: str,
     dataset_name: str,
@@ -231,7 +229,7 @@ def run_headless_benchmark(
     dataset_name: str,
     tags: list[str] | None = None,
     model_id: str = "gemini-2.5-flash",
-    format: str = "markdown",
+    output_format: str = "markdown",
     output_path: str | None = None,
 ) -> str:
     agent_name = agent_path.split(":")[-1]
@@ -309,9 +307,9 @@ def run_headless_benchmark(
             stats["kind"] = "float"
             extractor_aggregates[name] = stats
 
-    if format == "csv":
+    if output_format == "csv":
         content = render_csv_report(
-            snapshot, outcomes, rubric_aggregates, extractor_aggregates,
+            snapshot, outcomes,
             agent_path=agent_path, commit=commit, dataset_name=dataset_name,
         )
     else:
@@ -321,7 +319,7 @@ def run_headless_benchmark(
         resolved = str(output_path)
         with open(resolved, "w", encoding="utf-8", newline="") as fh:
             fh.write(content)
-        if format == "csv":
+        if output_format == "csv":
             return f"Evals CSV data output at {resolved}"
         return f"Markdown file output at {resolved}"
 
