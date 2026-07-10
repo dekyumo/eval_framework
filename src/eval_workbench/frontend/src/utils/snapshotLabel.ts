@@ -32,3 +32,11 @@ export function formatSnapshotLabel(snapshot: SnapshotLike): string {
 
   return snapshot.id;
 }
+
+/** Agent import path for a snapshot (module.path:agent_var). */
+export function snapshotAgentPath(snapshot: SnapshotLike | undefined): string {
+  if (!snapshot) return '';
+  if (snapshot.agent_target?.agent_path) return snapshot.agent_target.agent_path;
+  const colon = snapshot.id.indexOf(':');
+  return colon >= 0 ? snapshot.id.slice(colon + 1) : '';
+}

@@ -25,13 +25,29 @@ class MetricDef(BaseModel):
     # rubric
     rubric_ref: str | None = None            # -> Rubric.id
 
+class AgenticUserConfig(BaseModel):
+    """Turns a case into a two-agent gym simulation (tau-bench style).
+
+    A user agent and the solver agent take turns until the gym's termination
+    method returns True or `max_turns` is reached. Gym bound methods named in
+    `user_tools` / `solver_tools` are injected as tools into each agent.
+    """
+
+    user_agent_path: str                     # "module.path:variable" for the simulated user
+    gym_ref: str                             # -> Gym.id
+    user_tools: list[str] = []               # gym method names given to the user agent
+    solver_tools: list[str] = []             # gym method names given to the solver agent
+    max_turns: int = 10
+    termination_method: str                  # gym method name returning bool
+
 class EvalCase(BaseModel):
     id: str
     name: str = ""
     target_agent_path: str                   # WHICH agent in the repo this case targets (root or a sub-agent)
     conversation: list[MessagePart] = []     # multi-turn input (agentic, not single prompt)
-    session_state: dict[str, Any] | None = None   # injected into ADK session state before run
+    session_state: dict[str, Any] | None = None   # injected into ADK session state before run; reserved key "gym" configures the gym
     input_payload: dict[str, Any] | None = None   # structured new_message JSON (mutually exclusive with conversation)
+    agentic_user: AgenticUserConfig | None = None  # if set, run a gym simulation instead of a fixed conversation
     distribution_position: DistributionPosition          # coverage attribute of THIS case (in / margin / ood)
     problem_type: ProblemType
     tags: list[str] = []

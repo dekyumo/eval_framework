@@ -61,5 +61,34 @@ if __name__ == "__main__":
     if not os.path.isdir(os.path.join(repo_path, ".git")):
         print(f"Warning: {repo_path} does not appear to be a git repository.")
 
-    app = create_app(repo_path=repo_path)
+    otel_trace_dump_path = None
+    if args.log_raw_otel:
+        
+
+        try:
+            import opentelemetry.proto  # noqa: F401
+        except ImportError:
+            print(
+                "Error: --log-raw-otel requires the opentelemetry-proto package "
+                "(pip install opentelemetry-proto).",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+
+        from src.eval_workbench.otel_config import configure_otel_export
+
+        endpoint = configure_otel_export(args.host, args.port)
+
+        from google.adk.telemetry.setup import maybe_set_otel_providers
+        maybe_set_otel_providers()
+
+        otel_trace_dump_path = os.path.join(repo_path, "raw_otel_logs")
+        os.makedirs(otel_trace_dump_path, exist_ok=True)
+        print(f"Raw OTel trace dumps enabled → {otel_trace_dump_path} (OTLP {endpoint}/v1/traces)")
+
+    app = create_app(
+        repo_path=repo_path,
+        log_raw_otel=args.log_raw_otel,
+        otel_trace_dump_path=otel_trace_dump_path,
+    )
     app.run(host=args.host, port=args.port, debug=True, use_reloader=False)

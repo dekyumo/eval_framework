@@ -3,9 +3,15 @@ import { Button } from '../components/ui/Button';
 import { PageContainer, PagePane } from '../components/ui/PageLayout';
 import { CaseGenerationPane } from '../components/cases/CaseGenerationPane';
 import { CaseAgentInputPane } from '../components/cases/CaseAgentInputPane';
+import { CaseAgenticUserPane } from '../components/cases/CaseAgenticUserPane';
 import { CaseOthersPane } from '../components/cases/CaseOthersPane';
 import { CaseListPane } from '../components/cases/CaseListPane';
 import type { ConversationTurn, InputMode, MetricRow } from '../components/cases/types';
+import { snapshotAgentPath } from '../utils/snapshotLabel';
+
+function csvToList(text: string): string[] {
+  return text.split(',').map(s => s.trim()).filter(Boolean);
+}
 
 function parseJsonObject(text: string, label: string): Record<string, unknown> | null {
   if (!text.trim()) return null;
@@ -47,6 +53,14 @@ export function Cases() {
   const [inputMode, setInputMode] = useState<InputMode>('turns');
   const [inputPayloadJson, setInputPayloadJson] = useState('');
   const [jsonError, setJsonError] = useState<string | null>(null);
+  const [gyms, setGyms] = useState<any[]>([]);
+  const [agenticEnabled, setAgenticEnabled] = useState(false);
+  const [userAgentPath, setUserAgentPath] = useState('');
+  const [agenticGymRef, setAgenticGymRef] = useState('');
+  const [agenticUserTools, setAgenticUserTools] = useState('');
+  const [agenticSolverTools, setAgenticSolverTools] = useState('');
+  const [agenticMaxTurns, setAgenticMaxTurns] = useState(10);
+  const [agenticTerminationMethod, setAgenticTerminationMethod] = useState('');
 
   useEffect(() => {
     Promise.all([
@@ -55,7 +69,8 @@ export function Cases() {
       fetch('/api/registries/rubrics').then(res => res.json()),
       fetch('/api/registries/extractors').then(res => res.json()),
       fetch('/api/agents/snapshots').then(res => res.json()),
-    ]).then(([casesData, datasetsData, rubricsData, extractorsData, snapshotsData]) => {
+      fetch('/api/registries/gyms').then(res => res.json()),
+    ]).then(([casesData, datasetsData, rubricsData, extractorsData, snapshotsData, gymsData]) => {
       if (Array.isArray(casesData)) setCases(casesData);
       if (Array.isArray(datasetsData)) {
         setDatasets(datasetsData);
@@ -67,6 +82,7 @@ export function Cases() {
         setSnapshots(snapshotsData);
         if (snapshotsData.length > 0) setSnapshotId(snapshotsData[0].id);
       }
+      if (Array.isArray(gymsData)) setGyms(gymsData);
       setLoading(false);
     }).catch(err => {
       console.error(err);
@@ -151,6 +167,13 @@ export function Cases() {
     setInputMode('turns');
     setInputPayloadJson('');
     setJsonError(null);
+    setAgenticEnabled(false);
+    setUserAgentPath('');
+    setAgenticGymRef('');
+    setAgenticUserTools('');
+    setAgenticSolverTools('');
+    setAgenticMaxTurns(10);
+    setAgenticTerminationMethod('');
   };
 
   const handleAddTurn = () => {
@@ -232,6 +255,13 @@ export function Cases() {
     }
 
     try {
+      const snapshot = snapshots.find(s => s.id === snapshotId);
+      const target_agent_path = snapshotAgentPath(snapshot);
+      if (!target_agent_path) {
+        setJsonError('Select a snapshot in Automatic Case Generation to set the target agent.');
+        return;
+      }
+
       const payload = {
         id: `case_${crypto.randomUUID().substring(0, 8)}`,
         name: caseName || 'Unnamed Case',
@@ -239,7 +269,7 @@ export function Cases() {
         distribution_position: distributionPosition,
         problem_type: problemType,
         split,
-        target_agent_path: 'a_single_agent.day_trip:root_agent',
+        target_agent_path,
         conversation: inputMode === 'json' ? [] : conversationPayload(),
         session_state,
         input_payload,
@@ -269,6 +299,16 @@ export function Cases() {
         fault_ids: [],
         tool_fault: toolFaultEnabled
           ? { tool_name: toolFaultName, fault_type: toolFaultType }
+          : null,
+        agentic_user: agenticEnabled
+          ? {
+              user_agent_path: userAgentPath,
+              gym_ref: agenticGymRef,
+              user_tools: csvToList(agenticUserTools),
+              solver_tools: csvToList(agenticSolverTools),
+              max_turns: agenticMaxTurns,
+              termination_method: agenticTerminationMethod,
+            }
           : null,
         source: 'manual',
       };
@@ -326,6 +366,24 @@ export function Cases() {
             onTurnChange={handleTurnChange}
             onMediaUpload={handleMediaUpload}
             jsonError={jsonError}
+          />
+
+          <CaseAgenticUserPane
+            enabled={agenticEnabled}
+            onEnabledChange={setAgenticEnabled}
+            userAgentPath={userAgentPath}
+            onUserAgentPathChange={setUserAgentPath}
+            gymRef={agenticGymRef}
+            onGymRefChange={setAgenticGymRef}
+            userTools={agenticUserTools}
+            onUserToolsChange={setAgenticUserTools}
+            solverTools={agenticSolverTools}
+            onSolverToolsChange={setAgenticSolverTools}
+            maxTurns={agenticMaxTurns}
+            onMaxTurnsChange={setAgenticMaxTurns}
+            terminationMethod={agenticTerminationMethod}
+            onTerminationMethodChange={setAgenticTerminationMethod}
+            gyms={gyms}
           />
 
           <CaseOthersPane

@@ -34,6 +34,69 @@ def compare_manifests(m1: AgentManifest, m2: AgentManifest) -> SemanticDiff:
         changed_prompts=changed_prompts
     )
 
+
+def diff_to_changes(diff: SemanticDiff) -> list[dict]:
+    changes: list[dict] = []
+    for name in diff.added_tools:
+        changes.append({
+            "type": "added",
+            "component": "Tool",
+            "name": name,
+            "detail": "Tool present in snapshot B but not in A",
+        })
+    for name in diff.removed_tools:
+        changes.append({
+            "type": "removed",
+            "component": "Tool",
+            "name": name,
+            "detail": "Tool present in snapshot A but not in B",
+        })
+    for name in diff.changed_tools:
+        changes.append({
+            "type": "modified",
+            "component": "Tool",
+            "name": name,
+            "detail": "Tool implementation fingerprint changed",
+        })
+    for prompt_id in diff.added_prompts:
+        changes.append({
+            "type": "added",
+            "component": "Prompt",
+            "name": prompt_id,
+            "detail": "Prompt present in snapshot B but not in A",
+        })
+    for prompt_id in diff.removed_prompts:
+        changes.append({
+            "type": "removed",
+            "component": "Prompt",
+            "name": prompt_id,
+            "detail": "Prompt present in snapshot A but not in B",
+        })
+    for prompt_id in diff.changed_prompts:
+        changes.append({
+            "type": "modified",
+            "component": "Prompt",
+            "name": prompt_id,
+            "detail": "Prompt template fingerprint changed",
+        })
+    return changes
+
+
+def diff_summary(diff: SemanticDiff) -> dict:
+    return {
+        "tools_added": len(diff.added_tools),
+        "tools_removed": len(diff.removed_tools),
+        "tools_modified": len(diff.changed_tools),
+        "prompts_added": len(diff.added_prompts),
+        "prompts_removed": len(diff.removed_prompts),
+        "prompts_modified": len(diff.changed_prompts),
+        "total_changes": (
+            len(diff.added_tools) + len(diff.removed_tools) + len(diff.changed_tools)
+            + len(diff.added_prompts) + len(diff.removed_prompts) + len(diff.changed_prompts)
+        ),
+    }
+
+
 class RegressionDetection(BaseModel):
     metric_name: str
     old_score: float

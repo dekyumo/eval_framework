@@ -21,8 +21,20 @@ class AgentRunner:
                 snap_f.write(self.snapshot.model_dump_json())
                 snap_path = snap_f.name
                 
+            case_dict = case.model_dump()
+            if case.agentic_user is not None:
+                from src.eval_workbench.services._conn import conn
+                from src.eval_workbench.storage.repositories import GymRepository
+
+                gym = GymRepository(conn(self.snapshot.agent_target.repo_path)).get(
+                    case.agentic_user.gym_ref
+                )
+                if gym is None:
+                    raise ValueError(f"Gym {case.agentic_user.gym_ref!r} not found")
+                case_dict["_gym_class_path"] = gym.class_path
+
             with tempfile.NamedTemporaryFile("w", delete=False, suffix=".json") as case_f:
-                case_f.write(case.model_dump_json())
+                case_f.write(json.dumps(case_dict))
                 case_path = case_f.name
                 
             fault_path = "null"
