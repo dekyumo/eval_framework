@@ -142,6 +142,15 @@ class ExtractorRepository(BaseRepository):
     def delete(self, id: str):
         self._delete_node("Extractor", "id", id)
 
+from src.eval_workbench.domain.gym import Gym
+class GymRepository(BaseRepository):
+    def save(self, gym: Gym):
+        self._save_node("Gym", "id", gym)
+    def get(self, id: str) -> Optional[Gym]:
+        return self._get_node("Gym", "id", id, Gym)
+    def delete(self, id: str):
+        self._delete_node("Gym", "id", id)
+
 from src.eval_workbench.domain.fault import FaultConfig
 class FaultConfigRepository(BaseRepository):
     def save(self, conf: FaultConfig):

@@ -26,6 +26,11 @@ def list_extractors():
     return jsonify(registries_service.list_extractors(current_app.config["REPO_PATH"]))
 
 
+@registries_bp.route("/gyms", methods=["GET"])
+def list_gyms():
+    return jsonify(registries_service.list_gyms(current_app.config["REPO_PATH"]))
+
+
 @registries_bp.route("/tags", methods=["POST"])
 def create_tag():
     return jsonify(registries_service.create_tag(current_app.config["REPO_PATH"], request.json))
@@ -44,6 +49,14 @@ def create_rubric():
 @registries_bp.route("/extractors", methods=["POST"])
 def create_extractor():
     return jsonify(registries_service.create_extractor(current_app.config["REPO_PATH"], request.json))
+
+
+@registries_bp.route("/gyms", methods=["POST"])
+def create_gym():
+    try:
+        return jsonify(registries_service.create_gym(current_app.config["REPO_PATH"], request.json))
+    except ServiceError as exc:
+        return jsonify({"error": exc.message}), exc.status_code
 
 
 @registries_bp.route("/tags/<id>", methods=["DELETE"])
@@ -77,6 +90,15 @@ def delete_rubric(id):
 def delete_extractor(id):
     try:
         registries_service.delete_extractor(current_app.config["REPO_PATH"], id)
+        return jsonify({"status": "deleted"})
+    except ServiceError as exc:
+        return jsonify({"error": exc.message}), exc.status_code
+
+
+@registries_bp.route("/gyms/<id>", methods=["DELETE"])
+def delete_gym(id):
+    try:
+        registries_service.delete_gym(current_app.config["REPO_PATH"], id)
         return jsonify({"status": "deleted"})
     except ServiceError as exc:
         return jsonify({"error": exc.message}), exc.status_code

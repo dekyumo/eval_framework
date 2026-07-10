@@ -95,6 +95,7 @@ Project root
 |       |   |   case.py
 |       |   |   extractor.py
 |       |   |   fault.py
+|       |   |   gym.py : a POMDP environment (class_path) for agentic-user simulations
 |       |   |   human_eval.py
 |       |   |   manifest.py
 |       |   |   result.py
@@ -134,6 +135,7 @@ Project root
 |       |   |   |   +---registries : sub components for the registry page
 |       |   |   |   |       DatasetRegistry.tsx
 |       |   |   |   |       ExtractorRegistry.tsx
+|       |   |   |   |       GymRegistry.tsx : register gyms (class_path) for agentic-user cases
 |       |   |   |   |       RubricRegistry.tsx
 |       |   |   |   |       TagRegistry.tsx
 |       |   |   |   |       
@@ -168,6 +170,7 @@ Project root
 |       |           
 |       +---runner : runs agents on eval cases
 |       |   |   agent_runner.py : run agents on a git commit
+|       |   |   agentic_sim.py : two-agent (user+solver) gym simulation loop for agentic-user cases
 |       |   |   exec_script.py : script executed in another process for one run
 |       |   |   worktree.py : git worktree isolation
 |       +---scanner : scans an agent dir
