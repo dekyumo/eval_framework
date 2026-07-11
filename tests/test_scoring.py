@@ -44,7 +44,7 @@ def extract(trace):
     )
     case = EvalCase(
         id="c1",
-        target_agent_path="a",
+        dataset_id="ds1",
         conversation=[],
         distribution_position="in",
         problem_type="happy",

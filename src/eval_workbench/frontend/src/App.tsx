@@ -1,6 +1,5 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Layout } from './components/Layout';
-import { Onboarding } from './pages/Onboarding';
 import { Agents } from './pages/Agents';
 import { Cases } from './pages/Cases';
 import { Runs } from './pages/Runs';
@@ -15,7 +14,7 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route element={<Layout />}>
-          <Route path="/" element={<Onboarding />} />
+          <Route path="/" element={<Navigate to="/agents" replace />} />
           <Route path="/agents" element={<Agents />} />
           <Route path="/cases" element={<Cases />} />
           <Route path="/runs" element={<Runs />} />

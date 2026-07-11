@@ -45,9 +45,21 @@ def test_compare_manifests_detects_tool_and_prompt_changes():
     assert diff.removed_prompts == ["p1"]
     assert diff.changed_prompts == []
 
-    changes = diff_to_changes(diff)
+    changes = diff_to_changes(diff, m1, m2)
     assert len(changes) == 4
     assert {c["type"] for c in changes} == {"added", "modified", "removed"}
+
+    prompt_removed = next(c for c in changes if c["name"] == "p1")
+    assert prompt_removed["before"] == "hello"
+    assert prompt_removed["after"] is None
+
+    prompt_added = next(c for c in changes if c["name"] == "p2")
+    assert prompt_added["after"] == "world"
+
+    tool_modified = next(c for c in changes if c["name"] == "search")
+    assert tool_modified["diff"]
+    assert "v1" in tool_modified["before"]
+    assert "v2" in tool_modified["after"]
 
     summary = diff_summary(diff)
     assert summary["total_changes"] == 4
@@ -73,8 +85,14 @@ def _save_snapshot(repo_path: str, snapshot_id: str, manifest: AgentManifest) ->
 
 def test_compare_snapshots_service(tmp_path):
     repo_path = str(tmp_path)
-    m1 = _manifest(tools=[ToolNode(id="t1", name="search", signature="()", source_fingerprint="v1")])
-    m2 = _manifest(tools=[ToolNode(id="t2", name="calendar", signature="()", source_fingerprint="v1")])
+    m1 = _manifest(
+        tools=[ToolNode(id="t1", name="search", signature="()", source_fingerprint="v1")],
+        prompts=[PromptNode(id="p1", fingerprint="a", text="hello")],
+    )
+    m2 = _manifest(
+        tools=[ToolNode(id="t2", name="calendar", signature="()", source_fingerprint="v1")],
+        prompts=[PromptNode(id="p1", fingerprint="b", text="hello world")],
+    )
     _save_snapshot(repo_path, "snap_a", m1)
     _save_snapshot(repo_path, "snap_b", m2)
 
@@ -82,6 +100,10 @@ def test_compare_snapshots_service(tmp_path):
     assert result["snapshot_a"] == "snap_a"
     assert result["summary"]["tools_added"] == 1
     assert result["summary"]["tools_removed"] == 1
+    assert result["summary"]["prompts_modified"] == 1
+    prompt_change = next(c for c in result["changes"] if c["component"] == "Prompt")
+    assert prompt_change["diff"]
+    assert "hello world" in prompt_change["after"]
     close_all()
 
 

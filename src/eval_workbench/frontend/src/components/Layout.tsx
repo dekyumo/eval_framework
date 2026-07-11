@@ -3,7 +3,6 @@ import { useState, useEffect } from 'react';
 import { cn } from '../utils/cn';
 
 const NAV_ITEMS = [
-  { to: '/', icon: 'smart_toy', label: 'Onboarding' },
   { to: '/agents', icon: 'account_tree', label: 'Agents' },
   { to: '/cases', icon: 'fact_check', label: 'Cases & Evals' },
   { to: '/runs', icon: 'play_circle', label: 'Run Generation' },

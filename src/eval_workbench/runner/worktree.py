@@ -1,11 +1,12 @@
 import json
 import os
 import shutil
-import subprocess
 import threading
 import time
 import uuid
 from pathlib import Path
+
+from src.eval_workbench.subprocess_util import run as subprocess_run
 
 from src.eval_workbench.scanner.errors import (
     AgentImportError,
@@ -33,7 +34,7 @@ class Worktree:
         env = os.environ.copy()
         env["PYTHONPATH"] = os.pathsep.join([str(self.path), str(_framework_root())])
 
-        result = subprocess.run(
+        result = subprocess_run(
             [str(self.python), str(introspect_script), target_agent_path],
             cwd=str(self.path),
             env=env,
@@ -62,7 +63,7 @@ class WorktreeRunner:
             uid = uuid.uuid4().hex[:8]
             self.tmp = self.cache_dir / f"wt_{self.commit}_{uid}"
 
-            res = subprocess.run(
+            res = subprocess_run(
                 ["git", "-C", str(self.repo_path), "worktree", "add", "--detach", str(self.tmp), self.commit],
                 capture_output=True,
                 text=True,
@@ -80,7 +81,7 @@ class WorktreeRunner:
         for attempt in range(3):
             try:
                 with _GIT_LOCK:
-                    subprocess.run(
+                    subprocess_run(
                         ["git", "-C", str(self.repo_path), "worktree", "remove", "--force", str(self.tmp)],
                         capture_output=True,
                         text=True,
@@ -98,7 +99,7 @@ class WorktreeRunner:
         if not (self.repo_path / ".git").exists() and not (self.repo_path.parent / ".git").exists():
             pass
 
-        res = subprocess.run(
+        res = subprocess_run(
             ["git", "-C", str(self.repo_path), "status", "--porcelain", "-uno"],
             capture_output=True,
             text=True,
@@ -108,7 +109,7 @@ class WorktreeRunner:
         elif res.stdout.strip():
             raise DirtyRepositoryError(f"Repository {self.repo_path} is dirty.")
 
-        res = subprocess.run(
+        res = subprocess_run(
             ["git", "-C", str(self.repo_path), "rev-parse", "--verify", f"{self.commit}^{{commit}}"],
             capture_output=True,
             text=True,

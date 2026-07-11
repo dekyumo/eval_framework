@@ -43,7 +43,7 @@ class AgenticUserConfig(BaseModel):
 class EvalCase(BaseModel):
     id: str
     name: str = ""
-    target_agent_path: str                   # WHICH agent in the repo this case targets (root or a sub-agent)
+    dataset_id: str
     conversation: list[MessagePart] = []     # multi-turn input (agentic, not single prompt)
     session_state: dict[str, Any] | None = None   # injected into ADK session state before run; reserved key "gym" configures the gym
     input_payload: dict[str, Any] | None = None   # structured new_message JSON (mutually exclusive with conversation)

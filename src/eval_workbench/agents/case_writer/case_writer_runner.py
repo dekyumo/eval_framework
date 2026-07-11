@@ -74,10 +74,9 @@ async def _run_case_writer_async(snapshot_json: str, specification: str) -> Gene
     return GeneratedCaseDraft.model_validate_json(final_text)
 
 
-def draft_to_dict(draft: GeneratedCaseDraft, snapshot: AgentSnapshot) -> dict:
+def draft_to_dict(draft: GeneratedCaseDraft) -> dict:
     return {
         "name": draft.name,
-        "target_agent_path": snapshot.agent_target.agent_path,
         "conversation": [
             {"role": turn.role, "kind": "text", "text": turn.text}
             for turn in draft.conversation
@@ -107,4 +106,4 @@ def generate_eval_case(snapshot: AgentSnapshot, specification: str) -> dict:
     if not draft.conversation:
         draft = _fallback_draft(specification)
 
-    return draft_to_dict(draft, snapshot)
+    return draft_to_dict(draft)

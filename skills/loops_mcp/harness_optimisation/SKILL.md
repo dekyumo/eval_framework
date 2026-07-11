@@ -9,8 +9,16 @@ Pair skill: `skills/loops_blueprint/harness_optimisation/SKILL.md` (inner loop v
 
 ## 1. Connect to MCP
 
+If the MCP is not connected, launch it or add it to the host configuration
+
+Simple command:
 ```bash
 python run_app.py <repo> --mode mcp
+```
+
+More complex:
+```bash
+$PYTHONPATH=<app_dir>\src conda.bat run --no-capture-output -n <env_name> python <app_dir>\run_app.py --mode mcp <repo>
 ```
 
 Stdio server; repo path from `EVAL_WORKBENCH_REPO` (defaults to CWD).

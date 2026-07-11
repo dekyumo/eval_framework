@@ -79,7 +79,7 @@ def test_rubric_evaluator_uses_adk_judge():
     )
     case = EvalCase(
         id="c1",
-        target_agent_path="a:b",
+        dataset_id="ds1",
         conversation=[],
         distribution_position="in",
         problem_type="happy",
@@ -143,7 +143,7 @@ def test_rubric_evaluator_coerces_types(item_type, raw, expected):
     )
     case = EvalCase(
         id="c1",
-        target_agent_path="a:b",
+        dataset_id="ds1",
         conversation=[],
         distribution_position="in",
         problem_type="happy",

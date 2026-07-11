@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { LineageGraph } from '../components/LineageGraph';
+import { ScanAgent } from '../components/ScanAgent';
 import { SnapshotSelect } from '../components/SnapshotSelect';
 import { Button } from '../components/ui/Button';
 import { TextAreaWithLabel } from '../components/ui/Textarea';
@@ -23,7 +24,7 @@ export function Agents() {
   const [governance, setGovernance] = useState<GovernanceView | null>(null);
   const [savingGovernance, setSavingGovernance] = useState(false);
 
-  useEffect(() => {
+  const loadSnapshots = useCallback(() => {
     fetch('/api/agents/snapshots')
       .then(res => res.json())
       .then(data => {
@@ -31,6 +32,10 @@ export function Agents() {
       })
       .catch(console.error);
   }, []);
+
+  useEffect(() => {
+    loadSnapshots();
+  }, [loadSnapshots]);
 
   const loadGovernance = (snapshotId: string) => {
     fetch(`/api/governance/${snapshotId}`)
@@ -48,7 +53,7 @@ export function Agents() {
       .catch(console.error);
   };
 
-  const handleSelect = (id: string) => {
+  const handleSelect = useCallback((id: string) => {
     if (!id) {
       setSelectedSnapshot(null);
       setGovernance(null);
@@ -61,6 +66,11 @@ export function Agents() {
         loadGovernance(id);
       })
       .catch(console.error);
+  }, []);
+
+  const handleScanned = (snapshotId: string) => {
+    loadSnapshots();
+    handleSelect(snapshotId);
   };
 
   const saveGovernance = async () => {
@@ -102,6 +112,10 @@ export function Agents() {
         description="View Agent Manifest and Lineage Graph here."
         actions={headerActions}
       />
+
+      <PagePane variant="card" className="mb-6">
+        <ScanAgent onScanned={handleScanned} />
+      </PagePane>
 
       {selectedSnapshot ? (
         <>

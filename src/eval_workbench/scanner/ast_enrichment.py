@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import hashlib
 import re
-import subprocess
+from src.eval_workbench.subprocess_util import run as subprocess_run
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -60,7 +60,7 @@ def _path_to_module(rel_path: str) -> str:
 
 
 def _list_python_files(repo: Path) -> list[str]:
-    result = subprocess.run(
+    result = subprocess_run(
         ["git", "-C", str(repo), "ls-files", "--", "*.py"],
         capture_output=True,
         text=True,
@@ -71,7 +71,7 @@ def _list_python_files(repo: Path) -> list[str]:
 
 
 def _read_file_at_commit(repo: Path, commit: str, rel_path: str) -> str | None:
-    show = subprocess.run(
+    show = subprocess_run(
         ["git", "-C", str(repo), "show", f"{commit}:{rel_path}"],
         capture_output=True,
         text=True,

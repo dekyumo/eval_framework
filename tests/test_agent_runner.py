@@ -49,7 +49,7 @@ root_agent = Agent(
     
     case = EvalCase(
         id="case1",
-        target_agent_path="agent:root_agent",
+        dataset_id="ds1",
         conversation=[MessagePart(role="user", kind="text", text="Hello")],
         distribution_position="in",
         problem_type="happy"

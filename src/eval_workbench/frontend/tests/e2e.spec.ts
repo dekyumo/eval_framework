@@ -5,6 +5,47 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+/** UI assertions: visibility, form state, selecting a row */
+const UI_TIMEOUT = 10_000;
+/** Single flash LLM call (case draft, extractor code) */
+const LLM_TIMEOUT = 60_000;
+/** Dataset batch: ~30s per case with google_search (3 cases) */
+const RUN_BATCH_TIMEOUT = 180_000;
+/** Agent scan / code-explorer workflows */
+const SCAN_TIMEOUT = 60_000;
+/** Two-model campaign matrix */
+const CAMPAIGN_TIMEOUT = 180_000;
+
+async function selectSnapshotAndDataset(page: import('@playwright/test').Page) {
+  const snapshotSelect = page.locator('select[aria-label="Snapshot"]');
+  const datasetSelect = page.locator('select[aria-label="Dataset"]');
+  await expect(snapshotSelect.locator('option')).not.toHaveCount(1, { timeout: UI_TIMEOUT });
+  await snapshotSelect.selectOption({ index: 1 });
+  await expect(datasetSelect.locator('option', { hasText: 'DayTrip Tests' })).toBeAttached({ timeout: UI_TIMEOUT });
+  await datasetSelect.selectOption({ label: 'DayTrip Tests' });
+}
+
+async function waitForCaseSave(page: import('@playwright/test').Page) {
+  const saveResponse = page.waitForResponse(
+    (r) => r.url().includes('/api/cases/') && r.request().method() === 'POST',
+  );
+  await page.getByRole('button', { name: 'Save Case' }).click();
+  await saveResponse;
+  await expect(page.getByLabel('Case Name')).toHaveValue('');
+}
+
+async function waitForAsyncJobButton(
+  button: import('@playwright/test').Locator,
+  busyLabel: string,
+  idleLabel: string,
+  timeout = RUN_BATCH_TIMEOUT,
+) {
+  await expect(button).toBeEnabled({ timeout: UI_TIMEOUT });
+  await button.click();
+  await expect(button).toHaveText(busyLabel, { timeout: UI_TIMEOUT }).catch(() => {});
+  await expect(button).toHaveText(idleLabel, { timeout });
+}
+
 test.describe('E2E Eval Framework Flow - Day Trip Agent', () => {
   
   test.beforeAll(async () => {
@@ -31,8 +72,7 @@ test.describe('E2E Eval Framework Flow - Day Trip Agent', () => {
   });
 
   test('Complete evaluation lifecycle', async ({ page }) => {
-    // We increase timeout for the full E2E flow since it encompasses many steps
-    test.setTimeout(600000);
+    test.setTimeout(600_000);
 
     // Forward browser console logs to the test runner terminal
     page.on('console', msg => console.log('BROWSER LOG:', msg.text()));
@@ -44,40 +84,31 @@ test.describe('E2E Eval Framework Flow - Day Trip Agent', () => {
     await page.goto('/');
 
     // ==========================================
-    // 1. ONBOARDING & SCANNING
+    // 1. SCAN AGENT
     // ==========================================
     await test.step('Scan the Day Trip Agent', async () => {
-      await page.goto('/');
-      await expect(page.getByRole('heading', { name: 'Add target & scan' })).toBeVisible();
-      
-      // Ensure the repo is dynamically loaded from the CLI args via API
-      await expect(page.locator('input[placeholder="Loading repository path..."]')).not.toHaveValue('', { timeout: 30000 });
-      await expect(page.locator('input[placeholder="Loading repository path..."]')).toHaveValue(/adk_tutorial/);
+      await page.goto('/agents');
+      await expect(page.getByRole('heading', { name: 'Agents Graph & Lineage' })).toBeVisible();
 
-      // Input the specific agent path
-      await page.getByPlaceholder('src.agent:my_agent').fill('a_single_agent.day_trip:root_agent');
+      await page.getByLabel('Agent path').fill('a_single_agent.day_trip:root_agent');
       await page.getByRole('button', { name: 'Scan Agent' }).click();
 
-      // Ensure we navigate to agents and the graph renders
-      await expect(page).toHaveURL(/\/agents/, { timeout: 90000 });
-      await expect(page.getByRole('heading', { name: 'Agents Graph & Lineage' })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Scan Agent' })).toBeEnabled({ timeout: SCAN_TIMEOUT });
+      await expect(page.getByLabel('In Distribution')).toBeVisible({ timeout: SCAN_TIMEOUT });
     });
 
     // ==========================================
     // 2. AGENT DISTRIBUTION DEFINITION
     // ==========================================
     await test.step('Define Agent Distribution', async () => {
-      // Select the snapshot we just created (assuming it's the first non-empty option)
-      await page.getByRole('combobox').first().selectOption({ index: 1 });
-      
-      // Fill out the distribution boundaries
+      // Scan auto-selects the new snapshot; distribution fields are already visible.
       await page.getByLabel('In Distribution').fill('a day in <SOME TOWN> with a budget of $n.nn');
       await page.getByLabel('Out of Distribution').fill('everything else');
       await page.getByRole('button', { name: 'Save Distribution' }).click();
     });
 
     await test.step('Save NIST AI RMF profile business justification', async () => {
-      await expect(page.getByRole('heading', { name: 'NIST AI RMF Profile' })).toBeVisible({ timeout: 15000 });
+      await expect(page.getByRole('heading', { name: 'NIST AI RMF Profile' })).toBeVisible({ timeout: UI_TIMEOUT });
       const businessCase = 'Agent run costs about $0.10 vs $1.00 for a human reviewer.';
       await page.getByLabel('Business case').fill(businessCase);
       await page.getByRole('button', { name: 'Save Profile' }).click();
@@ -141,7 +172,7 @@ test.describe('E2E Eval Framework Flow - Day Trip Agent', () => {
       await page.getByLabel('Tag Name').clear();
       await page.getByLabel('Tag Name').fill('europe-trips');
       await page.getByRole('button', { name: 'Update Tag' }).click();
-      await expect(page.getByRole('button', { name: 'Save Tag' })).toBeVisible({ timeout: 10000 });
+      await expect(page.getByRole('button', { name: 'Save Tag' })).toBeVisible({ timeout: UI_TIMEOUT });
 
       // Create and delete empty tag
       await page.getByLabel('Tag Name').fill('temp-tag');
@@ -155,8 +186,8 @@ test.describe('E2E Eval Framework Flow - Day Trip Agent', () => {
       // Test agent-assisted extractor generation
       await page.getByPlaceholder('e.g. Find the last dollar value in the trace and convert it to float').fill('Find the final budget and return float');
       await page.getByRole('button', { name: 'Generate Code' }).click();
-      await expect(page.getByRole('button', { name: 'Generate Code' })).not.toBeDisabled({ timeout: 60000 });
-      await expect(page.locator('#extractor_python_code')).not.toHaveValue('def extract(trace):\n    return True', { timeout: 30000 });
+      await expect(page.getByRole('button', { name: 'Generate Code' })).not.toBeDisabled({ timeout: LLM_TIMEOUT });
+      await expect(page.locator('#extractor_python_code')).not.toHaveValue('def extract(trace):\n    return True', { timeout: LLM_TIMEOUT });
 
       // Fill Name and Type and save
       await page.getByLabel('Name').fill('extract_budget_float_temp');
@@ -169,7 +200,7 @@ test.describe('E2E Eval Framework Flow - Day Trip Agent', () => {
       await page.getByLabel('Name').clear();
       await page.getByLabel('Name').fill('extract_budget_float');
       await page.getByRole('button', { name: 'Update Extractor' }).click();
-      await expect(page.getByRole('button', { name: 'Save Extractor' })).toBeVisible({ timeout: 10000 });
+      await expect(page.getByRole('button', { name: 'Save Extractor' })).toBeVisible({ timeout: UI_TIMEOUT });
 
       // Create and delete unused extractor
       await page.getByLabel('Name').fill('temp_extractor');
@@ -191,7 +222,7 @@ test.describe('E2E Eval Framework Flow - Day Trip Agent', () => {
       await page.getByLabel('Rubric Name').clear();
       await page.getByLabel('Rubric Name').fill('Quality of Itinerary');
       await page.getByRole('button', { name: 'Update Rubric' }).click();
-      await expect(page.getByRole('button', { name: 'Save Rubric' })).toBeVisible({ timeout: 10000 });
+      await expect(page.getByRole('button', { name: 'Save Rubric' })).toBeVisible({ timeout: UI_TIMEOUT });
 
       // Create and delete unused rubric
       await page.getByLabel('Rubric Name').fill('Temp Rubric');
@@ -208,7 +239,7 @@ test.describe('E2E Eval Framework Flow - Day Trip Agent', () => {
       await page.getByLabel('Type').selectOption('float');
       await page.locator('#rubric_field_desc_0').fill('Float score from 0 to 100');
       await page.getByRole('button', { name: 'Save Rubric' }).click();
-      await expect(page.getByRole('button', { name: 'Save Rubric' })).toBeVisible({ timeout: 10000 });
+      await expect(page.getByRole('button', { name: 'Save Rubric' })).toBeVisible({ timeout: UI_TIMEOUT });
 
       // D. Create, update, and delete Dataset
       await page.getByRole('button', { name: 'datasets', exact: true }).click();
@@ -221,7 +252,7 @@ test.describe('E2E Eval Framework Flow - Day Trip Agent', () => {
       await page.getByLabel('Dataset Name').clear();
       await page.getByLabel('Dataset Name').fill('DayTrip Tests');
       await page.getByRole('button', { name: 'Update Dataset' }).click();
-      await expect(page.getByRole('button', { name: 'Save Dataset' })).toBeVisible({ timeout: 10000 });
+      await expect(page.getByRole('button', { name: 'Save Dataset' })).toBeVisible({ timeout: UI_TIMEOUT });
 
       // Create and delete empty dataset
       await page.getByLabel('Dataset Name').fill('Unused Dataset');
@@ -244,7 +275,7 @@ test.describe('E2E Eval Framework Flow - Day Trip Agent', () => {
         'Plan a day in Paris with a budget of $500.00, in-distribution happy path'
       );
       await page.getByRole('button', { name: 'Generate Case' }).click();
-      await expect(userMessage).not.toHaveValue('', { timeout: 120000 });
+      await expect(userMessage).not.toHaveValue('', { timeout: LLM_TIMEOUT });
       const generatedText = await userMessage.inputValue();
       console.log('Generated user message:', generatedText);
 
@@ -281,10 +312,9 @@ test.describe('E2E Eval Framework Flow - Day Trip Agent', () => {
       await page.getByLabel('Tool fault tool name').fill('google_search');
       await page.getByLabel('Tool fault type').selectOption('interface');
 
-      await page.getByRole('button', { name: 'Save Case' }).click();
+      await waitForCaseSave(page);
 
       // Create Case 2: multimodal Eiffel Tower afternoon
-      await page.waitForLoadState('networkidle');
       await page.locator('.new-case-btn').click();
       await page.getByLabel('Case Name').fill('Eiffel Tower Afternoon');
       await page.getByLabel('Dataset').selectOption({ label: 'DayTrip Tests' });
@@ -294,24 +324,23 @@ test.describe('E2E Eval Framework Flow - Day Trip Agent', () => {
       await page.locator('[data-testid="conversation-turn-1"] select').selectOption('user_media');
       const imagePath = path.join(__dirname, 'eiffel_tap.png');
       await page.getByTestId('user-media-upload-1').setInputFiles(imagePath);
-      await expect(page.getByTestId('media-ready-1')).toBeVisible({ timeout: 10000 });
-      await expect(page.getByText('eiffel_tap.png')).toBeVisible({ timeout: 5000 });
+      await expect(page.getByTestId('media-ready-1')).toBeVisible({ timeout: UI_TIMEOUT });
+      await expect(page.getByText('eiffel_tap.png')).toBeVisible({ timeout: UI_TIMEOUT });
       await page.getByRole('button', { name: '+ Add Metric' }).click();
       await page.locator('[data-testid="metric-row"]').first().locator('input').first().fill('paris_afternoon');
       const eiffelMetric = page.locator('[data-testid="metric-row"]').first();
       await eiffelMetric.locator('select').first().selectOption('rubric');
       await eiffelMetric.locator('select').nth(1).selectOption({ label: 'Contains advice for an afternoon in Paris' });
-      await page.getByRole('button', { name: 'Save Case' }).click();
+      await waitForCaseSave(page);
 
       // Create Case 3 (Out of distribution)
-      await page.waitForLoadState('networkidle');
       await page.locator('.new-case-btn').click();
       await page.getByLabel('Case Name').fill('Mars Colonization');
       await page.getByLabel('Dataset').selectOption({ label: 'DayTrip Tests' });
       await page.getByLabel('Distribution Position').selectOption('ood');
       //do not add a user turn, there's already an empty one by default await page.getByRole('button', { name: '+ Add Turn' }).click();
       await page.locator('textarea').last().fill('Plan a trip to Mars.');
-      await page.getByRole('button', { name: 'Save Case' }).click();
+      await waitForCaseSave(page);
     });
 
     // ==========================================
@@ -323,18 +352,13 @@ test.describe('E2E Eval Framework Flow - Day Trip Agent', () => {
 
       await page.waitForLoadState('networkidle');
 
-      await page.locator('select[aria-label="Snapshot"]').selectOption({ index: 1 }); // Snapshot
-      await page.locator('select[aria-label="Dataset"]').selectOption({ label: 'DayTrip Tests' }); // Dataset
-      
-      await page.locator('#generate-traces-btn').click();
-      
-      // Wait for it to become idle so traces can be set
-      await page.waitForTimeout(500); // Give the event loop a moment
-      
-      await page.waitForTimeout(100);
+      await selectSnapshotAndDataset(page);
 
-      // Verify a trace shows up in the list
-      await expect(page.locator('.trace-item').first()).toBeVisible({ timeout: 120000 });
+      const generateBtn = page.locator('#generate-traces-btn');
+      await waitForAsyncJobButton(generateBtn, 'Generating...', 'Generate Traces', RUN_BATCH_TIMEOUT);
+
+      const parisTrace = page.locator('.trace-item').filter({ hasText: 'Paris 500 Budget' });
+      await expect(parisTrace.getByText('ran', { exact: true })).toBeVisible({ timeout: RUN_BATCH_TIMEOUT });
     });
 
     // ==========================================
@@ -344,25 +368,18 @@ test.describe('E2E Eval Framework Flow - Day Trip Agent', () => {
       await page.getByRole('link', { name: 'Run Evals' }).click();
       await expect(page).toHaveURL(/\/evals/);
 
-      await page.locator('select[aria-label="Snapshot"]').selectOption({ index: 1 }); // Snapshot
-      await page.locator('select[aria-label="Dataset"]').selectOption({ label: 'DayTrip Tests' }); // Dataset
-      await page.getByRole('button', { name: 'Run Evaluations' }).click();
+      await selectSnapshotAndDataset(page);
 
-      await page.waitForLoadState('networkidle');
+      const evalBtn = page.getByRole('button', { name: 'Run Evaluations' });
+      await waitForAsyncJobButton(evalBtn, 'Evaluating...', 'Run Evaluations', RUN_BATCH_TIMEOUT);
 
-      // Wait for it to become idle so traces can be set
-      await page.waitForTimeout(3000);
+      const parisEval = page.locator('.eval-item').filter({ hasText: 'Paris 500 Budget' });
+      await expect(parisEval.getByText('ran', { exact: true })).toBeVisible({ timeout: RUN_BATCH_TIMEOUT });
+      await parisEval.click();
 
-      // Wait for scored traces to appear
-      await expect(page.locator('.eval-item').first()).toBeVisible({ timeout: 120000 });
-
-      // Click the first scored run to load its detail
-      await page.locator('.eval-item').first().click();
-
-      // Ensure the metrics we added (budget_polite, budget_correct) are displayed
-      await expect(page.getByText('budget_polite')).toBeVisible({ timeout: 10000 });
-      await expect(page.getByText('budget_correct')).toBeVisible({ timeout: 10000 });
-      await expect(page.getByText('paris_afternoon')).toBeVisible({ timeout: 10000 });
+      await expect(page.getByText('budget_polite')).toBeVisible({ timeout: UI_TIMEOUT });
+      await expect(page.getByText('budget_correct')).toBeVisible({ timeout: UI_TIMEOUT });
+      await expect(page.getByText('paris_afternoon')).toBeVisible({ timeout: UI_TIMEOUT });
     });
 
     // ==========================================
@@ -385,11 +402,7 @@ test.describe('E2E Eval Framework Flow - Day Trip Agent', () => {
         await page.getByRole('button', { name: 'Confirm' }).click();
       }
       
-      await page.waitForLoadState('networkidle');
-      await page.waitForTimeout(3000);
-
-      // Matrix should populate after a while
-      await expect(page.locator('.matrix-row').first()).toBeVisible({ timeout: 360000 });
+      await expect(page.locator('.matrix-row').first()).toBeVisible({ timeout: CAMPAIGN_TIMEOUT });
     });
 
     // ==========================================
@@ -400,14 +413,14 @@ test.describe('E2E Eval Framework Flow - Day Trip Agent', () => {
       await expect(page).toHaveURL(/\/human-eval/);
 
       const runSelect = page.getByLabel('Run to grade');
-      await expect(runSelect.locator('option').nth(1)).toBeAttached({ timeout: 15000 });
+      await expect(runSelect.locator('option').nth(1)).toBeAttached({ timeout: UI_TIMEOUT });
 
       const runId = await runSelect.locator('option').nth(1).getAttribute('value');
       await runSelect.selectOption(runId!);
-      await expect(page.getByText('Select a rubric and grade the trace.')).toBeVisible({ timeout: 15000 });
+      await expect(page.getByText('Select a rubric and grade the trace.')).toBeVisible({ timeout: UI_TIMEOUT });
 
       await page.getByLabel('Rubric').selectOption({ label: 'Quality of Itinerary' });
-      await expect(page.getByLabel('is_achievable')).toBeVisible({ timeout: 15000 });
+      await expect(page.getByLabel('is_achievable')).toBeVisible({ timeout: UI_TIMEOUT });
       await page.getByLabel('is_achievable').selectOption('True');
       
       await page.getByRole('button', { name: 'Submit Grade' }).click();

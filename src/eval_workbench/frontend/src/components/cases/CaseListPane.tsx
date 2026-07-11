@@ -34,7 +34,7 @@ export function CaseDetailView({ caseData }: CaseDetailViewProps) {
 
       <div className="space-y-2">
         <DetailRow label="ID" value={String(caseData.id || '')} />
-        <DetailRow label="Target agent" value={String(caseData.target_agent_path || '')} />
+        <DetailRow label="Dataset" value={String(caseData.dataset_id || '')} />
         <DetailRow label="Distribution" value={String(caseData.distribution_position || '')} />
         <DetailRow label="Problem type" value={String(caseData.problem_type || '')} />
         <DetailRow label="Split" value={String(caseData.split || '')} />

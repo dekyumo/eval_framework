@@ -55,6 +55,15 @@ export function Runs() {
 
   const selectedRun = selectedCaseId ? runForCase(selectedCaseId) ?? null : null;
 
+  const upsertRun = (run: { id: string; snapshot_id: string; case_id: string }) => {
+    setRuns(prev => {
+      const rest = prev.filter(
+        r => !(r.snapshot_id === run.snapshot_id && r.case_id === run.case_id),
+      );
+      return [...rest, run];
+    });
+  };
+
   const handleGenerate = async () => {
     if (!selectedSnapshotId || !selectedDatasetId) {
       alert('Please select a snapshot and a dataset');
@@ -64,7 +73,7 @@ export function Runs() {
     setIsGenerating(true);
     try {
       for (const case_id of datasetCaseIds) {
-        await fetch('/api/runs/generate', {
+        const res = await fetch('/api/runs/generate', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -74,6 +83,11 @@ export function Runs() {
             force: false,
           }),
         });
+        if (!res.ok) {
+          console.error('Generate failed', case_id, await res.text());
+          continue;
+        }
+        upsertRun(await res.json());
       }
       await refreshRuns();
     } catch (err) {
@@ -102,6 +116,7 @@ export function Runs() {
         console.error('Rerun failed', await res.text());
         return;
       }
+      upsertRun(await res.json());
       await refreshRuns();
     } catch (e) {
       console.error(e);
