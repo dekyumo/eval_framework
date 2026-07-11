@@ -79,30 +79,6 @@ def main() -> None:
 
     from src.eval_workbench.web.app import create_app
 
-    otel_trace_dump_path = None
-    if False: #args.log_raw_otel:
-        
-        try:
-            import opentelemetry.proto  # noqa: F401
-        except ImportError:
-            print(
-                "Error: --log-raw-otel requires the opentelemetry-proto package "
-                "(pip install opentelemetry-proto).",
-                file=sys.stderr,
-            )
-            sys.exit(1)
-
-        from src.eval_workbench.otel_config import configure_otel_export
-
-        endpoint = configure_otel_export(args.host, args.port)
-
-        from google.adk.telemetry.setup import maybe_set_otel_providers
-        maybe_set_otel_providers()
-
-        otel_trace_dump_path = os.path.join(repo_path, "raw_otel_logs")
-        os.makedirs(otel_trace_dump_path, exist_ok=True)
-        print(f"Raw OTel trace dumps enabled → {otel_trace_dump_path} (OTLP {endpoint}/v1/traces)")
-
     app = create_app(
         repo_path=repo_path,
     )

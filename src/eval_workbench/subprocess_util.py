@@ -7,7 +7,7 @@ from typing import Any
 
 
 def run(*args: Any, **kwargs: Any) -> subprocess.CompletedProcess[str]:
-    if kwargs.get("text") or kwargs.get("capture_output"):
+    if kwargs.get("text") and kwargs.get("capture_output"):
         kwargs.setdefault("encoding", "utf-8")
         kwargs.setdefault("errors", "replace")
     return subprocess.run(*args, **kwargs)
