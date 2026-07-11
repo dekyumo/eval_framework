@@ -46,7 +46,6 @@ def main() -> None:
         build_server(repo_path).run(transport="stdio")
         sys.exit(0)
 
-    
 
     if args.mode == "headless":
         if not args.agent_path or not args.dataset:
@@ -81,9 +80,8 @@ def main() -> None:
     from src.eval_workbench.web.app import create_app
 
     otel_trace_dump_path = None
-    if args.log_raw_otel:
+    if False: #args.log_raw_otel:
         
-
         try:
             import opentelemetry.proto  # noqa: F401
         except ImportError:
@@ -107,8 +105,6 @@ def main() -> None:
 
     app = create_app(
         repo_path=repo_path,
-        log_raw_otel=args.log_raw_otel,
-        otel_trace_dump_path=otel_trace_dump_path,
     )
     app.run(host=args.host, port=args.port, debug=True, use_reloader=False)
 

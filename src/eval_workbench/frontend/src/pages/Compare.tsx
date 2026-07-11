@@ -9,6 +9,9 @@ interface DiffChange {
   component: string;
   name: string;
   detail: string;
+  before?: string | null;
+  after?: string | null;
+  diff?: string | null;
 }
 
 interface CompareSummary {
@@ -30,6 +33,31 @@ function changeBadgeClass(type: DiffChange['type']): string {
   if (type === 'added') return 'bg-semantic-pass/20 text-semantic-pass';
   if (type === 'removed') return 'bg-semantic-fail/20 text-semantic-fail';
   return 'bg-orange-500/20 text-orange-400';
+}
+
+function DiffContent({ change }: { change: DiffChange }) {
+  if (change.diff) {
+    return (
+      <pre className="mt-2 p-3 rounded-md bg-surface-container-lowest border border-outline-variant text-xs font-mono whitespace-pre overflow-x-auto text-on-surface">
+        {change.diff}
+      </pre>
+    );
+  }
+  if (change.type === 'added' && change.after) {
+    return (
+      <pre className="mt-2 p-3 rounded-md bg-semantic-pass/10 border border-semantic-pass/30 text-xs font-mono whitespace-pre-wrap overflow-x-auto text-on-surface">
+        {change.after}
+      </pre>
+    );
+  }
+  if (change.type === 'removed' && change.before) {
+    return (
+      <pre className="mt-2 p-3 rounded-md bg-semantic-fail/10 border border-semantic-fail/30 text-xs font-mono whitespace-pre-wrap overflow-x-auto text-on-surface">
+        {change.before}
+      </pre>
+    );
+  }
+  return null;
 }
 
 export function Compare() {
@@ -135,58 +163,44 @@ export function Compare() {
         )}
       </PagePane>
 
-      <div className="grid grid-cols-2 gap-6">
-        <PagePane variant="sidebar" title="Semantic Diff" className="w-auto">
-          <div className="p-4 space-y-3">
-            {result ? (
-              result.changes.length > 0 ? (
-                result.changes.map((c, i) => (
-                  <BorderedSection key={i} className="flex-col items-stretch gap-2 cursor-default">
-                    <div className="flex justify-between items-center mb-1">
-                      <span className="font-bold text-on-surface font-mono text-sm">{c.component} • {c.name}</span>
-                      <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded font-mono ${changeBadgeClass(c.type)}`}>
-                        {c.type}
-                      </span>
-                    </div>
-                    <Text variant="muted" className="text-xs">{c.detail}</Text>
-                  </BorderedSection>
-                ))
-              ) : (
-                <div className="text-center">
-                  <Text variant="muted" className="italic">No tool or prompt differences between these snapshots.</Text>
-                </div>
-              )
-            ) : (
-              <div className="text-center">
-                <Text variant="muted" className="italic">No comparison active.</Text>
-              </div>
-            )}
+      {result && (
+        <PagePane variant="card">
+          <div className="flex flex-wrap gap-6 mb-6">
+            <BorderedSection className="justify-between items-center cursor-default min-w-[180px]">
+              <span className="font-bold text-on-surface">Total changes</span>
+              <span className="font-mono text-primary-fixed font-bold">{result.summary.total_changes}</span>
+            </BorderedSection>
+            {summaryRows.map(([label, count]) => (
+              <BorderedSection key={label} className="justify-between items-center cursor-default min-w-[180px]">
+                <span className="text-on-surface-variant text-sm">{label}</span>
+                <span className="font-mono text-on-surface text-sm">{count}</span>
+              </BorderedSection>
+            ))}
           </div>
-        </PagePane>
 
-        <PagePane variant="sidebar" title="Summary" className="w-auto">
-          <div className="p-4 space-y-3">
-            {result ? (
-              <>
-                <BorderedSection className="justify-between items-center cursor-default">
-                  <span className="font-bold text-on-surface">Total changes</span>
-                  <span className="font-mono text-primary-fixed font-bold">{result.summary.total_changes}</span>
+          <Heading level={3} className="mb-4">Changes</Heading>
+          <div className="space-y-4">
+            {result.changes.length > 0 ? (
+              result.changes.map((c, i) => (
+                <BorderedSection key={i} className="flex-col items-stretch gap-2 cursor-default">
+                  <div className="flex justify-between items-center">
+                    <span className="font-bold text-on-surface font-mono text-sm">{c.component} • {c.name}</span>
+                    <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded font-mono ${changeBadgeClass(c.type)}`}>
+                      {c.type}
+                    </span>
+                  </div>
+                  <Text variant="muted" className="text-xs">{c.detail}</Text>
+                  <DiffContent change={c} />
                 </BorderedSection>
-                {summaryRows.map(([label, count]) => (
-                  <BorderedSection key={label} className="justify-between items-center cursor-default">
-                    <span className="text-on-surface-variant text-sm">{label}</span>
-                    <span className="font-mono text-on-surface text-sm">{count}</span>
-                  </BorderedSection>
-                ))}
-              </>
+              ))
             ) : (
-              <div className="text-center">
-                <Text variant="muted" className="italic">No comparison active.</Text>
-              </div>
+              <Text variant="muted" className="italic text-center">
+                No tool or prompt differences between these snapshots.
+              </Text>
             )}
           </div>
         </PagePane>
-      </div>
+      )}
     </PageContainer>
   );
 }

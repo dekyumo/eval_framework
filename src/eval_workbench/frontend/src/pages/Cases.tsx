@@ -7,8 +7,6 @@ import { CaseAgenticUserPane } from '../components/cases/CaseAgenticUserPane';
 import { CaseOthersPane } from '../components/cases/CaseOthersPane';
 import { CaseListPane } from '../components/cases/CaseListPane';
 import type { ConversationTurn, InputMode, MetricRow } from '../components/cases/types';
-import { snapshotAgentPath } from '../utils/snapshotLabel';
-
 function csvToList(text: string): string[] {
   return text.split(',').map(s => s.trim()).filter(Boolean);
 }
@@ -231,6 +229,11 @@ export function Cases() {
 
   const handleSaveCase = async () => {
     setJsonError(null);
+    if (!datasetId) {
+      setJsonError('Select a dataset before saving.');
+      return;
+    }
+
     for (const turn of turns) {
       if (turn.role === 'user_media' && !turn.media_base64) {
         console.error('Wait for the media upload to finish before saving.');
@@ -255,13 +258,6 @@ export function Cases() {
     }
 
     try {
-      const snapshot = snapshots.find(s => s.id === snapshotId);
-      const target_agent_path = snapshotAgentPath(snapshot);
-      if (!target_agent_path) {
-        setJsonError('Select a snapshot in Automatic Case Generation to set the target agent.');
-        return;
-      }
-
       const payload = {
         id: `case_${crypto.randomUUID().substring(0, 8)}`,
         name: caseName || 'Unnamed Case',
@@ -269,7 +265,6 @@ export function Cases() {
         distribution_position: distributionPosition,
         problem_type: problemType,
         split,
-        target_agent_path,
         conversation: inputMode === 'json' ? [] : conversationPayload(),
         session_state,
         input_payload,

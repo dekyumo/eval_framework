@@ -8,7 +8,7 @@ NODE_TABLES = {
     "ToolNode": "id STRING, name STRING, signature STRING, source_fingerprint STRING, reaches_external BOOL, PRIMARY KEY (id)",
     "ModelNode": "id STRING, provider STRING, PRIMARY KEY (id)",
     "PromptNode": "id STRING, fingerprint STRING, text STRING, PRIMARY KEY (id)",
-    "EvalCase": "id STRING, name STRING, target_agent_path STRING, conversation STRING, session_state STRING, input_payload STRING, agentic_user STRING, distribution_position STRING, problem_type STRING, split STRING, difficulty_prior STRING, source STRING, tags STRING, metrics STRING, fault_config STRING, tool_fault STRING, PRIMARY KEY (id)",
+    "EvalCase": "id STRING, name STRING, dataset_id STRING, conversation STRING, session_state STRING, input_payload STRING, agentic_user STRING, distribution_position STRING, problem_type STRING, split STRING, difficulty_prior STRING, source STRING, tags STRING, metrics STRING, fault_config STRING, tool_fault STRING, PRIMARY KEY (id)",
     "Rubric": "id STRING, name STRING, items STRING, instructions STRING, default_judge_prompt STRING, judge_model_id STRING, consumes_two_traces BOOL, version INT64, fingerprint STRING, frozen BOOL, PRIMARY KEY (id)",
     "Extractor": "id STRING, name STRING, return_type STRING, source_path STRING, fingerprint STRING, PRIMARY KEY (id)",
     "Gym": "id STRING, name STRING, class_path STRING, description STRING, PRIMARY KEY (id)",

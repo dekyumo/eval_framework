@@ -36,29 +36,29 @@ Project root
 |               keyword_articles_retriever.py
 |               __init__.py
 +---skills : Cursor agent skills for meta-loops and audits
-|   +---eval_data_analysis
+|   +---eval_data_analysis : how to analyse the csv/markdown output
 |   |       SKILL.md
-|   +---governance_audit
-|   |       SKILL.md : audits NIST AI RMF profile fields on a snapshot
+|   +---eval_framework_mcp : MCP happy path and ID conventions
+|   |       SKILL.md
 |   +---loops_blueprint : loops (SOUL8) implemented as the host MCP injecting an agent into the eval_framework with a blueprint
 |   |   |   README.md
-|   |   +---adversarial
+|   |   +---adversarial : red blue green adversarial evals (as agent)
 |   |   |       SKILL.md
-|   |   +---audit
+|   |   +---audit : check NIST AI RMF declaration (as agent)
 |   |   |       SKILL.md
-|   |   +---ci_cd
+|   |   +---ci_cd : run CI/CD regression testing (as agent)
 |   |   |       SKILL.md
-|   |   \---harness_optimisation
+|   |   \---harness_optimisation : auto improve the agents from failing evals (as agent)
 |   |           SKILL.md
 |   \---loops_mcp : loops (SOUL8) implemented as the MCP host directly calling the eval framework using the MCP (with SKILLs.md for API guidance)
 |       |   README.md
-|       +---adversarial
+|       +---adversarial red blue green adversarial evals (as MCP)
 |       |       SKILL.md
-|       +---audit
+|       +---audit : check NIST AI RMF declaration (as MCP)
 |       |       SKILL.md
-|       +---ci_cd
+|       +---ci_cd : run CI/CD regression testing (as MCP)
 |       |       SKILL.md
-|       \---harness_optimisation
+|       \---harness_optimisation : auto improve agents from failing evals (as MCP)
 |               SKILL.md
 +---specs : root dir for all the specs written before generating the app
 |   |   functional_spec.md

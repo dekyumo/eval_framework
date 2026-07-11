@@ -38,7 +38,7 @@ def _seed_snapshot_and_case(repo_path: str) -> tuple[str, str]:
     case = EvalCase(
         id="case1",
         name="Paris trip",
-        target_agent_path="agent:root_agent",
+        dataset_id="ds1",
         conversation=[MessagePart(role="user", kind="text", text="hi")],
         distribution_position="in",
         problem_type="happy",

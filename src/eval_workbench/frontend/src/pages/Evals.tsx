@@ -65,6 +65,13 @@ export function Evals() {
     ? evalResults.find(e => e.run_id === selectedRun.id) ?? null
     : null;
 
+  const upsertEvalResult = (scored: { id: string; run_id: string }) => {
+    setEvalResults(prev => {
+      const rest = prev.filter(e => e.run_id !== scored.run_id);
+      return [...rest, scored];
+    });
+  };
+
   const handleEvaluate = async () => {
     if (!selectedSnapshotId || !selectedDatasetId) {
       alert('Please select a snapshot and a dataset');
@@ -78,11 +85,16 @@ export function Evals() {
       );
 
       for (const run of runsToEvaluate) {
-        await fetch('/api/runs/evaluate', {
+        const res = await fetch('/api/runs/evaluate', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ run_id: run.id }),
         });
+        if (!res.ok) {
+          console.error('Evaluate failed', run.id, await res.text());
+          continue;
+        }
+        upsertEvalResult(await res.json());
       }
 
       await refreshData();
@@ -107,6 +119,7 @@ export function Evals() {
         console.error('Rerun failed', await res.text());
         return;
       }
+      upsertEvalResult(await res.json());
       await refreshData();
     } catch (e) {
       console.error(e);

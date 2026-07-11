@@ -46,9 +46,8 @@ def test_draft_to_dict_maps_conversation():
         distribution_position="margin",
         problem_type="happy",
     )
-    result = draft_to_dict(draft, snapshot)
+    result = draft_to_dict(draft)
     assert result["name"] == "Lyon weekend"
-    assert result["target_agent_path"] == "a_single_agent.day_trip:root_agent"
     assert result["conversation"][0]["text"] == "Plan a weekend in Lyon"
     assert result["distribution_position"] == "margin"
     assert result["source"] == "generated"
@@ -95,7 +94,6 @@ def test_generate_case_service_with_snapshot(tmp_path):
                 "distribution_position": "in",
                 "problem_type": "happy",
                 "split": "test",
-                "target_agent_path": snapshot.agent_target.agent_path,
                 "tool_fault": None,
                 "metrics": [],
                 "tags": [],

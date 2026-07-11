@@ -1,5 +1,7 @@
+import difflib
+
 from pydantic import BaseModel
-from src.eval_workbench.domain.manifest import AgentManifest
+from src.eval_workbench.domain.manifest import AgentManifest, PromptNode, ToolNode
 from src.eval_workbench.domain.result import AggregateResult
 
 class SemanticDiff(BaseModel):
@@ -35,50 +37,146 @@ def compare_manifests(m1: AgentManifest, m2: AgentManifest) -> SemanticDiff:
     )
 
 
-def diff_to_changes(diff: SemanticDiff) -> list[dict]:
+def _tools_by_name(manifest: AgentManifest) -> dict[str, ToolNode]:
+    return {t.name: t for t in manifest.tools}
+
+
+def _prompts_by_id(manifest: AgentManifest) -> dict[str, PromptNode]:
+    return {p.id: p for p in manifest.prompts}
+
+
+def _tool_repr(tool: ToolNode) -> str:
+    lines = [
+        f"signature: {tool.signature}",
+        f"fingerprint: {tool.source_fingerprint}",
+    ]
+    if tool.reaches_external:
+        lines.append("reaches_external: true")
+    return "\n".join(lines)
+
+
+def _unified_diff(before: str, after: str, before_label: str, after_label: str) -> str:
+    return "".join(
+        difflib.unified_diff(
+            before.splitlines(keepends=True),
+            after.splitlines(keepends=True),
+            fromfile=before_label,
+            tofile=after_label,
+            lineterm="",
+        )
+    )
+
+
+def diff_to_changes(
+    diff: SemanticDiff,
+    manifest_a: AgentManifest | None = None,
+    manifest_b: AgentManifest | None = None,
+) -> list[dict]:
+    tools_a = _tools_by_name(manifest_a) if manifest_a else {}
+    tools_b = _tools_by_name(manifest_b) if manifest_b else {}
+    prompts_a = _prompts_by_id(manifest_a) if manifest_a else {}
+    prompts_b = _prompts_by_id(manifest_b) if manifest_b else {}
+
     changes: list[dict] = []
+
+    def append_change(
+        *,
+        change_type: str,
+        component: str,
+        name: str,
+        detail: str,
+        before: str | None = None,
+        after: str | None = None,
+        diff_text: str | None = None,
+    ) -> None:
+        changes.append({
+            "type": change_type,
+            "component": component,
+            "name": name,
+            "detail": detail,
+            "before": before,
+            "after": after,
+            "diff": diff_text,
+        })
+
     for name in diff.added_tools:
-        changes.append({
-            "type": "added",
-            "component": "Tool",
-            "name": name,
-            "detail": "Tool present in snapshot B but not in A",
-        })
+        tool = tools_b.get(name)
+        after = _tool_repr(tool) if tool else None
+        append_change(
+            change_type="added",
+            component="Tool",
+            name=name,
+            detail="Tool present in snapshot B but not in A",
+            after=after,
+        )
+
     for name in diff.removed_tools:
-        changes.append({
-            "type": "removed",
-            "component": "Tool",
-            "name": name,
-            "detail": "Tool present in snapshot A but not in B",
-        })
+        tool = tools_a.get(name)
+        before = _tool_repr(tool) if tool else None
+        append_change(
+            change_type="removed",
+            component="Tool",
+            name=name,
+            detail="Tool present in snapshot A but not in B",
+            before=before,
+        )
+
     for name in diff.changed_tools:
-        changes.append({
-            "type": "modified",
-            "component": "Tool",
-            "name": name,
-            "detail": "Tool implementation fingerprint changed",
-        })
+        tool_a = tools_a.get(name)
+        tool_b = tools_b.get(name)
+        before = _tool_repr(tool_a) if tool_a else None
+        after = _tool_repr(tool_b) if tool_b else None
+        diff_text = None
+        if before and after:
+            diff_text = _unified_diff(before, after, f"{name} (A)", f"{name} (B)")
+        append_change(
+            change_type="modified",
+            component="Tool",
+            name=name,
+            detail="Tool signature or implementation fingerprint changed",
+            before=before,
+            after=after,
+            diff_text=diff_text,
+        )
+
     for prompt_id in diff.added_prompts:
-        changes.append({
-            "type": "added",
-            "component": "Prompt",
-            "name": prompt_id,
-            "detail": "Prompt present in snapshot B but not in A",
-        })
+        prompt = prompts_b.get(prompt_id)
+        after = prompt.text if prompt else None
+        append_change(
+            change_type="added",
+            component="Prompt",
+            name=prompt_id,
+            detail="Prompt present in snapshot B but not in A",
+            after=after,
+        )
+
     for prompt_id in diff.removed_prompts:
-        changes.append({
-            "type": "removed",
-            "component": "Prompt",
-            "name": prompt_id,
-            "detail": "Prompt present in snapshot A but not in B",
-        })
+        prompt = prompts_a.get(prompt_id)
+        before = prompt.text if prompt else None
+        append_change(
+            change_type="removed",
+            component="Prompt",
+            name=prompt_id,
+            detail="Prompt present in snapshot A but not in B",
+            before=before,
+        )
+
     for prompt_id in diff.changed_prompts:
-        changes.append({
-            "type": "modified",
-            "component": "Prompt",
-            "name": prompt_id,
-            "detail": "Prompt template fingerprint changed",
-        })
+        prompt_a = prompts_a.get(prompt_id)
+        prompt_b = prompts_b.get(prompt_id)
+        before = prompt_a.text if prompt_a else ""
+        after = prompt_b.text if prompt_b else ""
+        diff_text = _unified_diff(before, after, f"{prompt_id} (A)", f"{prompt_id} (B)") or None
+        append_change(
+            change_type="modified",
+            component="Prompt",
+            name=prompt_id,
+            detail="Prompt template text changed",
+            before=before or None,
+            after=after or None,
+            diff_text=diff_text,
+        )
+
     return changes
 
 

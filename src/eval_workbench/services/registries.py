@@ -159,8 +159,13 @@ def delete_extractor(repo_path: str, extractor_id: str) -> None:
 
 
 def generate_extractor_code(description: str) -> dict:
+    print("Generating extractor code")
     try:
         code = extractor_module.generate_extractor_code(description)
+        print("Extractor code generated")
         return {"code": code}
     except Exception as exc:
+        import traceback
+        print("Error generating extractor code")
+        traceback.print_exc()
         raise ServiceError(str(exc), 500) from exc

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import subprocess
+
+from src.eval_workbench.subprocess_util import run as subprocess_run
 import traceback
 from datetime import datetime
 
@@ -34,7 +36,7 @@ def scan(repo_path: str, agent_target: dict, commit: str) -> dict:
     target = AgentTarget(**target_data)
 
     try:
-        resolved = subprocess.run(
+        resolved = subprocess_run(
             ["git", "-C", target.repo_path, "rev-parse", commit],
             capture_output=True,
             text=True,

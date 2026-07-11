@@ -14,20 +14,25 @@ def list_cases(repo_path: str) -> list[dict]:
 def create_case(repo_path: str, data: dict, dataset_id: str | None = None) -> dict:
     payload = dict(data)
     payload.pop("repo_path", None)
-    payload.pop("dataset_id", None)
+
+    resolved_dataset_id = payload.pop("dataset_id", None) or dataset_id
+    if not resolved_dataset_id or not str(resolved_dataset_id).strip():
+        raise ServiceError("dataset_id is required", 400)
 
     if payload.get("input_payload") and payload.get("conversation"):
         raise ServiceError("Use either conversation turns or input_payload, not both", 400)
 
-    case = EvalCase(**payload)
     connection = conn(repo_path)
+    dataset = EvalDatasetRepository(connection).get(resolved_dataset_id)
+    if not dataset:
+        raise ServiceError(f"Dataset not found: {resolved_dataset_id}", 404)
+
+    case = EvalCase(**payload, dataset_id=resolved_dataset_id)
     EvalCaseRepository(connection).save(case)
 
-    if dataset_id:
-        dataset = EvalDatasetRepository(connection).get(dataset_id)
-        if dataset and case.id not in dataset.case_ids:
-            dataset.case_ids.append(case.id)
-            EvalDatasetRepository(connection).save(dataset)
+    if case.id not in dataset.case_ids:
+        dataset.case_ids.append(case.id)
+        EvalDatasetRepository(connection).save(dataset)
 
     return case.model_dump()
 

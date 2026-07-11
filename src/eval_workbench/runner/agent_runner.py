@@ -1,8 +1,9 @@
 import json
-import subprocess
 import os
 import tempfile
 from pathlib import Path
+
+from src.eval_workbench.subprocess_util import run as subprocess_run
 from src.eval_workbench.runner.worktree import WorktreeRunner
 from src.eval_workbench.domain.snapshot import AgentSnapshot
 from src.eval_workbench.domain.case import EvalCase
@@ -52,7 +53,7 @@ class AgentRunner:
             framework_root = Path(__file__).resolve().parents[3]
             env["PYTHONPATH"] = os.pathsep.join([str(wt.path), str(framework_root)])
             
-            res = subprocess.run(
+            res = subprocess_run(
                 [str(wt.python), str(exec_script_path), snap_path, case_path, model_id, fault_path],
                 cwd=str(wt.path),
                 env=env,

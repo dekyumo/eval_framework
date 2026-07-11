@@ -36,7 +36,7 @@ def test_select_cases_filters_by_tag(tmp_path):
         case_a = EvalCase(
             id="case_a",
             name="A",
-            target_agent_path="agent:root",
+            dataset_id="ds1",
             conversation=[MessagePart(role="user", kind="text", text="hi")],
             distribution_position="in",
             problem_type="happy",
@@ -45,7 +45,7 @@ def test_select_cases_filters_by_tag(tmp_path):
         case_b = EvalCase(
             id="case_b",
             name="B",
-            target_agent_path="agent:root",
+            dataset_id="ds1",
             conversation=[MessagePart(role="user", kind="text", text="hi")],
             distribution_position="ood",
             problem_type="happy",
@@ -68,7 +68,7 @@ def test_render_markdown_report_includes_snapshot_and_scores():
     case = EvalCase(
         id="case1",
         name="Paris",
-        target_agent_path="a:b",
+        dataset_id="ds1",
         conversation=[],
         distribution_position="in",
         problem_type="happy",
@@ -106,7 +106,7 @@ def test_run_headless_benchmark_integration_mocked(tmp_path):
         case = EvalCase(
             id="case1",
             name="Paris",
-            target_agent_path="agent:root",
+            dataset_id="ds1",
             conversation=[MessagePart(role="user", kind="text", text="Paris")],
             distribution_position="in",
             problem_type="happy",
