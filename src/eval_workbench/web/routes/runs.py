@@ -41,6 +41,7 @@ def evaluate_run():
             runs_service.evaluate_run(
                 current_app.config["REPO_PATH"],
                 data.get("run_id"),
+                force=bool(data.get("force", False)),
             )
         )
     except ServiceError as exc:

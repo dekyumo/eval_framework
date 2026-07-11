@@ -4,7 +4,8 @@ import { cn } from '../utils/cn';
 
 const NAV_ITEMS = [
   { to: '/agents', icon: 'account_tree', label: 'Agents' },
-  { to: '/cases', icon: 'fact_check', label: 'Cases & Evals' },
+  { to: '/cases', icon: 'fact_check', label: 'View Cases' },
+  { to: '/cases_editor', icon: 'edit_note', label: 'Case Editor' },
   { to: '/runs', icon: 'play_circle', label: 'Run Generation' },
   { to: '/evals', icon: 'checklist', label: 'Run Evals' },
   { to: '/compare', icon: 'difference', label: 'Compare' },
@@ -46,6 +47,7 @@ export function Layout() {
             <NavLink
               key={item.to}
               to={item.to}
+              end={item.to === '/cases'}
               className={({ isActive }) =>
                 cn(
                   "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm font-body",

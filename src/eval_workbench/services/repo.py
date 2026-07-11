@@ -1,6 +1,13 @@
+import os
 import shutil
 
 from src.eval_workbench.repo_layout import eval_framework_root
+
+DB_WIPE_ENV_VAR = "YES_I_WANT_TO_BE_ABLE_TO_WIPE_THE_WHOLE_DB_IN_EVAL_FRAMEWORK_FOR_TEST_PURPOSES"
+
+
+def db_wipe_allowed() -> bool:
+    return os.environ.get(DB_WIPE_ENV_VAR) == "1"
 from src.eval_workbench.storage.kuzu_store import close_all, get_connection
 from src.eval_workbench.storage.schema import init_schema
 

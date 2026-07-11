@@ -43,6 +43,9 @@ class AgenticUserConfig(BaseModel):
 class EvalCase(BaseModel):
     id: str
     name: str = ""
+    logical_id: str = ""
+    version: int = 1
+    active_for_eval: bool = True
     dataset_id: str
     conversation: list[MessagePart] = []     # multi-turn input (agentic, not single prompt)
     session_state: dict[str, Any] | None = None   # injected into ADK session state before run; reserved key "gym" configures the gym

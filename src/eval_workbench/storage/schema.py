@@ -8,7 +8,7 @@ NODE_TABLES = {
     "ToolNode": "id STRING, name STRING, signature STRING, source_fingerprint STRING, reaches_external BOOL, PRIMARY KEY (id)",
     "ModelNode": "id STRING, provider STRING, PRIMARY KEY (id)",
     "PromptNode": "id STRING, fingerprint STRING, text STRING, PRIMARY KEY (id)",
-    "EvalCase": "id STRING, name STRING, dataset_id STRING, conversation STRING, session_state STRING, input_payload STRING, agentic_user STRING, distribution_position STRING, problem_type STRING, split STRING, difficulty_prior STRING, source STRING, tags STRING, metrics STRING, fault_config STRING, tool_fault STRING, PRIMARY KEY (id)",
+    "EvalCase": "id STRING, name STRING, logical_id STRING, version INT64, active_for_eval BOOL, dataset_id STRING, conversation STRING, session_state STRING, input_payload STRING, agentic_user STRING, distribution_position STRING, problem_type STRING, split STRING, difficulty_prior STRING, source STRING, tags STRING, metrics STRING, fault_config STRING, tool_fault STRING, PRIMARY KEY (id)",
     "Rubric": "id STRING, name STRING, items STRING, instructions STRING, default_judge_prompt STRING, judge_model_id STRING, consumes_two_traces BOOL, version INT64, fingerprint STRING, frozen BOOL, PRIMARY KEY (id)",
     "Extractor": "id STRING, name STRING, return_type STRING, source_path STRING, fingerprint STRING, PRIMARY KEY (id)",
     "Gym": "id STRING, name STRING, class_path STRING, description STRING, PRIMARY KEY (id)",
@@ -39,12 +39,27 @@ REL_TABLES = [
 
 def _migrate_schema(conn: kuzu.Connection):
     migrations = [
+        "ALTER TABLE EvalCase ADD dataset_id STRING",
         "ALTER TABLE EvalCase ADD session_state STRING",
         "ALTER TABLE EvalCase ADD input_payload STRING",
         "ALTER TABLE EvalCase ADD agentic_user STRING",
         "ALTER TABLE Snapshot ADD governance STRING",
+        "ALTER TABLE EvalCase ADD logical_id STRING",
+        "ALTER TABLE EvalCase ADD version INT64",
+        "ALTER TABLE EvalCase ADD active_for_eval BOOL",
     ]
     for sql in migrations:
+        try:
+            conn.execute(sql)
+        except RuntimeError:
+            pass
+
+    index_statements = [
+        "CREATE INDEX IF NOT EXISTS idx_evalrun_snapshot_id ON EvalRun(snapshot_id)",
+        "CREATE INDEX IF NOT EXISTS idx_evalrun_case_id ON EvalRun(case_id)",
+        "CREATE INDEX IF NOT EXISTS idx_evalcase_logical_id ON EvalCase(logical_id)",
+    ]
+    for sql in index_statements:
         try:
             conn.execute(sql)
         except RuntimeError:

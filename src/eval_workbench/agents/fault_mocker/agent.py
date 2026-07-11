@@ -35,7 +35,7 @@ Here is a typology of fault types:
 
 Input:
 def database_get_tool(record_id: str) -> dict:
-    return conn.execute(f"SELECT * FROM main_table WHERE id = {{record_id}}").fetchone()
+    return conn.execute(f"SELECT * FROM main_table WHERE id = {{record.id}}").fetchone()
 
 Output:
 import random, time

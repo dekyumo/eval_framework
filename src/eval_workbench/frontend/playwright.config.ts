@@ -1,7 +1,12 @@
 import { defineConfig, devices } from '@playwright/test';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
   testDir: './tests',
+  globalTeardown: './tests/global-teardown.ts',
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
   retries: 0,
@@ -12,9 +17,9 @@ export default defineConfig({
     trace: 'on-first-retry',
   },
   webServer: {
-    command: 'cd ../../../ && C:\\Users\\Raph\\anaconda3\\envs\\eval_framework\\python.exe run_app.py adk_tutorial',
+    command: `npx tsx ${path.join(__dirname, 'tests/start-web-server.ts')}`,
     url: 'http://127.0.0.1:5000/api/health',
-    reuseExistingServer: true,
+    reuseExistingServer: false,
     timeout: 120000,
   },
   projects: [

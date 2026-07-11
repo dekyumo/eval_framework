@@ -31,7 +31,7 @@ export function Runs() {
     Promise.all([
       fetch('/api/agents/snapshots').then(res => res.json()),
       fetch('/api/registries/datasets').then(res => res.json()),
-      fetch('/api/cases').then(res => res.json()),
+      fetch('/api/cases?active_only=true').then(res => res.json()),
       refreshRuns(),
     ]).then(([snapsData, datasetsData, casesData]) => {
       if (Array.isArray(snapsData)) setSnapshots(snapsData);
@@ -47,7 +47,7 @@ export function Runs() {
     if (!selectedSnapshotId || !selectedDatasetId) return [];
     return datasetCaseIds
       .map(id => cases.find(c => c.id === id))
-      .filter((c): c is NonNullable<typeof c> => Boolean(c));
+      .filter((c): c is NonNullable<typeof c> => Boolean(c && c.active_for_eval !== false));
   }, [cases, datasetCaseIds, selectedSnapshotId, selectedDatasetId]);
 
   const runForCase = (caseId: string) =>

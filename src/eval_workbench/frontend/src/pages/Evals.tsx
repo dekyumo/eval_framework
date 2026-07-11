@@ -32,7 +32,7 @@ export function Evals() {
     Promise.all([
       fetch('/api/agents/snapshots').then(res => res.json()),
       fetch('/api/registries/datasets').then(res => res.json()),
-      fetch('/api/cases').then(res => res.json()),
+      fetch('/api/cases?active_only=true').then(res => res.json()),
       refreshData(),
     ]).then(([snapsData, datasetsData, casesData]) => {
       if (Array.isArray(snapsData)) setSnapshots(snapsData);
@@ -48,7 +48,7 @@ export function Evals() {
     if (!selectedSnapshotId || !selectedDatasetId) return [];
     return datasetCaseIds
       .map(id => cases.find(c => c.id === id))
-      .filter((c): c is NonNullable<typeof c> => Boolean(c));
+      .filter((c): c is NonNullable<typeof c> => Boolean(c && c.active_for_eval !== false));
   }, [cases, datasetCaseIds, selectedSnapshotId, selectedDatasetId]);
 
   const runForCase = (caseId: string) =>
@@ -80,15 +80,19 @@ export function Evals() {
 
     setIsEvaluating(true);
     try {
+      const activeCaseIds = casesForSelection.map(c => c.id);
       const runsToEvaluate = runs.filter(
-        r => r.snapshot_id === selectedSnapshotId && datasetCaseIds.includes(r.case_id)
+        r =>
+          r.snapshot_id === selectedSnapshotId
+          && activeCaseIds.includes(r.case_id)
+          && !evalResults.some(e => e.run_id === r.id),
       );
 
       for (const run of runsToEvaluate) {
         const res = await fetch('/api/runs/evaluate', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ run_id: run.id }),
+          body: JSON.stringify({ run_id: run.id, force: false }),
         });
         if (!res.ok) {
           console.error('Evaluate failed', run.id, await res.text());
@@ -113,7 +117,7 @@ export function Evals() {
       const res = await fetch('/api/runs/evaluate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ run_id: selectedRun.id }),
+        body: JSON.stringify({ run_id: selectedRun.id, force: true }),
       });
       if (!res.ok) {
         console.error('Rerun failed', await res.text());

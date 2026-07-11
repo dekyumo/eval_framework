@@ -29,9 +29,20 @@ async function waitForCaseSave(page: import('@playwright/test').Page) {
   const saveResponse = page.waitForResponse(
     (r) => r.url().includes('/api/cases/') && r.request().method() === 'POST',
   );
-  await page.getByRole('button', { name: 'Save Case' }).click();
+  await page.getByRole('button', { name: /Save case/ }).click();
   await saveResponse;
-  await expect(page.getByLabel('Case Name')).toHaveValue('');
+  await expect(page).toHaveURL(/\/cases/);
+  await page.getByRole('link', { name: 'Case Editor' }).click();
+  await expect(page).toHaveURL(/\/cases_editor/);
+}
+
+async function waitForCaseSaveAndView(page: import('@playwright/test').Page) {
+  const saveResponse = page.waitForResponse(
+    (r) => r.url().includes('/api/cases/') && r.request().method() === 'POST',
+  );
+  await page.getByRole('button', { name: /Save case/ }).click();
+  await saveResponse;
+  await expect(page).toHaveURL(/\/cases/);
 }
 
 async function waitForAsyncJobButton(
@@ -80,7 +91,8 @@ test.describe('E2E Eval Framework Flow - Day Trip Agent', () => {
     // ==========================================
     // 0. RESET DATABASE STATE
     // ==========================================
-    await page.context().request.post('http://127.0.0.1:5000/api/test/reset');
+    const resetResponse = await page.context().request.post('http://127.0.0.1:5000/api/test/reset');
+    expect(resetResponse.ok()).toBeTruthy();
     await page.goto('/');
 
     // ==========================================
@@ -264,8 +276,8 @@ test.describe('E2E Eval Framework Flow - Day Trip Agent', () => {
     // 4. CASES & EVAL BUILDER
     // ==========================================
     await test.step('Build test cases', async () => {
-      await page.getByRole('link', { name: 'Cases & Evals' }).click();
-      await expect(page).toHaveURL(/\/cases/);
+      await page.getByRole('link', { name: 'Case Editor' }).click();
+      await expect(page).toHaveURL(/\/cases_editor/);
 
       // Generate case draft via AGENT5
       const userMessage = page.getByLabel('User message');
@@ -315,7 +327,6 @@ test.describe('E2E Eval Framework Flow - Day Trip Agent', () => {
       await waitForCaseSave(page);
 
       // Create Case 2: multimodal Eiffel Tower afternoon
-      await page.locator('.new-case-btn').click();
       await page.getByLabel('Case Name').fill('Eiffel Tower Afternoon');
       await page.getByLabel('Dataset').selectOption({ label: 'DayTrip Tests' });
       await page.getByLabel('Distribution Position').selectOption('in');
@@ -334,13 +345,64 @@ test.describe('E2E Eval Framework Flow - Day Trip Agent', () => {
       await waitForCaseSave(page);
 
       // Create Case 3 (Out of distribution)
-      await page.locator('.new-case-btn').click();
       await page.getByLabel('Case Name').fill('Mars Colonization');
       await page.getByLabel('Dataset').selectOption({ label: 'DayTrip Tests' });
       await page.getByLabel('Distribution Position').selectOption('ood');
       //do not add a user turn, there's already an empty one by default await page.getByRole('button', { name: '+ Add Turn' }).click();
       await page.locator('textarea').last().fill('Plan a trip to Mars.');
       await waitForCaseSave(page);
+    });
+
+    // ==========================================
+    // 4b. CASE VERSIONING & DEACTIVATION
+    // ==========================================
+    await test.step('Version Paris case and deactivate the old one', async () => {
+      await page.getByRole('link', { name: 'View Cases' }).click();
+      await expect(page).toHaveURL(/\/cases$/);
+
+      const parisV1 = page
+        .locator('[data-testid^="case-item-"]')
+        .filter({ hasText: 'Paris 500 Budget' })
+        .filter({ hasText: 'v1' });
+      await expect(parisV1).toHaveCount(1);
+      await parisV1.click();
+
+      await page.getByRole('button', { name: 'New Version' }).click();
+      await expect(page).toHaveURL(/\/cases_editor\?.*intent=version/);
+      await expect(page.getByRole('heading', { name: 'New version' })).toBeVisible();
+
+      const userMessage = page.getByLabel('User message');
+      const currentMessage = await userMessage.inputValue();
+      await userMessage.fill(`${currentMessage} [v2]`);
+
+      await waitForCaseSaveAndView(page);
+      await expect(page.getByTestId('case-detail-view')).toContainText('Version');
+      await expect(page.getByTestId('case-detail-view')).toContainText('2');
+
+      const parisV2 = page
+        .locator('[data-testid^="case-item-"]')
+        .filter({ hasText: 'Paris 500 Budget' })
+        .filter({ hasText: 'v2' });
+      await expect(parisV2).toHaveCount(1);
+      await expect(parisV1).toHaveCount(1);
+
+      await parisV1.click();
+      const deactivateResponse = page.waitForResponse(
+        (r) => r.url().includes('/deactivate') && r.request().method() === 'POST',
+      );
+      await page.getByRole('button', { name: 'Deactivate' }).click();
+      await deactivateResponse;
+      await expect(parisV1.getByText('inactive')).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Deactivate' })).toHaveCount(0);
+
+      await page.getByRole('link', { name: 'Run Generation' }).click();
+      await selectSnapshotAndDataset(page);
+
+      const traceItems = page.locator('.trace-item');
+      await expect(traceItems).toHaveCount(3);
+      await expect(traceItems.filter({ hasText: 'Paris 500 Budget' })).toHaveCount(1);
+      await expect(traceItems.filter({ hasText: 'Eiffel Tower Afternoon' })).toHaveCount(1);
+      await expect(traceItems.filter({ hasText: 'Mars Colonization' })).toHaveCount(1);
     });
 
     // ==========================================
