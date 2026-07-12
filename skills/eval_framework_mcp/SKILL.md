@@ -55,7 +55,8 @@ Notes:
   that holds agent code **and** the Kuzu eval database (often `eval_framework_df`).
 - Register in global or project MCP config; restart the MCP client after edits.
 
-Quick smoke test once connected: call `list_datasets` or `list_snapshots`.
+Quick smoke test once connected: call `list_datasets`, `list_gyms`, or `list_snapshots`.
+
 
 ---
 
@@ -68,6 +69,7 @@ Quick smoke test once connected: call `list_datasets` or `list_snapshots`.
 | **Dataset** | e.g. `ds_daytrip` | **Yes** |
 | **Tag** | slug from name if omitted | Optional — see §3 |
 | **Rubric** | e.g. `rubric_daytrip_ontopic` | **Yes** |
+| **Gym** | e.g. `ticket-triage-gym` | **Yes** (or slug from name) |
 | **Extractor** | e.g. `ext_latency` | **Yes** |
 | **Run** | `{dataset}-{case}-{agent}_{commit}_{model}-{hash}` | No — returned by `generate_run` |
 | **Scored run** | `scored_{run_id}` | No — returned by `evaluate_run` |
@@ -93,6 +95,7 @@ Use this table to decide **whether** to call a tool, not just how.
 | `get_snapshot` | You need manifest, distribution, or agent metadata for an existing snapshot. |
 | `list_datasets` / `list_cases` / `get_case` | Cases or datasets already exist; you are adding to or inspecting them. |
 | `list_rubrics` / `list_extractors` | Scoring objects already exist; avoid duplicate `create_*`. |
+| `list_gyms` | Gym environments for agentic-user cases already exist; check before `create_gym`. |
 | `list_tags` | You want to attach an **existing** tag to a case, or see what labels are in use. |
 | `list_runs` / `list_scored_runs` | Traces or scores already exist; avoid redundant runs. |
 | `list_campaigns` / `get_campaign_matrix` | Campaign finished; you are analysing results. |
@@ -103,11 +106,12 @@ Use this table to decide **whether** to call a tool, not just how.
 
 | Tool | Semantically useful for | Skip when |
 |---|---|---|
-| **`scan_agent`** | First-time capture of an agent at a **specific git commit**: produces a `snapshot_id` (manifest + optional distribution). | `list_snapshots` already has the agent path + commit you need. Re-scanning the same commit wastes time and duplicates work. |
+| **`scan_agent`** | First-time capture of an agent at a **specific git commit**: produces a `snapshot_id` (manifest + optional distribution). | `list_snapshots` already has the agent path + commit you need. Re-scanning the same commit wastes time and duplicates work. **Fails if the git repo has unstaged changes to tracked files** (`git status --porcelain -uno` non-empty) — commit or stash first. |
 | **`create_dataset`** | Grouping cases for reports, campaigns, or organisation. | A suitable dataset already exists. |
 | **`create_case`** | Adding one eval scenario (conversation, metrics, metadata) to a dataset. | The case id already exists (`get_case`). |
 | **`create_rubric`** | Defining LLM-as-judge criteria for metrics with `strategy: "rubric"`. | `list_rubrics` already has the rubric you need. |
 | **`create_extractor`** | Registering a **stored Python** `extract(trace)` used by **deterministic** metrics (`strategy: "deterministic"`). This is the scoring pipeline object, not the extractor_author agent. | You only need rubric or verifier scoring; or the extractor already exists. |
+| **`create_gym`** | Registering a **gym environment class** for agentic-user simulations (`agentic_user.gym_ref`). The class lives in the agent repo; bound methods become user/solver tools at run time. | `list_gyms` already has the gym you need. |
 | **`create_tag`** | Cross-cutting **case labels** for analysis: harmfulness, bias, PII, regulatory theme, etc. Attach via `tags` on specific cases. | You are just building a dataset — tags are not required. Do **not** create tags merely to mark "this suite" or "this internal agent". |
 | **`generate_case`** | AI-assisted case **draft** via the case_writer agent (needs `snapshot_id` + specification string). | You are writing cases manually, or the user gave you full case JSON. |
 | **`generate_run`** | Executing the **agent under test** on one case → produces a trace. | A run already exists for the same snapshot + case + model (unless `force=true`). |
@@ -136,6 +140,9 @@ case.metrics ──► rubric_ref  → Rubric (create_rubric)
               ──► verifier_ref  → (future)
 
 case.tags ──► optional Tag ids (create_tag only for real categorisation needs)
+
+Gym ←── create_gym (class_path points to env class in agent repo)
+    └── agentic_user.gym_ref on cases using two-agent simulation
 ```
 
 - **`snapshot_id`** is the **agent under test** at a pinned commit — whichever
@@ -156,6 +163,8 @@ case.tags ──► optional Tag ids (create_tag only for real categorisation ne
 | `split` | `train` (optimisation) or `test` (judging) |
 | `conversation` | list of `{ role, kind: "text", text }` turns — usual agent input |
 | `session_state` | optional ADK session injection before run — see §6 |
+| `agentic_user` | two-agent gym simulation — see §6b; requires `create_gym` + `gym_ref` |
+| `tool_fault` | `{ tool_name, fault_type }` for fault-injection / mocked-tool runs |
 | `tags` | optional list of tag ids — only when the case needs a cross-cutting label |
 | `metrics[].strategy` | `rubric`, `deterministic`, `verifier` |
 
@@ -171,7 +180,7 @@ If the registry is **empty** for your task, this order is a reasonable default.
 1. **`list_snapshots`** — if the target agent+commit is already there, note
    `snapshot_id` and **do not** call `scan_agent`.
 2. **`scan_agent`** — only if step 1 found no matching snapshot.
-3. **`list_rubrics` / `list_extractors`** — create only what your case metrics need.
+3. **`list_rubrics` / `list_extractors` / `list_gyms`** — create only what your case metrics need.
 4. **`create_dataset`** — if no dataset for this work yet.
 5. **`create_case`** — one or many; pass `dataset_id` so the dataset links automatically.
 6. **`generate_run`** — when you are ready to produce traces (user may do this separately).
@@ -204,6 +213,23 @@ list_rubrics
 get_case("case_existing")          # optional pattern reference
 create_case({ ... }, dataset_id="ds_existing")
 ```
+
+### Example: register gyms for agentic-user cases
+
+```json
+{
+  "data": {
+    "id": "ticket-triage-gym",
+    "name": "Ticket Triage Gym",
+    "class_path": "gym.ticket_triage_gym.TicketTriageGym",
+    "description": "Inbox/processed fixture env for ticket triage agentic sims"
+  }
+}
+```
+
+Then `list_gyms` to confirm. Agentic cases set `agentic_user.gym_ref` to that id,
+`user_tools` / `solver_tools` to gym method names, and `termination_method` to
+the gym's bool predicate (e.g. `inbox_empty`).
 
 ### Example: manual case (full control)
 
@@ -253,6 +279,54 @@ ADK session state). Complex values are often stored as JSON strings.
 If the agent takes a single user message and has no session placeholders, do not
 invent `session_state` fields.
 
+For **agentic-user** cases, set `session_state` to `{ "gym": {} }` (or a config
+dict passed to the gym constructor). The gym class is resolved from
+`agentic_user.gym_ref` → `list_gyms` / `create_gym` registry entry.
+
+---
+
+## 6b. Agentic-user cases and gyms
+
+Workflow (all via MCP):
+
+1. `create_gym` with `class_path` pointing at the env class in the agent repo
+   (e.g. `gym.ticket_triage_gym.TicketTriageGym`).
+2. `list_gyms` to confirm the `id`.
+3. `create_case` with `agentic_user`:
+
+```json
+{
+  "user_agent_path": "user_agents.ticket_triage_user:root_user",
+  "gym_ref": "ticket-triage-gym",
+  "user_tools": ["keyword_search", "inbox_empty"],
+  "solver_tools": [],
+  "max_turns": 8,
+  "termination_method": "inbox_empty"
+}
+```
+
+4. `conversation` must include an opening user turn (seed text for the simulation).
+5. `generate_run` / `evaluate_run` as usual.
+
+Gym method names in `user_tools` / `solver_tools` must exist on the gym class.
+`termination_method` must be a gym method returning `bool`.
+
+---
+
+## 6c. Rubric `default_judge_prompt` pitfalls
+
+The rubric judge is an ADK agent. **Only use `{instructions}`** in
+`default_judge_prompt` — ADK interprets other `{…}` tokens as session-state
+placeholders. Using `{trace}` causes `KeyError: Context variable not found: trace`
+and all bool scores come back false.
+
+The execution trace is already passed as the **user message** to the judge agent
+(see `rubric_judge_runner.py`). Safe template:
+
+```
+Please evaluate the trace based on the following instructions: {instructions}
+```
+
 ---
 
 ## 7. Rubric results and campaign metrics
@@ -279,12 +353,17 @@ Author rubric prompts so **higher is better** and **True means pass** (SOUL3).
 
 When adding many cases, a practical order:
 
-1. `list_rubrics` → `create_rubric` only if needed
-2. `list_datasets` → `create_dataset` only if needed
-3. `create_case` for each case with `dataset_id`
+1. `list_gyms` → `create_gym` only if needed
+2. `list_rubrics` → `create_rubric` only if needed
+3. `list_datasets` → `create_dataset` only if needed
+4. `create_case` for each case with `dataset_id`
 
-After a batch: `list_datasets` (confirm `case_ids` length); spot-check with
-`get_case(case_id)`.
+After a batch: `list_datasets` (confirm each dataset's `case_ids` length);
+`list_gyms`; spot-check with `get_case(case_id)`.
+
+For running many cases, prefer **`run_report`** (one MCP call per dataset) when
+you need all cases for one agent scored. Use **`generate_run` + `evaluate_run`**
+per case when debugging individual failures (`force=true` to re-run).
 
 ---
 
@@ -292,12 +371,14 @@ After a batch: `list_datasets` (confirm `case_ids` length); spot-check with
 
 **Read:** `list_snapshots`, `get_snapshot`, `list_cases`, `get_case`,
 `list_runs`, `list_scored_runs`, `list_campaigns`, `get_campaign_matrix`,
-`list_tags`, `list_datasets`, `list_rubrics`, `list_extractors`,
+`list_tags`, `list_datasets`, `list_rubrics`, `list_extractors`, `list_gyms`,
 `compare_snapshots`, `get_governance`
 
 **Write / expensive:** `scan_agent`, `create_*`, `generate_case`,
 `generate_run`, `evaluate_run`, `create_campaign`, `update_governance`,
 `run_report`, `run_blueprint`
+
+(`create_gym` registers gym classes; `list_gyms` inventories them.)
 
 `generate_run` without `force` skips cases that already have a run for the same
 snapshot + case + model. `evaluate_run` without `force` skips already-scored runs.

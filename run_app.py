@@ -2,36 +2,11 @@ import argparse
 import os
 import sys
 
-
 import dotenv
 
 
-def _log_ssl_env() -> None:
-    for name in ("SSL_CERT_FILE", "REQUESTS_CA_BUNDLE", "SSL_CERT_DIR", "CURL_CA_BUNDLE"):
-        value = os.environ.get(name)
-        print(f"{name}={value!r}", file=sys.stderr, flush=True)
-        if name in ("SSL_CERT_FILE", "REQUESTS_CA_BUNDLE") and value:
-            print(f"{name}_exists={os.path.isfile(value.strip())}", file=sys.stderr, flush=True)
-    print(f"PYTHONPATH={os.environ.get('PYTHONPATH')!r}", file=sys.stderr, flush=True)
-    print(
-        f"GEMINI_API_KEY={'set' if os.environ.get('GEMINI_API_KEY') else 'unset'}",
-        file=sys.stderr,
-        flush=True,
-    )
-
-
-def _normalize_ssl_env() -> None:
-    ca = os.environ.get("SSL_CERT_FILE") or os.environ.get("REQUESTS_CA_BUNDLE")
-    if not ca:
-        return
-    ca = ca.strip()
-    os.environ["SSL_CERT_FILE"] = ca
-    os.environ["REQUESTS_CA_BUNDLE"] = ca
-    os.environ.pop("SSL_CERT_DIR", None)
-
-
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Eval Workbench")
+    parser = argparse.ArgumentParser(description="TrustMeBro")
     parser.add_argument("repo", help="Path to the target git repository")
     parser.add_argument(
         "--mode",
@@ -55,18 +30,12 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    
-
     repo_path = os.path.abspath(args.repo)
     if not os.path.isdir(repo_path):
         print(f"Error: {repo_path} is not a directory.", file=sys.stderr)
         sys.exit(1)
 
-    dotenv.load_dotenv()
-
-    if args.mode != "mcp":
-        _normalize_ssl_env()
-        _log_ssl_env()
+    dotenv.load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"))
 
     if args.mode == "mcp":
         # Run MCP immediately to avoid print/logs that will pollute stdout.
@@ -74,7 +43,6 @@ def main() -> None:
 
         build_server(repo_path).run(transport="stdio")
         sys.exit(0)
-
 
     if args.mode == "headless":
         if not args.agent_path or not args.dataset:

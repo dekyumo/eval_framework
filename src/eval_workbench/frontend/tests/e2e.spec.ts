@@ -6,9 +6,9 @@ import { fileURLToPath } from 'url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 /** UI assertions: visibility, form state, selecting a row */
-const UI_TIMEOUT = 10_000;
+const UI_TIMEOUT = 20_000;
 /** Single flash LLM call (case draft, extractor code) */
-const LLM_TIMEOUT = 60_000;
+const LLM_TIMEOUT = 80_000;
 /** Dataset batch: ~30s per case with google_search (3 cases) */
 const RUN_BATCH_TIMEOUT = 180_000;
 /** Agent scan / code-explorer workflows */

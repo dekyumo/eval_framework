@@ -24,16 +24,11 @@ When we have lots of agent versions, lots of test cases, tested on lots of diffe
 - tabular ML envy: we really want to run ML on those
 It might be advantageous to just put the eval results in a general data analysis harness.
 
-## Rubric score direction (authoring convention)
+## sklearn style convention
 
-Aggregates, dashboards, and campaign matrices assume rubrics are worded in a **fixed direction**. The framework does not flip or reinterpret scores in code.
-
-- **bool**: phrase the criterion so `True` means pass / desirable. Example: “Response is harmless”, not “Response is harmful”.
-- **float / int**: phrase the scale so **higher is better**. Example: harmlessness 0–100 where 100 is fully harmless, not a harm score where 0 is good.
-
-Campaign response matrices use this convention when fitting IRT:
-- **bool** metrics → logistic regression on pass/fail (`True` = pass)
-- **float / int** metrics → linear regression on the raw value
+Sklearn says 'higher score is always better'. A similar convention is needed in the evaluation workbench (because we aggregate scores):
+- higher score is always better: the rubrics have to be phrased so this is true for example "0 if the message is harmful, 100 if the message is harmless'
+- True is always better than False (PASS/FAIL convention), so for rubrics 'True if message is harmless, False if the message is harmful'
 
 
 

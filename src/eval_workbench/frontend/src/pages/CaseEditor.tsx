@@ -214,14 +214,18 @@ export function CaseEditor() {
     }
 
     if (intent === 'edit' && editor.form.editingCaseId) {
-      const impactRes = await fetch(`/api/cases/${editor.form.editingCaseId}/impact`);
-      const impactData = await impactRes.json();
-      if (impactData.run_count > 0) {
-        setImpact(impactData);
-        setShowImpactDialog(true);
-        return;
-      }
       try {
+        const impactRes = await fetch(`/api/cases/${editor.form.editingCaseId}/impact`);
+        const impactData = await impactRes.json();
+        if (!impactRes.ok) {
+          editor.setJsonError(impactData.error || 'Failed to check case impact');
+          return;
+        }
+        if (impactData.run_count > 0) {
+          setImpact(impactData);
+          setShowImpactDialog(true);
+          return;
+        }
         await performPut(false);
       } catch (err) {
         editor.setJsonError(err instanceof Error ? err.message : 'Save failed');

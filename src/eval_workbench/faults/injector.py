@@ -77,6 +77,16 @@ def _tool_name(tool: Any) -> str:
     return type(tool).__name__
 
 
+def _invoke_before_tool_callback(
+    callback: Any,
+    tool: Any,
+    args: dict,
+    tool_context: Any = None,
+) -> Any:
+    """Call an ADK before_tool_callback (tool, args, tool_context)."""
+    return callback(tool=tool, args=args, tool_context=tool_context)
+
+
 def _wrap_mock(mock_fn, active_fault: _ActiveToolFault):
     def wrapped(*args, **kwargs):
         if args:
@@ -141,11 +151,12 @@ def _attach_tool_fault_callback(
 
     prior = getattr(agent, "before_tool_callback", None)
 
-    def before_tool_callback(tool_name: str, args: dict, **kwargs) -> Any:
-        if tool_name == tool_fault.tool_name and tool_name in mocks:
-            return mocks[tool_name](args, active_fault)
+    def before_tool_callback(tool: Any, args: dict, tool_context: Any = None) -> Any:
+        name = _tool_name(tool)
+        if name == tool_fault.tool_name and name in mocks:
+            return mocks[name](args, active_fault)
         if prior:
-            return prior(tool_name, args, **kwargs)
+            return _invoke_before_tool_callback(prior, tool, args, tool_context)
         return None
 
     if hasattr(agent, "before_tool_callback"):
@@ -171,7 +182,8 @@ def register_fault_callbacks(
     mocked_tools_ref = mocked_tools_module_path or fault_config.mocked_tools_ref
     mocks = _load_mocks(mocked_tools_ref) if mocked_tools_ref and os.path.exists(mocked_tools_ref) else {}
 
-    def before_tool_callback(tool_name: str, args: dict) -> Any:
+    def before_tool_callback(tool: Any, args: dict, tool_context: Any = None) -> Any:
+        tool_name = _tool_name(tool)
         state.call_counts[tool_name] = state.call_counts.get(tool_name, 0) + 1
         call_count = state.call_counts[tool_name]
 

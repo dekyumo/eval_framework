@@ -97,18 +97,18 @@ def _collect_dataset_metrics(
                 if not rubric:
                     raise ServiceError(
                         f"Rubric {metric.rubric_ref!r} not found for case {case_id}",
-                        500,
+                        422,
                     )
                 for item in rubric.items:
                     name = rubric_result_name(metric.name, item.name)
                     prev = seen.get(name)
                     if prev is not None and prev != item.type:
-                        raise ServiceError(f"Metric {name!r} has conflicting types across cases", 500)
+                        raise ServiceError(f"Metric {name!r} has conflicting types across cases", 422)
                     seen[name] = item.type
                 continue
             prev = seen.get(metric.name)
             if prev is not None and prev != metric.result_type:
-                raise ServiceError(f"Metric {metric.name!r} has conflicting types across cases", 500)
+                raise ServiceError(f"Metric {metric.name!r} has conflicting types across cases", 422)
             seen[metric.name] = metric.result_type
     return [{"name": name, "result_type": seen[name]} for name in sorted(seen)]
 

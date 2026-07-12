@@ -1,9 +1,12 @@
-from src.eval_workbench.domain.rubric import Rubric, RubricItem
+import pytest
+
 from src.eval_workbench.domain.result import Result
+from src.eval_workbench.domain.rubric import Rubric, RubricItem
 from src.eval_workbench.services.campaigns import (
     _collect_dataset_metrics,
     _find_scored_result,
 )
+from src.eval_workbench.services.errors import ServiceError
 from src.eval_workbench.services.scoring import rubric_result_name
 
 
@@ -78,3 +81,16 @@ def test_find_scored_result_matches_deterministic_metric_name():
         Result(name="budget_correct", type="bool", value=True, source="deterministic"),
     ]
     assert _find_scored_result(results, "budget_correct") is results[0]
+
+
+def test_collect_dataset_metrics_missing_rubric_is_422():
+    case = _FakeCase([
+        _FakeMetric("quality", "rubric", "float", rubric_ref="missing_rubric"),
+    ])
+    with pytest.raises(ServiceError) as exc:
+        _collect_dataset_metrics(
+            _FakeCaseRepo({"case_1": case}),
+            _FakeRubricRepo({}),
+            ["case_1"],
+        )
+    assert exc.value.status_code == 422

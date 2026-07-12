@@ -9,7 +9,7 @@ The evaluation framework borrows heavily from MLOps.
 - it can borrow analysis of error frameworks from ML
 - it uses ML metrics
 - it can track deployments
-- it facilitates model governance by checking for bias/compliance/explainability and auditing the model (agentic code)
+
 
 ========================
 

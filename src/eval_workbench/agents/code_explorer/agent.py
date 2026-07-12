@@ -1,7 +1,7 @@
 from google.adk.agents import Agent
 from pydantic import BaseModel, Field
 
-prompt = """You are a distribution expert and Product Manager examining a google ADK agent.
+prompt = """You are a domain expert and Product Manager examining a google ADK agent.
 You will be given the definition of an ADK agent, and the source code for some of its tools.
 You will need to explain what it can typically do (in distribution), what it cannot do (out of distribution) and what is at the limit of its capabilities (distribution margin).
 
