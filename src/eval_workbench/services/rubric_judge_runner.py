@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import uuid
 from typing import Any
 
@@ -13,6 +12,7 @@ from pydantic import BaseModel, Field, create_model
 
 from src.eval_workbench.domain.rubric import Rubric
 from src.eval_workbench.domain.trace import Trace
+from src.eval_workbench.run_coro_sync import run_coro_sync
 
 _APP_NAME = "eval_workbench"
 
@@ -120,4 +120,4 @@ async def _run_rubric_judge_async(rubric: Rubric, trace_text: str) -> BaseModel:
 
 
 def judge_trace_with_rubric(rubric: Rubric, trace: Trace) -> BaseModel:
-    return asyncio.run(_run_rubric_judge_async(rubric, format_trace_for_judge(trace)))
+    return run_coro_sync(_run_rubric_judge_async(rubric, format_trace_for_judge(trace)))

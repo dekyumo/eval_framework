@@ -3,6 +3,7 @@ import re
 from src.eval_workbench.domain.case import EvalCase, EvalDataset
 from src.eval_workbench.services._conn import conn
 from src.eval_workbench.services.errors import ServiceError
+from src.eval_workbench.storage.kuzu_store import kuzu_transaction
 from src.eval_workbench.storage.repositories import (
     EvalCaseRepository,
     EvalDatasetRepository,
@@ -126,9 +127,6 @@ def update_case(repo_path: str, case_id: str, data: dict, *, cascade: bool = Fal
     if payload.get("input_payload") and payload.get("conversation"):
         raise ServiceError("Use either conversation turns or input_payload, not both", 400)
 
-    if cascade and impact["run_count"] > 0:
-        EvalRunRepository(connection).delete_runs_for_case(case_id)
-
     merged = existing.model_dump()
     merged.update(payload)
     merged["id"] = case_id
@@ -137,7 +135,14 @@ def update_case(repo_path: str, case_id: str, data: dict, *, cascade: bool = Fal
     merged.setdefault("active_for_eval", existing.active_for_eval)
 
     case = _normalize_case(EvalCase(**merged))
-    case_repo.save(case)
+
+    if cascade and impact["run_count"] > 0:
+        with kuzu_transaction(connection):
+            EvalRunRepository(connection).delete_runs_for_case(case_id)
+            case_repo.save(case)
+    else:
+        case_repo.save(case)
+
     return case.model_dump()
 
 

@@ -76,7 +76,9 @@ def test_apply_tool_fault_keeps_builtin_tool_and_sets_callback(tmp_path):
 
     assert agent.tools[0] is builtin
     assert agent.before_tool_callback is not None
-    result = agent.before_tool_callback("google_search", {"query": "paris"})
+    result = agent.before_tool_callback(
+        tool=builtin, args={"query": "paris"}, tool_context=None
+    )
     assert isinstance(result, dict)
 
 

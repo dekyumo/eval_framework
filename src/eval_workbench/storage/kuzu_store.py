@@ -1,5 +1,6 @@
 import kuzu
 import os
+from contextlib import contextmanager
 
 from src.eval_workbench.repo_layout import db_path as repo_db_path
 
@@ -28,6 +29,17 @@ def get_connection(repo_path: str) -> kuzu.Connection:
     _db_connections[repo_path] = conn
 
     return conn
+
+
+@contextmanager
+def kuzu_transaction(connection: kuzu.Connection):
+    connection.execute("BEGIN TRANSACTION")
+    try:
+        yield connection
+        connection.execute("COMMIT")
+    except Exception:
+        connection.execute("ROLLBACK")
+        raise
 
 
 def close_all():

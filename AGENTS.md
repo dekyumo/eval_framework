@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-eval_framework is software in python to evaluate AI agents written in the Google ADK framework.
+TrustMeBro is software in python to evaluate AI agents written in the Google ADK framework, to avoid the 'vibe evals' effect.
 It is composed of a spec, a backend written in python with flask and a Kuzu database, and a React/Vite statically compiled frontend.
 
 ## Coding Standards
@@ -13,6 +13,10 @@ It is composed of a spec, a backend written in python with flask and a Kuzu data
 - a high level overview of the code is available in .\codebase.md
 
 ## Testing
+- environment variables to set: 
+    - if the modules cannot be found: PYTHONPATH=.\src\
 - you can run the e2e test suite with "npx playwright test tests/e2e.spec.ts" in the frontend directory
-- you can launch a report from CLI with: python run_app.py .\adk_tutorial --headless --agent_path "a_single_agent.day_trip:root_agent" --commit HEAD --dataset "DayTrip Tests"
+    - e2e calls `POST /api/test/reset` on a throwaway `adk_tutorial` DB; enable it only via `python run_app.py <repo> --allow-db-wipe-for-tests` (playwright.config.ts passes that flag). Do not run e2e against a live server on port 5000.
+- you can launch a report from CLI with: python run_app.py .\adk_tutorial --mode headless --agent_path "a_single_agent.day_trip:root_agent" --commit HEAD --dataset "DayTrip Tests"
+- MCP stdio server: python run_app.py .\adk_tutorial --mode mcp
 - those e2e suites assume that https://github.com/cuppibla/adk_tutorial/ has been downloaded into .\adk_tutorial\

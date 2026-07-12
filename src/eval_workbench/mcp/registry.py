@@ -38,6 +38,7 @@ TOOL_NAMES: list[str] = [
     "list_datasets",
     "list_rubrics",
     "list_extractors",
+    "list_gyms",
     "compare_snapshots",
     "get_governance",
     # write / expensive
@@ -51,6 +52,7 @@ TOOL_NAMES: list[str] = [
     "create_dataset",
     "create_rubric",
     "create_extractor",
+    "create_gym",
     "update_governance",
     "run_report",
     "run_blueprint",
@@ -63,16 +65,19 @@ PRESET_TOOLS: dict[BlueprintPreset, list[str]] = {
         "list_datasets",
         "list_rubrics",
         "list_extractors",
+        "list_gyms",
     ],
     BlueprintPreset.registry_updater: [
         "create_tag",
         "create_dataset",
         "create_rubric",
         "create_extractor",
+        "create_gym",
         "list_tags",
         "list_datasets",
         "list_rubrics",
         "list_extractors",
+        "list_gyms",
     ],
     BlueprintPreset.case_maker: [
         "generate_case",
@@ -113,16 +118,16 @@ PRESET_INSTRUCTIONS: dict[BlueprintPreset, str] = {
         "Example: scan_agent → get_snapshot → list_snapshots."
     ),
     BlueprintPreset.registry_explorer: (
-        "You are a RegistryExplorer. Inventory tags, datasets, rubrics, and "
-        "extractors. Call list_tags, list_datasets, list_rubrics, and list_extractors "
-        "until you have a complete picture of registry objects. "
-        "Example: list_tags → list_datasets → list_rubrics → list_extractors."
+        "You are a RegistryExplorer. Inventory tags, datasets, rubrics, extractors, "
+        "and gyms. Call list_tags, list_datasets, list_rubrics, list_extractors, and "
+        "list_gyms until you have a complete picture of registry objects. "
+        "Example: list_tags → list_datasets → list_rubrics → list_extractors → list_gyms."
     ),
     BlueprintPreset.registry_updater: (
         "You are a RegistryUpdater. Create or verify registry objects (tags, datasets, "
-        "rubrics, extractors). Use create_* tools, then list_* tools to confirm. "
+        "rubrics, extractors, gyms). Use create_* tools, then list_* tools to confirm. "
         "Repeat until requested registry entries exist. "
-        "Example: create_tag → list_tags → create_dataset → list_datasets."
+        "Example: create_gym → list_gyms → create_dataset → list_datasets."
     ),
     BlueprintPreset.case_maker: (
         "You are a CaseMaker. Draft and persist eval cases for a snapshot. Use "
@@ -222,6 +227,10 @@ def build_registry(repo_path: str) -> dict[str, Callable[..., Any]]:
     def list_extractors() -> list[dict]:
         return registries_service.list_extractors(repo_path)
 
+    def list_gyms() -> list[dict]:
+        """List registered gym environments for agentic-user simulations."""
+        return registries_service.list_gyms(repo_path)
+
     def compare_snapshots(snapshot_a: str, snapshot_b: str) -> dict:
         left = agents_service.get_snapshot(repo_path, snapshot_a)
         right = agents_service.get_snapshot(repo_path, snapshot_b)
@@ -298,6 +307,15 @@ def build_registry(repo_path: str) -> dict[str, Callable[..., Any]]:
     def create_extractor(data: dict) -> dict:
         return registries_service.create_extractor(repo_path, data)
 
+    def create_gym(data: dict) -> dict:
+        """Register a gym class for agentic-user eval cases.
+
+        ``data`` must include ``class_path`` (e.g. ``gym.ticket_triage_gym.TicketTriageGym``)
+        and ``name``; ``id`` is optional (derived from name). Agentic cases reference
+        the gym via ``agentic_user.gym_ref``.
+        """
+        return registries_service.create_gym(repo_path, data)
+
     def update_governance(snapshot_id: str, data: dict) -> dict:
         return governance_service.update_governance(repo_path, snapshot_id, data)
 
@@ -339,6 +357,7 @@ def build_registry(repo_path: str) -> dict[str, Callable[..., Any]]:
         "list_datasets": list_datasets,
         "list_rubrics": list_rubrics,
         "list_extractors": list_extractors,
+        "list_gyms": list_gyms,
         "compare_snapshots": compare_snapshots,
         "get_governance": get_governance,
         "scan_agent": scan_agent,
@@ -351,6 +370,7 @@ def build_registry(repo_path: str) -> dict[str, Callable[..., Any]]:
         "create_dataset": create_dataset,
         "create_rubric": create_rubric,
         "create_extractor": create_extractor,
+        "create_gym": create_gym,
         "update_governance": update_governance,
         "run_report": run_report,
         "run_blueprint": run_blueprint,

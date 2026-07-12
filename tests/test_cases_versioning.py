@@ -1,4 +1,5 @@
 import pytest
+from pydantic import ValidationError
 
 from src.eval_workbench.domain.case import EvalDataset
 from src.eval_workbench.services.cases import (
@@ -104,6 +105,42 @@ def test_update_with_runs_requires_cascade(repo_path, seeded_dataset):
         cascade=True,
     )
     assert updated["name"] == "Changed"
+
+
+def test_cascade_update_invalid_payload_preserves_runs(repo_path, seeded_dataset):
+    from src.eval_workbench.domain.run import EvalRun
+    from src.eval_workbench.domain.trace import Trace, MessagePart
+    from src.eval_workbench.storage.repositories import EvalRunRepository
+
+    saved = create_case(repo_path, _base_case())
+    connection = get_connection(repo_path)
+    trace = Trace(
+        id="run_test_1",
+        parts=[MessagePart(role="user", kind="text", text="hi")],
+        snapshot_id="snap_missing",
+        case_id=saved["id"],
+        model_id="gemini-2.5-flash",
+    )
+    run = EvalRun(
+        id="run_test_1",
+        snapshot_id="snap_missing",
+        case_id=saved["id"],
+        model_id="gemini-2.5-flash",
+        repetition_index=0,
+        trace=trace,
+    )
+    EvalRunRepository(connection).save(run)
+
+    with pytest.raises(ValidationError):
+        update_case(
+            repo_path,
+            saved["id"],
+            {**saved, "version": "not-a-version"},
+            cascade=True,
+        )
+
+    assert len(EvalRunRepository(connection).list_by_case(saved["id"])) == 1
+    assert get_case(repo_path, saved["id"])["name"] == saved["name"]
 
 
 def test_deactivate_and_active_only_list(repo_path, seeded_dataset):
