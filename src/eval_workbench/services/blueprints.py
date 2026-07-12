@@ -15,6 +15,7 @@ from google.genai import types
 from src.eval_workbench.domain.blueprint import AgentBlueprint, BlueprintPreset, BlueprintRunResult, ToolCall
 from src.eval_workbench.mcp.registry import PRESET_INSTRUCTIONS, PRESET_TOOLS, resolve_tools
 from src.eval_workbench.runner.trace_events import append_trace_parts_from_event
+from src.eval_workbench.run_coro_sync import run_coro_sync as _run_coro_sync
 from src.eval_workbench.services.errors import ServiceError
 
 _APP_NAME = "eval_workbench"
@@ -157,9 +158,6 @@ async def _run_blueprint_async(
         transcript=_trace_parts_to_transcript(trace_parts),
         tool_calls=_tool_calls_from_trace(trace_parts),
     )
-
-
-from src.eval_workbench.run_coro_sync import run_coro_sync as _run_coro_sync
 
 
 def run_blueprint(repo_path: str, blueprint: dict) -> dict:
