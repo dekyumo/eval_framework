@@ -2,11 +2,9 @@
 
 from __future__ import annotations
 
-import asyncio
 import json
 import uuid
 from collections.abc import Callable
-from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
 from google.adk.agents import LlmAgent
@@ -17,6 +15,7 @@ from google.genai import types
 from src.eval_workbench.domain.blueprint import AgentBlueprint, BlueprintPreset, BlueprintRunResult, ToolCall
 from src.eval_workbench.mcp.registry import PRESET_INSTRUCTIONS, PRESET_TOOLS, resolve_tools
 from src.eval_workbench.runner.trace_events import append_trace_parts_from_event
+from src.eval_workbench.run_coro_sync import run_coro_sync as _run_coro_sync
 from src.eval_workbench.services.errors import ServiceError
 
 _APP_NAME = "eval_workbench"
@@ -159,16 +158,6 @@ async def _run_blueprint_async(
         transcript=_trace_parts_to_transcript(trace_parts),
         tool_calls=_tool_calls_from_trace(trace_parts),
     )
-
-
-def _run_coro_sync(coro):
-    """Run a coroutine to completion, including when already inside an event loop."""
-    try:
-        asyncio.get_running_loop()
-    except RuntimeError:
-        return asyncio.run(coro)
-    with ThreadPoolExecutor(max_workers=1) as executor:
-        return executor.submit(asyncio.run, coro).result()
 
 
 def run_blueprint(repo_path: str, blueprint: dict) -> dict:

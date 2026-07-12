@@ -107,7 +107,7 @@ async def main() -> None:
 
     print("Retrievals:")
     if not run.retrievals:
-        print("  (none — check GEMINI_API_KEY, SSL certs, or agent logs above)")
+        print("  (none — check GEMINI_API_KEY or agent logs above)")
     for record in run.retrievals:
         print(f"  - query={record['query']!r}, chunks={record['chunk_ids']}")
     print(f"\nFinal response:\n{run.final_response or '(empty)'}\n")

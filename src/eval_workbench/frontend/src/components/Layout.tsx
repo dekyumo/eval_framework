@@ -1,6 +1,27 @@
-import { NavLink, Outlet } from 'react-router-dom';
+import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { cn } from '../utils/cn';
+
+const TRUST_PHRASES = [
+  '俺を信じろって',
+  'ガチだから',
+  'ソースは俺',
+  '信じてくれよ',
+  '내 말 믿어',
+  '내가 해봐서 아는데',
+  '진짜야',
+  '오빠 말만 믿어',
+  'Fais-moi confiance',
+  "T'inquiète, poto",
+  "T'inquiète, cedl'IA",
+  'Trust me, bro',
+  'Just trust me on this one',
+  'Take my word for it',
+] as const;
+
+function pickTrustPhrase(): string {
+  return TRUST_PHRASES[Math.floor(Math.random() * TRUST_PHRASES.length)];
+}
 
 const NAV_ITEMS = [
   { to: '/agents', icon: 'account_tree', label: 'Agents' },
@@ -15,7 +36,13 @@ const NAV_ITEMS = [
 ];
 
 export function Layout() {
+  const location = useLocation();
   const [repo, setRepo] = useState('...');
+  const [headline, setHeadline] = useState(pickTrustPhrase);
+
+  useEffect(() => {
+    setHeadline(pickTrustPhrase());
+  }, [location.pathname]);
 
   useEffect(() => {
     fetch('/api/repo')
@@ -35,8 +62,8 @@ export function Layout() {
               <span className="material-symbols-outlined font-bold">science</span>
             </div>
             <div>
-              <div className="font-headline font-bold text-on-surface tracking-tight text-lg">Lab Instrument</div>
-              <div className="font-mono text-on-surface-variant text-xs mt-0.5">Eval Workbench</div>
+              <div className="font-headline font-bold text-on-surface tracking-tight text-lg leading-tight">{headline}</div>
+              <div className="font-mono text-on-surface-variant text-xs mt-0.5">TrustMeBro</div>
             </div>
           </div>
         </div>

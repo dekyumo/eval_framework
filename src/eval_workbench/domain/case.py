@@ -1,5 +1,5 @@
-from typing import Literal, Any
-from pydantic import BaseModel
+from typing import Literal, Any, Self
+from pydantic import BaseModel, model_validator
 from src.eval_workbench.domain.trace import MessagePart
 from src.eval_workbench.domain.result import ResultType
 from src.eval_workbench.domain.fault import FaultConfig, ToolFault
@@ -34,11 +34,18 @@ class AgenticUserConfig(BaseModel):
     """
 
     user_agent_path: str                     # "module.path:variable" for the simulated user
-    gym_ref: str                             # -> Gym.id
+    gym_ref: str = ""                        # -> Gym.id (optional if gym_class_path set)
+    gym_class_path: str | None = None        # direct FQCN override, e.g. gym.foo_gym.FooGym
     user_tools: list[str] = []               # gym method names given to the user agent
     solver_tools: list[str] = []             # gym method names given to the solver agent
     max_turns: int = 10
     termination_method: str                  # gym method name returning bool
+
+    @model_validator(mode="after")
+    def gym_source_required(self) -> Self:
+        if not self.gym_class_path and not self.gym_ref:
+            raise ValueError("agentic_user requires gym_ref or gym_class_path")
+        return self
 
 class EvalCase(BaseModel):
     id: str

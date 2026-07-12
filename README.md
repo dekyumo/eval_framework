@@ -1,4 +1,4 @@
-# Eval Workbench
+# TrustMeBro
 
 **Agent Evaluation and Provenance Workbench** — a Python framework for evaluating [Google ADK](https://google.github.io/adk-docs/) agents.
 
@@ -14,6 +14,7 @@ This is a **pre-deployment evaluation tool**, not a production observability pla
 - **Human evaluation** — collect human judgements and compare agreement with automated scores
 - **Comparison & drift** — diff agent snapshots and track score changes over time
 - **Headless CLI** — run benchmarks without the web UI for CI and scripting
+- **MCP** - can be run as MCP, with an associated MCP skill
 
 ## Architecture
 
@@ -80,9 +81,9 @@ Open [http://127.0.0.1:5000](http://127.0.0.1:5000).
 
 Typical workflow:
 
-1. **Onboarding** — scan the agent repo and create a snapshot at a commit
+1. **Agents** — scan the agent repo and create a snapshot at a commit
 2. **Registries** — define datasets, tags, rubrics, and extraction functions
-3. **Cases** — author evaluation cases (inputs, expected behavior, metrics)
+3. **Cases** — create evaluation cases (inputs, expected behavior, metrics)
 4. **Runs** — execute the agent against cases and collect traces
 5. **Evals** — score traces and review results
 6. **Compare** — diff two snapshots (prompts, tools, topology)
@@ -100,4 +101,4 @@ python run_app.py .\adk_tutorial --mode headless `
   --dataset "DayTrip Tests"
 ```
 
-Contains an AGENTS.md to help autonomous agents understand the source.
+**IMPORTANT**: Contains an AGENTS.md to help autonomous agents understand the source.
