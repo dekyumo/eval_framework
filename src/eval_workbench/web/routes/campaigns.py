@@ -19,6 +19,13 @@ def create_campaign():
 @campaigns_bp.route("/<camp_id>/matrix", methods=["GET"])
 def get_matrix(camp_id):
     try:
-        return jsonify(campaigns_service.get_matrix(current_app.config["REPO_PATH"], camp_id))
+        metric = request.args.get("metric")
+        return jsonify(
+            campaigns_service.get_matrix(
+                current_app.config["REPO_PATH"],
+                camp_id,
+                metric_name=metric,
+            )
+        )
     except ServiceError as exc:
         return jsonify({"error": exc.message}), exc.status_code

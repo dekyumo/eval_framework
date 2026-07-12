@@ -13,6 +13,7 @@ from src.eval_workbench.analysis.metrics import (
     regression_stats,
 )
 from src.eval_workbench.domain.case import EvalCase, EvalDataset
+from src.eval_workbench.services.cases import cases_eligible_for_dataset
 from src.eval_workbench.domain.result import Result
 from src.eval_workbench.domain.tag import Tag
 from src.eval_workbench.extraction.extractor import run_extractor
@@ -21,7 +22,6 @@ from src.eval_workbench.services import runs as runs_service
 from src.eval_workbench.services._conn import conn
 from src.eval_workbench.services.errors import ServiceError
 from src.eval_workbench.storage.repositories import (
-    EvalCaseRepository,
     EvalDatasetRepository,
     ExtractorRepository,
     TagRepository,
@@ -72,15 +72,8 @@ def select_cases(
 ) -> list[EvalCase]:
     dataset = _dataset_by_name(connection, dataset_name)
     aliases = _tag_aliases(connection, tag_filters or [])
-    unique_case_ids = list(dict.fromkeys(dataset.case_ids or []))
-
-    cases: list[EvalCase] = []
-    repository = EvalCaseRepository(connection)
-    for case_id in unique_case_ids:
-        case = repository.get(case_id)
-        if case and _case_matches_tags(case, aliases):
-            cases.append(case)
-    return cases
+    cases = cases_eligible_for_dataset(connection, dataset)
+    return [case for case in cases if _case_matches_tags(case, aliases)]
 
 
 def _coerce_bool(value) -> bool:
@@ -133,18 +126,22 @@ def render_markdown_report(
         "",
         "## Per-case Results",
         "",
-        "| Case | Metric | Type | Value | Source |",
-        "| --- | --- | --- | --- | --- |",
+        "| Case | Version | Logical ID | Metric | Type | Value | Source |",
+        "| --- | --- | --- | --- | --- | --- | --- |",
     ]
 
     for outcome in outcomes:
         case_label = outcome.case.name or outcome.case.id
+        version = outcome.case.version
+        logical_id = outcome.case.logical_id or outcome.case.id
         if outcome.skipped:
-            lines.append(f"| {case_label} | _skipped_ | | {outcome.skip_reason or 'error'} | |")
+            lines.append(
+                f"| {case_label} | {version} | {logical_id} | _skipped_ | | {outcome.skip_reason or 'error'} | |"
+            )
             continue
         for result in outcome.results:
             lines.append(
-                f"| {case_label} | {result.name} | {result.type} | {result.value} | {result.source} |"
+                f"| {case_label} | {version} | {logical_id} | {result.name} | {result.type} | {result.value} | {result.source} |"
             )
 
     lines.extend(["", "## Rubric Summary", ""])
@@ -194,7 +191,8 @@ def render_csv_report(
     snapshot_id = snapshot["id"]
     columns = [
         "snapshot_id", "agent_path", "commit", "dataset_name",
-        "case_id", "case_name", "run_id", "skipped", "skip_reason",
+        "case_id", "case_name", "logical_id", "version",
+        "run_id", "skipped", "skip_reason",
         "metric_name", "result_type", "result_value", "result_source",
     ]
     buf = io.StringIO()
@@ -209,6 +207,8 @@ def render_csv_report(
             "dataset_name": dataset_name,
             "case_id": outcome.case.id,
             "case_name": outcome.case.name or outcome.case.id,
+            "logical_id": outcome.case.logical_id or outcome.case.id,
+            "version": outcome.case.version,
             "run_id": outcome.run_id or "",
             "skipped": outcome.skipped,
             "skip_reason": outcome.skip_reason or "",

@@ -29,15 +29,9 @@ def find_existing_run(
     model_id: str,
     repetition_index: int = 0,
 ) -> EvalRun | None:
-    for run in EvalRunRepository(connection).get_all("EvalRun", "id", EvalRun):
-        if (
-            run.snapshot_id == snapshot_id
-            and run.case_id == case_id
-            and run.model_id == model_id
-            and run.repetition_index == repetition_index
-        ):
-            return run
-    return None
+    return EvalRunRepository(connection).find_by_snapshot_case(
+        snapshot_id, case_id, model_id, repetition_index
+    )
 
 
 def _delete_scored_for_run(connection, run_id: str) -> None:
@@ -61,6 +55,9 @@ def generate_run(
 
     if not snapshot or not case:
         raise ServiceError("Snapshot or case not found", 404)
+
+    if not case.active_for_eval:
+        raise ServiceError("Case is inactive for eval", 400)
 
     existing = find_existing_run(connection, snapshot_id, case_id, model_id)
     if existing and not force:
@@ -111,11 +108,16 @@ def list_scored_runs(repo_path: str) -> list[dict]:
     return [run.model_dump() for run in runs]
 
 
-def evaluate_run(repo_path: str, run_id: str) -> dict:
+def evaluate_run(repo_path: str, run_id: str, *, force: bool = False) -> dict:
     connection = conn(repo_path)
     run = EvalRunRepository(connection).get(run_id)
     if not run:
         raise ServiceError("Run not found", 404)
+
+    scored_id = f"scored_{run_id}"
+    existing = ScoredEvalRunRepository(connection).get(scored_id)
+    if existing and not force:
+        return existing.model_dump()
 
     case = EvalCaseRepository(connection).get(run.case_id)
     if not case:
@@ -124,7 +126,7 @@ def evaluate_run(repo_path: str, run_id: str) -> dict:
     try:
         results = score_trace(run.trace, case, connection)
         scored = ScoredEvalRun(
-            id=f"scored_{run_id}",
+            id=scored_id,
             run_id=run_id,
             results=results,
         )

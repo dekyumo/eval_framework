@@ -6,6 +6,10 @@ from src.eval_workbench.storage.repositories import ExtractorRepository, RubricR
 from src.eval_workbench.services.rubric_judge_runner import judge_trace_with_rubric
 import kuzu
 
+def rubric_result_name(metric_name: str, item_name: str) -> str:
+    return f"{metric_name} ({item_name})"
+
+
 class Evaluator:
     def evaluate(self, trace: Trace, case: EvalCase, metric: MetricDef, conn: kuzu.Connection) -> list[Result]:
         raise NotImplementedError
@@ -94,7 +98,7 @@ class RubricEvaluator(Evaluator):
                     val = str(val) if val is not None else ""
 
                 results.append(Result(
-                    name=f"{metric.name} ({item.name})",
+                    name=rubric_result_name(metric.name, item.name),
                     type=item.type,
                     value=val,
                     enum_values=item.enum_values,
@@ -107,7 +111,7 @@ class RubricEvaluator(Evaluator):
         except Exception:
             import traceback
             return [Result(
-                name=f"{metric.name} ({item.name})",
+                name=rubric_result_name(metric.name, item.name),
                 type=item.type,
                 value=False if item.type == "bool" else (0 if item.type == "int" else ""),
                 rationale=f"Judge failed: {traceback.format_exc()}",

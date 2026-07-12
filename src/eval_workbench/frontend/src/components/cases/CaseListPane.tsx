@@ -34,6 +34,12 @@ export function CaseDetailView({ caseData }: CaseDetailViewProps) {
 
       <div className="space-y-2">
         <DetailRow label="ID" value={String(caseData.id || '')} />
+        <DetailRow label="Logical ID" value={String(caseData.logical_id || '')} />
+        <DetailRow label="Version" value={caseData.version != null ? String(caseData.version) : ''} />
+        <DetailRow
+          label="Active for eval"
+          value={caseData.active_for_eval === false ? 'no' : 'yes'}
+        />
         <DetailRow label="Dataset" value={String(caseData.dataset_id || '')} />
         <DetailRow label="Distribution" value={String(caseData.distribution_position || '')} />
         <DetailRow label="Problem type" value={String(caseData.problem_type || '')} />
@@ -115,6 +121,8 @@ interface CaseListPaneProps {
   loading: boolean;
   selectedCaseId: string | null;
   onSelectCase: (caseId: string) => void;
+  title?: string;
+  emptyMessage?: string;
 }
 
 export function CaseListPane({
@@ -122,12 +130,12 @@ export function CaseListPane({
   loading,
   selectedCaseId,
   onSelectCase,
+  title = 'Cases',
+  emptyMessage = 'No cases found.',
 }: CaseListPaneProps) {
-  const selectedCase = cases.find(c => c.id === selectedCaseId) ?? null;
-
   return (
-    <div className="mt-8 pt-6 border-t border-outline-variant" data-testid="case-list-pane">
-      <Heading level={3} className="mb-3">Cases &amp; Evals</Heading>
+    <div className="mt-2" data-testid="case-list-pane">
+      <Heading level={3} className="mb-3">{title}</Heading>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
         {cases.map(c => (
           <button
@@ -146,6 +154,16 @@ export function CaseListPane({
             </Text>
             <div className="flex flex-wrap items-center gap-2 mt-2">
               <SplitBadge split={c.split} />
+              {c.version != null && (
+                <Text variant="mono" as="span" className="text-xs">
+                  v{c.version}
+                </Text>
+              )}
+              {c.active_for_eval === false && (
+                <Text variant="mono" as="span" className="text-xs text-semantic-fail">
+                  inactive
+                </Text>
+              )}
               <Text variant="mono" as="span" className="text-xs">
                 {c.distribution_position} • {c.problem_type}
               </Text>
@@ -155,10 +173,9 @@ export function CaseListPane({
       </div>
       {cases.length === 0 && !loading && (
         <Text variant="muted" className="italic mt-2 block">
-          No cases found. Create one above.
+          {emptyMessage}
         </Text>
       )}
-      {selectedCase && <CaseDetailView caseData={selectedCase} />}
     </div>
   );
 }

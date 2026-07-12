@@ -12,25 +12,6 @@ _PROJECT_ROOT = Path(__file__).resolve().parent
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
-
-def _bootstrap_env() -> None:
-    import certifi
-    from dotenv import load_dotenv
-
-    for env_path in (
-        _PROJECT_ROOT / ".env",
-        _PROJECT_ROOT.parent / "eval_framework" / ".env",
-    ):
-        if env_path.exists():
-            load_dotenv(env_path)
-
-    cert_path = str(Path(certifi.__file__).with_name("cacert.pem"))
-    os.environ["SSL_CERT_FILE"] = cert_path
-    os.environ["REQUESTS_CA_BUNDLE"] = cert_path
-
-
-_bootstrap_env()
-
 from google.adk.agents import Agent
 
 from adk_ragas_compat import (

@@ -5,7 +5,7 @@ import { SnapshotSelect } from '../components/SnapshotSelect';
 import { Button } from '../components/ui/Button';
 import { TextAreaWithLabel } from '../components/ui/Textarea';
 import { Heading } from '../components/ui/Typography';
-import { PageContainer, PageHeader, PagePane } from '../components/ui/PageLayout';
+import { BorderedSection, PageContainer, PageHeader, PagePane } from '../components/ui/PageLayout';
 
 type GovernanceView = {
   concern_coverage: string;
@@ -25,12 +25,16 @@ export function Agents() {
   const [savingGovernance, setSavingGovernance] = useState(false);
 
   const loadSnapshots = useCallback(() => {
-    fetch('/api/agents/snapshots')
+    return fetch('/api/agents/snapshots')
       .then(res => res.json())
       .then(data => {
         if (Array.isArray(data)) setSnapshots(data);
+        return data;
       })
-      .catch(console.error);
+      .catch(err => {
+        console.error(err);
+        return [];
+      });
   }, []);
 
   useEffect(() => {
@@ -59,6 +63,7 @@ export function Agents() {
       setGovernance(null);
       return;
     }
+    setGovernance(null);
     fetch(`/api/agents/snapshots/${id}`)
       .then(res => res.json())
       .then(data => {
@@ -69,8 +74,7 @@ export function Agents() {
   }, []);
 
   const handleScanned = (snapshotId: string) => {
-    loadSnapshots();
-    handleSelect(snapshotId);
+    loadSnapshots().then(() => handleSelect(snapshotId));
   };
 
   const saveGovernance = async () => {
@@ -94,31 +98,33 @@ export function Agents() {
     }
   };
 
-  const headerActions = (
-    <SnapshotSelect
-      fullWidth={false}
-      aria-label="Snapshot"
-      snapshots={snapshots}
-      placeholder="Select a snapshot..."
-      value={selectedSnapshot?.id || ''}
-      onChange={e => handleSelect(e.target.value)}
-    />
-  );
-
   return (
     <PageContainer variant="contained">
       <PageHeader
         title="Agents Graph & Lineage"
-        description="View Agent Manifest and Lineage Graph here."
-        actions={headerActions}
+        description="Scan the agent repo, then pick a snapshot to inspect its manifest and lineage."
       />
 
-      <PagePane variant="card" className="mb-6">
+      <PagePane variant="card">
         <ScanAgent onScanned={handleScanned} />
       </PagePane>
 
+      <BorderedSection position="top">
+        <div className="w-full flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <Heading level={3}>Snapshot</Heading>
+          <SnapshotSelect
+            fullWidth={false}
+            aria-label="Snapshot"
+            snapshots={snapshots}
+            placeholder="Select a snapshot..."
+            value={selectedSnapshot?.id || ''}
+            onChange={e => handleSelect(e.target.value)}
+          />
+        </div>
+      </BorderedSection>
+
       {selectedSnapshot ? (
-        <>
+        <div key={selectedSnapshot.id} className="space-y-6">
           <LineageGraph manifest={selectedSnapshot.manifest} />
 
           <PagePane variant="card">
@@ -182,10 +188,10 @@ export function Agents() {
               </div>
             </PagePane>
           )}
-        </>
+        </div>
       ) : (
         <div className="text-on-surface-variant italic p-8 text-center border border-outline-variant rounded-xl bg-surface-container-low shadow-sm">
-          No snapshot selected. Please select one from the dropdown above.
+          No snapshot selected. Scan an agent or pick one from the dropdown.
         </div>
       )}
     </PageContainer>

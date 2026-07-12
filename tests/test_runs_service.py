@@ -7,9 +7,16 @@ from src.eval_workbench.domain.manifest import AgentManifest
 from src.eval_workbench.domain.snapshot import AgentSnapshot, AgentTarget
 from src.eval_workbench.domain.run import EvalRun
 from src.eval_workbench.domain.trace import MessagePart, Trace, TokenUsage
-from src.eval_workbench.services.runs import find_existing_run, generate_run
+from src.eval_workbench.domain.result import Result
+from src.eval_workbench.domain.run import ScoredEvalRun
+from src.eval_workbench.services.runs import evaluate_run, find_existing_run, generate_run
 from src.eval_workbench.storage.kuzu_store import close_all, get_connection
-from src.eval_workbench.storage.repositories import EvalCaseRepository, EvalRunRepository, SnapshotRepository
+from src.eval_workbench.storage.repositories import (
+    EvalCaseRepository,
+    EvalRunRepository,
+    ScoredEvalRunRepository,
+    SnapshotRepository,
+)
 
 
 @pytest.fixture
@@ -110,3 +117,74 @@ def test_generate_run_force_reruns_and_upserts(repo_path):
     all_runs = EvalRunRepository(connection).get_all("EvalRun", "id", EvalRun)
     assert len(all_runs) == 1
     assert find_existing_run(connection, snapshot_id, case_id, "gemini-2.5-flash") is not None
+
+
+def test_evaluate_run_skips_when_scored_already_exists(repo_path):
+    snapshot_id, case_id = _seed_snapshot_and_case(repo_path)
+    connection = get_connection(repo_path)
+    run = EvalRun(
+        id="run1",
+        snapshot_id=snapshot_id,
+        case_id=case_id,
+        model_id="gemini-2.5-flash",
+        repetition_index=0,
+        trace=Trace(
+            id="run1",
+            parts=[MessagePart(role="user", kind="text", text="hi")],
+            snapshot_id=snapshot_id,
+            case_id=case_id,
+            model_id="gemini-2.5-flash",
+        ),
+    )
+    EvalRunRepository(connection).save(run)
+    ScoredEvalRunRepository(connection).save(
+        ScoredEvalRun(
+            id="scored_run1",
+            run_id="run1",
+            results=[Result(name="metric", type="bool", value=True, source="deterministic")],
+        )
+    )
+
+    with patch("src.eval_workbench.services.runs.score_trace") as score_trace:
+        first = evaluate_run(repo_path, "run1")
+        second = evaluate_run(repo_path, "run1")
+
+    assert first["id"] == "scored_run1"
+    assert second["id"] == "scored_run1"
+    score_trace.assert_not_called()
+
+
+def test_evaluate_run_force_rescores(repo_path):
+    snapshot_id, case_id = _seed_snapshot_and_case(repo_path)
+    connection = get_connection(repo_path)
+    run = EvalRun(
+        id="run1",
+        snapshot_id=snapshot_id,
+        case_id=case_id,
+        model_id="gemini-2.5-flash",
+        repetition_index=0,
+        trace=Trace(
+            id="run1",
+            parts=[MessagePart(role="user", kind="text", text="hi")],
+            snapshot_id=snapshot_id,
+            case_id=case_id,
+            model_id="gemini-2.5-flash",
+        ),
+    )
+    EvalRunRepository(connection).save(run)
+    ScoredEvalRunRepository(connection).save(
+        ScoredEvalRun(
+            id="scored_run1",
+            run_id="run1",
+            results=[Result(name="metric", type="bool", value=False, source="deterministic")],
+        )
+    )
+
+    with patch(
+        "src.eval_workbench.services.runs.score_trace",
+        return_value=[Result(name="metric", type="bool", value=True, source="deterministic")],
+    ) as score_trace:
+        updated = evaluate_run(repo_path, "run1", force=True)
+
+    assert updated["results"][0]["value"] is True
+    score_trace.assert_called_once()

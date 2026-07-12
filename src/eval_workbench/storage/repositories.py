@@ -121,8 +121,53 @@ class EvalCaseRepository(BaseRepository):
         for tag in case.tags:
             self.conn.execute("MERGE (t:Tag {id: $id}) ON CREATE SET t.name = $id, t.color = '#31C48D'", {"id": tag})
             self._create_edge("TAGGED", "EvalCase", "Tag", case.id, tag, from_pk="id", to_pk="id")
+
     def get(self, id: str) -> Optional[EvalCase]:
         return self._get_node("EvalCase", "id", id, EvalCase)
+
+    def list_by_logical_id(self, logical_id: str) -> List[EvalCase]:
+        query = "MATCH (c:EvalCase) WHERE c.logical_id = $logical_id RETURN c ORDER BY c.version"
+        result = self.conn.execute(query, {"logical_id": logical_id})
+        items: List[EvalCase] = []
+        while result.has_next():
+            items.append(self._parse_node_data(result.get_next()[0], EvalCase))
+        return items
+
+    def max_version(self, logical_id: str) -> int:
+        cases = self.list_by_logical_id(logical_id)
+        if not cases:
+            return 0
+        return max(c.version for c in cases)
+
+    def count_run_impact(self, case_id: str) -> dict:
+        run_query = """
+        MATCH (r:EvalRun)
+        WHERE r.case_id = $case_id
+        RETURN count(r) AS run_count, count(DISTINCT r.snapshot_id) AS snapshot_count
+        """
+        run_result = self.conn.execute(run_query, {"case_id": case_id})
+        run_count = 0
+        snapshot_count = 0
+        if run_result.has_next():
+            row = run_result.get_next()
+            run_count = int(row[0] or 0)
+            snapshot_count = int(row[1] or 0)
+
+        scored_query = """
+        MATCH (r:EvalRun)-[:SCORED_FROM]-(s:ScoredEvalRun)
+        WHERE r.case_id = $case_id
+        RETURN count(s)
+        """
+        scored_result = self.conn.execute(scored_query, {"case_id": case_id})
+        scored_count = 0
+        if scored_result.has_next():
+            scored_count = int(scored_result.get_next()[0] or 0)
+
+        return {
+            "run_count": run_count,
+            "snapshot_count": snapshot_count,
+            "scored_count": scored_count,
+        }
 
 from src.eval_workbench.domain.rubric import Rubric
 class RubricRepository(BaseRepository):
@@ -189,9 +234,63 @@ class EvalRunRepository(BaseRepository):
         self._create_edge("RUN_OF_SNAPSHOT", "EvalRun", "Snapshot", run.id, run.snapshot_id)
         if run.campaign_id:
             self._create_edge("IN_CAMPAIGN", "EvalRun", "EvalCampaign", run.id, run.campaign_id)
-            
+
     def get(self, id: str) -> Optional[EvalRun]:
         return self._get_node("EvalRun", "id", id, EvalRun)
+
+    def list_by_snapshot(self, snapshot_id: str) -> List[EvalRun]:
+        query = "MATCH (r:EvalRun) WHERE r.snapshot_id = $snapshot_id RETURN r"
+        result = self.conn.execute(query, {"snapshot_id": snapshot_id})
+        items: List[EvalRun] = []
+        while result.has_next():
+            items.append(self._parse_node_data(result.get_next()[0], EvalRun))
+        return items
+
+    def find_by_snapshot_case(
+        self,
+        snapshot_id: str,
+        case_id: str,
+        model_id: str,
+        repetition_index: int = 0,
+    ) -> Optional[EvalRun]:
+        query = """
+        MATCH (r:EvalRun)
+        WHERE r.snapshot_id = $snapshot_id
+          AND r.case_id = $case_id
+          AND r.model_id = $model_id
+          AND r.repetition_index = $repetition_index
+        RETURN r
+        LIMIT 1
+        """
+        result = self.conn.execute(
+            query,
+            {
+                "snapshot_id": snapshot_id,
+                "case_id": case_id,
+                "model_id": model_id,
+                "repetition_index": repetition_index,
+            },
+        )
+        if not result.has_next():
+            return None
+        return self._parse_node_data(result.get_next()[0], EvalRun)
+
+    def list_by_case(self, case_id: str) -> List[EvalRun]:
+        query = "MATCH (r:EvalRun) WHERE r.case_id = $case_id RETURN r"
+        result = self.conn.execute(query, {"case_id": case_id})
+        items: List[EvalRun] = []
+        while result.has_next():
+            items.append(self._parse_node_data(result.get_next()[0], EvalRun))
+        return items
+
+    def delete_runs_for_case(self, case_id: str) -> None:
+        runs = self.list_by_case(case_id)
+        scored_repo = ScoredEvalRunRepository(self.conn)
+        for run in runs:
+            scored_id = f"scored_{run.id}"
+            if scored_repo.get(scored_id):
+                scored_repo._delete_node("ScoredEvalRun", "id", scored_id)
+            self._delete_node("EvalRun", "id", run.id)
 
 class ScoredEvalRunRepository(BaseRepository):
     def save(self, run: ScoredEvalRun):

@@ -5,7 +5,29 @@ import sys
 
 import dotenv
 
-    
+
+def _log_ssl_env() -> None:
+    for name in ("SSL_CERT_FILE", "REQUESTS_CA_BUNDLE", "SSL_CERT_DIR", "CURL_CA_BUNDLE"):
+        value = os.environ.get(name)
+        print(f"{name}={value!r}", file=sys.stderr, flush=True)
+        if name in ("SSL_CERT_FILE", "REQUESTS_CA_BUNDLE") and value:
+            print(f"{name}_exists={os.path.isfile(value.strip())}", file=sys.stderr, flush=True)
+    print(f"PYTHONPATH={os.environ.get('PYTHONPATH')!r}", file=sys.stderr, flush=True)
+    print(
+        f"GEMINI_API_KEY={'set' if os.environ.get('GEMINI_API_KEY') else 'unset'}",
+        file=sys.stderr,
+        flush=True,
+    )
+
+
+def _normalize_ssl_env() -> None:
+    ca = os.environ.get("SSL_CERT_FILE") or os.environ.get("REQUESTS_CA_BUNDLE")
+    if not ca:
+        return
+    ca = ca.strip()
+    os.environ["SSL_CERT_FILE"] = ca
+    os.environ["REQUESTS_CA_BUNDLE"] = ca
+    os.environ.pop("SSL_CERT_DIR", None)
 
 
 def main() -> None:
@@ -26,6 +48,11 @@ def main() -> None:
     parser.add_argument("--model", default="gemini-2.5-flash", help="Model id for trace generation")
     parser.add_argument("--format", choices=["markdown", "csv"], default="markdown", help="Output format")
     parser.add_argument("--output", default=None, help="Write output to this file path instead of stdout")
+    parser.add_argument(
+        "--allow-db-wipe-for-tests",
+        action="store_true",
+        help="Enable POST /api/test/reset. Never use on a live database.",
+    )
     args = parser.parse_args()
 
     
@@ -37,7 +64,9 @@ def main() -> None:
 
     dotenv.load_dotenv()
 
-    
+    if args.mode != "mcp":
+        _normalize_ssl_env()
+        _log_ssl_env()
 
     if args.mode == "mcp":
         # Run MCP immediately to avoid print/logs that will pollute stdout.
@@ -81,6 +110,7 @@ def main() -> None:
 
     app = create_app(
         repo_path=repo_path,
+        allow_db_wipe=args.allow_db_wipe_for_tests,
     )
     app.run(host=args.host, port=args.port, debug=True, use_reloader=False)
 

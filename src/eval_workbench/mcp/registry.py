@@ -207,8 +207,8 @@ def build_registry(repo_path: str) -> dict[str, Callable[..., Any]]:
     def list_campaigns() -> list[dict]:
         return campaigns_service.list_campaigns(repo_path)
 
-    def get_campaign_matrix(campaign_id: str) -> dict:
-        return campaigns_service.get_matrix(repo_path, campaign_id)
+    def get_campaign_matrix(campaign_id: str, metric: str | None = None) -> dict:
+        return campaigns_service.get_matrix(repo_path, campaign_id, metric_name=metric)
 
     def list_tags() -> list[dict]:
         return registries_service.list_tags(repo_path)
@@ -280,8 +280,8 @@ def build_registry(repo_path: str) -> dict[str, Callable[..., Any]]:
             force=force,
         )
 
-    def evaluate_run(run_id: str) -> dict:
-        return runs_service.evaluate_run(repo_path, run_id)
+    def evaluate_run(run_id: str, force: bool = False) -> dict:
+        return runs_service.evaluate_run(repo_path, run_id, force=force)
 
     def create_campaign(data: dict) -> dict:
         return campaigns_service.create_campaign(repo_path, data)

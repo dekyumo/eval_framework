@@ -9,6 +9,9 @@ class ResponseMatrix(BaseModel):
     models: list[str]
     case_ids: list[str]
     cell: dict[str, float]
+    metric_name: str = ""
+    metric_type: str = "bool"
+    available_metrics: list[dict[str, str]] = []
     # derivations
     difficulty: dict[str, float] = {}
     ability: dict[str, float] = {}

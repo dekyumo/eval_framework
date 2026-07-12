@@ -5,7 +5,12 @@ from src.eval_workbench.services import human_eval as human_eval_service
 from src.eval_workbench.services import repo as repo_service
 
 
-def create_app(repo_path=None, log_raw_otel: bool = False, otel_trace_dump_path: str | None = None):
+def create_app(
+    repo_path=None,
+    log_raw_otel: bool = False,
+    otel_trace_dump_path: str | None = None,
+    allow_db_wipe: bool | None = None,
+):
     current_dir = os.path.dirname(os.path.abspath(__file__))
     static_root = os.path.abspath(os.path.join(current_dir, "static"))
     static_assets = os.path.join(static_root, "assets")
@@ -41,9 +46,20 @@ def create_app(repo_path=None, log_raw_otel: bool = False, otel_trace_dump_path:
     def health_check():
         return jsonify({"status": "ok"})
 
-    @app.route("/api/test/reset", methods=["POST"])
-    def test_reset():
-        return jsonify(repo_service.reset_database(app.config["REPO_PATH"]))
+    wipe_allowed = allow_db_wipe if allow_db_wipe is not None else repo_service.db_wipe_allowed()
+    if wipe_allowed:
+        @app.route("/api/test/reset", methods=["POST"])
+        def test_reset():
+            return jsonify(repo_service.reset_database(app.config["REPO_PATH"]))
+    else:
+        @app.route("/api/test/reset", methods=["POST"])
+        def test_reset_forbidden():
+            return jsonify({
+                "error": (
+                    "DB wipe is disabled. Pass --allow-db-wipe-for-tests to run_app.py "
+                    f"or set {repo_service.DB_WIPE_ENV_VAR}=1."
+                ),
+            }), 403
 
     @app.route("/api/human-eval", methods=["POST"])
     def create_human_eval():
