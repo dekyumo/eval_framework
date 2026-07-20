@@ -1,7 +1,8 @@
 import pytest
 from pydantic import ValidationError
 
-from src.eval_workbench.domain.case import EvalDataset
+from src.eval_workbench.domain.case import EvalCase, EvalDataset
+from src.eval_workbench.domain.trace import MessagePart
 from src.eval_workbench.services.cases import (
     create_case,
     deactivate_case,
@@ -29,45 +30,38 @@ def seeded_dataset(repo_path):
     return dataset
 
 
-def _base_case(case_id: str = "case_v1") -> dict:
-    return {
+def _base_case(case_id: str = "case_v1") -> EvalCase:
+    return EvalCase.model_validate({
         "id": case_id,
         "name": "Paris Budget",
         "dataset_id": "ds1",
-        "conversation": [{"role": "user", "kind": "text", "text": "hi"}],
+        "conversation": [MessagePart(role="user", kind="text", text="hi")],
         "distribution_position": "in",
         "problem_type": "happy",
-    }
+    })
 
 
 def test_create_case_sets_logical_id_and_version(repo_path, seeded_dataset):
     saved = create_case(repo_path, _base_case())
-    assert saved["logical_id"] == "paris_budget"
-    assert saved["version"] == 1
-    assert saved["active_for_eval"] is True
+    assert saved.logical_id == "paris_budget"
+    assert saved.version == 1
+    assert saved.active_for_eval is True
 
 
 def test_new_version_does_not_deactivate_old(repo_path, seeded_dataset):
     v1 = create_case(repo_path, _base_case("case_v1"))
-    v2 = create_case(
-        repo_path,
-        {**_base_case("case_v2"), "from_version_of": v1["id"]},
-    )
-    assert v2["logical_id"] == v1["logical_id"]
-    assert v2["version"] == 2
+    v2 = create_case(repo_path, _base_case("case_v2"), from_version_of=v1.id)
+    assert v2.logical_id == v1.logical_id
+    assert v2.version == 2
 
-    reloaded_v1 = get_case(repo_path, v1["id"])
-    assert reloaded_v1["active_for_eval"] is True
+    reloaded_v1 = get_case(repo_path, v1.id)
+    assert reloaded_v1.active_for_eval is True
 
 
 def test_update_without_runs(repo_path, seeded_dataset):
     saved = create_case(repo_path, _base_case())
-    updated = update_case(
-        repo_path,
-        saved["id"],
-        {**saved, "name": "Paris Budget Updated"},
-    )
-    assert updated["name"] == "Paris Budget Updated"
+    updated = update_case(repo_path, saved.model_copy(update={"name": "Paris Budget Updated"}))
+    assert updated.name == "Paris Budget Updated"
 
 
 def test_update_with_runs_requires_cascade(repo_path, seeded_dataset):
@@ -81,13 +75,13 @@ def test_update_with_runs_requires_cascade(repo_path, seeded_dataset):
         id="run_test_1",
         parts=[MessagePart(role="user", kind="text", text="hi")],
         snapshot_id="snap_missing",
-        case_id=saved["id"],
+        case_id=saved.id,
         model_id="gemini-2.5-flash",
     )
     run = EvalRun(
         id="run_test_1",
         snapshot_id="snap_missing",
-        case_id=saved["id"],
+        case_id=saved.id,
         model_id="gemini-2.5-flash",
         repetition_index=0,
         trace=trace,
@@ -95,16 +89,15 @@ def test_update_with_runs_requires_cascade(repo_path, seeded_dataset):
     EvalRunRepository(connection).save(run)
 
     with pytest.raises(ServiceError) as exc:
-        update_case(repo_path, saved["id"], {**saved, "name": "Changed"})
+        update_case(repo_path, saved.model_copy(update={"name": "Changed"}))
     assert exc.value.status_code == 409
 
     updated = update_case(
         repo_path,
-        saved["id"],
-        {**saved, "name": "Changed"},
+        saved.model_copy(update={"name": "Changed"}),
         cascade=True,
     )
-    assert updated["name"] == "Changed"
+    assert updated.name == "Changed"
 
 
 def test_cascade_update_invalid_payload_preserves_runs(repo_path, seeded_dataset):
@@ -118,13 +111,13 @@ def test_cascade_update_invalid_payload_preserves_runs(repo_path, seeded_dataset
         id="run_test_1",
         parts=[MessagePart(role="user", kind="text", text="hi")],
         snapshot_id="snap_missing",
-        case_id=saved["id"],
+        case_id=saved.id,
         model_id="gemini-2.5-flash",
     )
     run = EvalRun(
         id="run_test_1",
         snapshot_id="snap_missing",
-        case_id=saved["id"],
+        case_id=saved.id,
         model_id="gemini-2.5-flash",
         repetition_index=0,
         trace=trace,
@@ -134,21 +127,20 @@ def test_cascade_update_invalid_payload_preserves_runs(repo_path, seeded_dataset
     with pytest.raises(ValidationError):
         update_case(
             repo_path,
-            saved["id"],
-            {**saved, "version": "not-a-version"},
+            saved.model_copy(update={"version": "not-a-version"}),
             cascade=True,
         )
 
-    assert len(EvalRunRepository(connection).list_by_case(saved["id"])) == 1
-    assert get_case(repo_path, saved["id"])["name"] == saved["name"]
+    assert len(EvalRunRepository(connection).list_by_case(saved.id)) == 1
+    assert get_case(repo_path, saved.id).name == saved.name
 
 
 def test_deactivate_and_active_only_list(repo_path, seeded_dataset):
     saved = create_case(repo_path, _base_case())
-    deactivate_case(repo_path, saved["id"])
+    deactivate_case(repo_path, saved.id)
 
-    inactive = get_case(repo_path, saved["id"])
-    assert inactive["active_for_eval"] is False
+    inactive = get_case(repo_path, saved.id)
+    assert inactive.active_for_eval is False
 
     all_cases = list_cases(repo_path)
     active_cases = list_cases(repo_path, active_only=True)

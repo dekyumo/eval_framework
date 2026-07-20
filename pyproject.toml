@@ -13,14 +13,12 @@ dependencies = [
     "pydantic>=2.0",
     "kuzu",
     "google-adk",
-    "litellm",
     "mcp>=1.27,<2",
     "scikit-learn",
     "numpy",
-    "scipy",
-    "sentence-transformers",
     "opentelemetry-proto",
     "libcst",
+    "python-dotenv",
 ]
 
 [project.scripts]
@@ -30,5 +28,12 @@ eval-workbench-mcp = "src.eval_workbench.mcp.server:main"
 dev = [
     "pytest",
     "black",
-    "mypy"
+    "mypy",
 ]
+ragas = [
+    "sentence-transformers",
+    "litellm",
+]
+
+[tool.hatch.build.targets.wheel]
+only-include = ["src/__init__.py", "src/eval_workbench"]

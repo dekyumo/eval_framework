@@ -1,323 +1,229 @@
-"""Shared tool registry.
-
-The registry wraps the service layer as plain, name-addressable callables. Both
-the stdio MCP server and the in-framework blueprint runner resolve tools through
-here, so the "tools by name" contract is identical inside and outside the
-framework.
-"""
+"""MCP tool registry over the eval workbench HTTP API."""
 
 from __future__ import annotations
 
-import json
 from collections.abc import Callable
 from typing import Any
 
-from src.eval_workbench.analysis.comparison import SemanticDiff, compare_manifests
-from src.eval_workbench.domain.blueprint import BlueprintPreset
-from src.eval_workbench.domain.manifest import AgentManifest
-from src.eval_workbench.services import agents as agents_service
-from src.eval_workbench.services import benchmark as benchmark_service
-from src.eval_workbench.services import campaigns as campaigns_service
-from src.eval_workbench.services import cases as cases_service
-from src.eval_workbench.services import governance as governance_service
-from src.eval_workbench.services import registries as registries_service
-from src.eval_workbench.services import runs as runs_service
+from src.eval_workbench.agents.case_writer.agent import GeneratedCaseDraft, GeneratedConversationTurn
+from src.eval_workbench.analysis.comparison import CompareSnapshotsResult
+from src.eval_workbench.analysis.response_matrix import ResponseMatrix
+from src.eval_workbench.domain.blueprint import AgentBlueprint, BlueprintRunResult
+from src.eval_workbench.domain.case import EvalCase, EvalDataset
+from src.eval_workbench.domain.campaign import EvalCampaign
+from src.eval_workbench.domain.extractor import Extractor
+from src.eval_workbench.domain.governance import GovernanceProfile, GovernanceView
+from src.eval_workbench.domain.gym import Gym
+from src.eval_workbench.domain.rubric import Rubric
+from src.eval_workbench.domain.run import EvalRun, ScoredEvalRun
+from src.eval_workbench.domain.snapshot import AgentSnapshot
+from src.eval_workbench.domain.tag import Tag
+from src.eval_workbench.mcp.api_client import ApiClient
+from src.eval_workbench.mcp.tool_defs import TOOL_NAMES, _named
 from src.eval_workbench.services.errors import ServiceError
 
-TOOL_NAMES: list[str] = [
-    # read
-    "list_snapshots",
-    "get_snapshot",
-    "list_cases",
-    "get_case",
-    "list_runs",
-    "list_scored_runs",
-    "list_campaigns",
-    "get_campaign_matrix",
-    "list_tags",
-    "list_datasets",
-    "list_rubrics",
-    "list_extractors",
-    "list_gyms",
-    "compare_snapshots",
-    "get_governance",
-    # write / expensive
-    "scan_agent",
-    "create_case",
-    "generate_case",
-    "generate_run",
-    "evaluate_run",
-    "create_campaign",
-    "create_tag",
-    "create_dataset",
-    "create_rubric",
-    "create_extractor",
-    "create_gym",
-    "update_governance",
-    "run_report",
-    "run_blueprint",
-]
-
-PRESET_TOOLS: dict[BlueprintPreset, list[str]] = {
-    BlueprintPreset.scanner: ["scan_agent", "get_snapshot", "list_snapshots"],
-    BlueprintPreset.registry_explorer: [
-        "list_tags",
-        "list_datasets",
-        "list_rubrics",
-        "list_extractors",
-        "list_gyms",
-    ],
-    BlueprintPreset.registry_updater: [
-        "create_tag",
-        "create_dataset",
-        "create_rubric",
-        "create_extractor",
-        "create_gym",
-        "list_tags",
-        "list_datasets",
-        "list_rubrics",
-        "list_extractors",
-        "list_gyms",
-    ],
-    BlueprintPreset.case_maker: [
-        "generate_case",
-        "create_case",
-        "list_cases",
-        "get_snapshot",
-        "list_tags",
-    ],
-    BlueprintPreset.case_runner: [
-        "generate_run",
-        "list_runs",
-        "get_case",
-        "list_snapshots",
-    ],
-    BlueprintPreset.case_eval_runner: [
-        "evaluate_run",
-        "list_scored_runs",
-        "list_runs",
-    ],
-    BlueprintPreset.campaign_runner: [
-        "create_campaign",
-        "get_campaign_matrix",
-        "list_campaigns",
-        "list_datasets",
-    ],
-    BlueprintPreset.data_writer: [
-        "run_report",
-        "get_snapshot",
-        "list_scored_runs",
-    ],
-}
-
-PRESET_INSTRUCTIONS: dict[BlueprintPreset, str] = {
-    BlueprintPreset.scanner: (
-        "You are a Scanner agent. Scan an agent at a given commit and confirm the "
-        "snapshot is stored. Do scan_agent, get_snapshot, and list_snapshots until "
-        "the new snapshot exists and looks correct. "
-        "Example: scan_agent → get_snapshot → list_snapshots."
-    ),
-    BlueprintPreset.registry_explorer: (
-        "You are a RegistryExplorer. Inventory tags, datasets, rubrics, extractors, "
-        "and gyms. Call list_tags, list_datasets, list_rubrics, list_extractors, and "
-        "list_gyms until you have a complete picture of registry objects. "
-        "Example: list_tags → list_datasets → list_rubrics → list_extractors → list_gyms."
-    ),
-    BlueprintPreset.registry_updater: (
-        "You are a RegistryUpdater. Create or verify registry objects (tags, datasets, "
-        "rubrics, extractors, gyms). Use create_* tools, then list_* tools to confirm. "
-        "Repeat until requested registry entries exist. "
-        "Example: create_gym → list_gyms → create_dataset → list_datasets."
-    ),
-    BlueprintPreset.case_maker: (
-        "You are a CaseMaker. Draft and persist eval cases for a snapshot. Use "
-        "generate_case and create_case, then list_cases and get_snapshot to verify. "
-        "Repeat until the case set matches the specification. "
-        "Example: get_snapshot → generate_case → create_case → list_cases."
-    ),
-    BlueprintPreset.case_runner: (
-        "You are a CaseRunner. Execute eval cases against snapshots. Use generate_run "
-        "and list_runs, consulting get_case and list_snapshots as needed, until runs "
-        "exist for the target cases. "
-        "Example: get_case → generate_run → list_runs."
-    ),
-    BlueprintPreset.case_eval_runner: (
-        "You are a CaseEvalRunner. Score existing runs. Call evaluate_run, then "
-        "list_scored_runs and list_runs until every target run is scored. "
-        "Example: list_runs → evaluate_run → list_scored_runs."
-    ),
-    BlueprintPreset.campaign_runner: (
-        "You are a CampaignRunner. Create campaigns and inspect their matrices. Use "
-        "create_campaign, get_campaign_matrix, list_campaigns, and list_datasets until "
-        "the campaign is created and results are available. "
-        "Example: list_datasets → create_campaign → get_campaign_matrix."
-    ),
-    BlueprintPreset.data_writer: (
-        "You are a DataWriter. Produce evaluation reports and cross-check snapshot "
-        "data. Use run_report, get_snapshot, and list_scored_runs until the report "
-        "is written and scored runs are accounted for. "
-        "Example: list_scored_runs → run_report → get_snapshot."
-    ),
-}
+from src.eval_workbench.mcp.tool_defs import (  # noqa: F401
+    PRESET_INSTRUCTIONS,
+    PRESET_TOOLS,
+)
 
 
-def _summarize_diff(diff: SemanticDiff) -> str:
-    parts: list[str] = []
-    if diff.added_tools:
-        parts.append(f"added tools: {', '.join(diff.added_tools)}")
-    if diff.removed_tools:
-        parts.append(f"removed tools: {', '.join(diff.removed_tools)}")
-    if diff.changed_tools:
-        parts.append(f"changed tools: {', '.join(diff.changed_tools)}")
-    if diff.added_prompts:
-        parts.append(f"added prompts: {', '.join(diff.added_prompts)}")
-    if diff.removed_prompts:
-        parts.append(f"removed prompts: {', '.join(diff.removed_prompts)}")
-    if diff.changed_prompts:
-        parts.append(f"changed prompts: {', '.join(diff.changed_prompts)}")
-    return "; ".join(parts) if parts else "No manifest changes detected"
+def _draft_from_api(raw: dict) -> GeneratedCaseDraft:
+    turns = [
+        GeneratedConversationTurn(role=turn["role"], text=turn.get("text", ""))
+        for turn in raw.get("conversation", [])
+    ]
+    return GeneratedCaseDraft(
+        name=raw.get("name", ""),
+        conversation=turns,
+        distribution_position=raw.get("distribution_position", "in"),
+        problem_type=raw.get("problem_type", "happy"),
+        split=raw.get("split", "test"),
+        tool_fault=raw.get("tool_fault"),
+    )
 
 
-def _named(name: str, fn: Callable[..., Any]) -> Callable[..., Any]:
-    fn.__name__ = name
-    if not fn.__doc__:
-        fn.__doc__ = f"Eval workbench tool: {name}"
-    return fn
+def _rubric_from_api(raw: dict) -> Rubric:
+    payload = dict(raw)
+    for item in payload.get("items", []):
+        if item.get("description") and not item.get("prompt"):
+            item["prompt"] = item["description"]
+    return Rubric.model_validate(payload)
 
 
-def build_registry(repo_path: str) -> dict[str, Callable[..., Any]]:
-    """Return {tool_name: callable} with `repo_path` bound where the underlying
-    service requires it. Callables take plain JSON-serialisable args/returns so
-    they work as both ADK FunctionTools and MCP tools.
-    """
+def build_registry(api_url: str) -> dict[str, Callable[..., Any]]:
+    """Return MCP tools that proxy to a running eval workbench HTTP API."""
+    client = ApiClient(api_url)
 
-    def list_snapshots() -> list[dict]:
-        return agents_service.list_snapshots(repo_path)
+    def list_snapshots() -> list[AgentSnapshot]:
+        """List all agent snapshots stored for the target repository."""
+        return [AgentSnapshot.model_validate(x) for x in client.get("/api/agents/snapshots")]
 
-    def get_snapshot(snapshot_id: str) -> dict | None:
-        return agents_service.get_snapshot(repo_path, snapshot_id)
+    def get_snapshot(snapshot_id: str) -> AgentSnapshot | None:
+        """Fetch one snapshot by id, or None if it does not exist."""
+        try:
+            raw = client.get(f"/api/agents/snapshots/{snapshot_id}")
+            return AgentSnapshot.model_validate(raw) if raw else None
+        except ServiceError as exc:
+            if exc.status_code == 404:
+                return None
+            raise
 
-    def list_cases() -> list[dict]:
-        return cases_service.list_cases(repo_path)
+    def list_cases() -> list[EvalCase]:
+        """List all eval cases in the registry."""
+        return [EvalCase.model_validate(x) for x in client.get("/api/cases/")]
 
-    def get_case(case_id: str) -> dict | None:
-        return cases_service.get_case(repo_path, case_id)
+    def get_case(case_id: str) -> EvalCase | None:
+        """Fetch one eval case by id, or None if it does not exist."""
+        try:
+            raw = client.get(f"/api/cases/{case_id}")
+            return EvalCase.model_validate(raw) if raw else None
+        except ServiceError as exc:
+            if exc.status_code == 404:
+                return None
+            raise
 
-    def list_runs() -> list[dict]:
-        return runs_service.list_runs(repo_path)
+    def list_runs() -> list[EvalRun]:
+        """List all generated eval runs."""
+        return [EvalRun.model_validate(x) for x in client.get("/api/runs/")]
 
-    def list_scored_runs() -> list[dict]:
-        return runs_service.list_scored_runs(repo_path)
+    def list_scored_runs() -> list[ScoredEvalRun]:
+        """List all scored eval runs."""
+        return [ScoredEvalRun.model_validate(x) for x in client.get("/api/runs/scored")]
 
-    def list_campaigns() -> list[dict]:
-        return campaigns_service.list_campaigns(repo_path)
+    def list_campaigns() -> list[EvalCampaign]:
+        """List all eval campaigns."""
+        return [EvalCampaign.model_validate(x) for x in client.get("/api/campaigns/")]
 
-    def get_campaign_matrix(campaign_id: str, metric: str | None = None) -> dict:
-        return campaigns_service.get_matrix(repo_path, campaign_id, metric_name=metric)
+    def get_campaign_matrix(campaign_id: str, metric: str | None = None) -> ResponseMatrix:
+        """Return the response matrix for a campaign, optionally filtered by metric."""
+        params = {"metric": metric} if metric else None
+        raw = client.get(f"/api/campaigns/{campaign_id}/matrix", params=params)
+        return ResponseMatrix.model_validate(raw)
 
-    def list_tags() -> list[dict]:
-        return registries_service.list_tags(repo_path)
+    def list_tags() -> list[Tag]:
+        """List all registry tags."""
+        return [Tag.model_validate(x) for x in client.get("/api/registries/tags")]
 
-    def list_datasets() -> list[dict]:
-        return registries_service.list_datasets(repo_path)
+    def list_datasets() -> list[EvalDataset]:
+        """List all eval datasets."""
+        return [EvalDataset.model_validate(x) for x in client.get("/api/registries/datasets")]
 
-    def list_rubrics() -> list[dict]:
-        return registries_service.list_rubrics(repo_path)
+    def list_rubrics() -> list[Rubric]:
+        """List all scoring rubrics."""
+        return [_rubric_from_api(x) for x in client.get("/api/registries/rubrics")]
 
-    def list_extractors() -> list[dict]:
-        return registries_service.list_extractors(repo_path)
+    def list_extractors() -> list[Extractor]:
+        """List all trace extractors."""
+        return [Extractor.model_validate(x) for x in client.get("/api/registries/extractors")]
 
-    def list_gyms() -> list[dict]:
-        """List registered gym environments for agentic-user simulations."""
-        return registries_service.list_gyms(repo_path)
+    def list_gyms() -> list[Gym]:
+        """List gym environments for agentic-user simulations."""
+        return [Gym.model_validate(x) for x in client.get("/api/registries/gyms")]
 
-    def compare_snapshots(snapshot_a: str, snapshot_b: str) -> dict:
-        left = agents_service.get_snapshot(repo_path, snapshot_a)
-        right = agents_service.get_snapshot(repo_path, snapshot_b)
-        if not left or not right:
-            raise ServiceError("Snapshot not found", 404)
-
-        manifest_a = AgentManifest.model_validate(left.get("manifest") or {})
-        manifest_b = AgentManifest.model_validate(right.get("manifest") or {})
-        diff = compare_manifests(manifest_a, manifest_b)
-        changes = {
-            "tools": {
-                "added": diff.added_tools,
-                "removed": diff.removed_tools,
-                "changed": diff.changed_tools,
-            },
-            "prompts": {
-                "added": diff.added_prompts,
-                "removed": diff.removed_prompts,
-                "changed": diff.changed_prompts,
-            },
-        }
-        return {
-            "diff": diff.model_dump(),
-            "changes": changes,
-            "summary": _summarize_diff(diff),
-        }
-
-    def get_governance(snapshot_id: str) -> dict:
-        return governance_service.get_governance(repo_path, snapshot_id)
-
-    def scan_agent(agent_path: str, commit: str, name: str | None = None) -> dict:
-        agent_name = name or agent_path.split(":")[-1]
-        return agents_service.scan(
-            repo_path,
-            {"agent_path": agent_path, "name": agent_name},
-            commit,
+    def compare_snapshots(snapshot_a: str, snapshot_b: str) -> CompareSnapshotsResult:
+        """Semantic diff between two agent snapshots."""
+        raw = client.post(
+            "/api/agents/compare",
+            body={"snapshot_a": snapshot_a, "snapshot_b": snapshot_b},
         )
+        return CompareSnapshotsResult.model_validate(raw)
 
-    def create_case(data: dict, dataset_id: str | None = None) -> dict:
-        return cases_service.create_case(repo_path, data, dataset_id=dataset_id)
+    def get_governance(snapshot_id: str) -> GovernanceView:
+        """Read the NIST AI RMF governance profile for a snapshot."""
+        raw = client.get(f"/api/governance/{snapshot_id}")
+        return GovernanceView.model_validate(raw)
 
-    def generate_case(snapshot_id: str, specification: str) -> dict:
-        return cases_service.generate_case(repo_path, snapshot_id, specification)
+    def scan_agent(agent_path: str, commit: str, name: str | None = None) -> AgentSnapshot:
+        """Scan an ADK agent at a git commit and persist a snapshot."""
+        agent_name = name or agent_path.split(":")[-1]
+        raw = client.post(
+            "/api/agents/scan",
+            body={
+                "agent_target": {"agent_path": agent_path, "name": agent_name},
+                "commit": commit,
+            },
+        )
+        return AgentSnapshot.model_validate(raw)
+
+    def create_case(case: EvalCase, *, from_version_of: str | None = None) -> EvalCase:
+        """Persist a new eval case."""
+        body = case.model_dump()
+        if from_version_of:
+            body["from_version_of"] = from_version_of
+        raw = client.post("/api/cases/", body=body)
+        return EvalCase.model_validate(raw)
+
+    def generate_case(snapshot_id: str, specification: str) -> GeneratedCaseDraft:
+        """Draft an eval case from a natural-language specification."""
+        raw = client.post(
+            "/api/cases/generate",
+            body={"snapshot_id": snapshot_id, "specification": specification},
+        )
+        return _draft_from_api(raw)
 
     def generate_run(
         snapshot_id: str,
         case_id: str,
         model_id: str,
         force: bool = False,
-    ) -> dict:
-        return runs_service.generate_run(
-            repo_path,
-            snapshot_id,
-            case_id,
-            model_id,
-            force=force,
+    ) -> EvalRun:
+        """Execute one eval case against a snapshot and store the trace."""
+        raw = client.post(
+            "/api/runs/generate",
+            body={
+                "snapshot_id": snapshot_id,
+                "case_id": case_id,
+                "model_id": model_id,
+                "force": force,
+            },
         )
+        return EvalRun.model_validate(raw)
 
-    def evaluate_run(run_id: str, force: bool = False) -> dict:
-        return runs_service.evaluate_run(repo_path, run_id, force=force)
+    def evaluate_run(run_id: str, force: bool = False) -> ScoredEvalRun:
+        """Score an existing run with its case rubrics and extractors."""
+        raw = client.post(
+            "/api/runs/evaluate",
+            body={"run_id": run_id, "force": force},
+        )
+        return ScoredEvalRun.model_validate(raw)
 
-    def create_campaign(data: dict) -> dict:
-        return campaigns_service.create_campaign(repo_path, data)
+    def create_campaign(campaign: EvalCampaign) -> EvalCampaign:
+        """Create a campaign and run all dataset cases across a model panel."""
+        raw = client.post("/api/campaigns/", body=campaign.model_dump())
+        return EvalCampaign.model_validate(raw)
 
-    def create_tag(data: dict) -> dict:
-        return registries_service.create_tag(repo_path, data)
+    def create_tag(tag: Tag) -> Tag:
+        """Create a registry tag."""
+        raw = client.post("/api/registries/tags", body=tag.model_dump())
+        return Tag.model_validate(raw)
 
-    def create_dataset(data: dict) -> dict:
-        return registries_service.create_dataset(repo_path, data)
+    def create_dataset(dataset: EvalDataset) -> EvalDataset:
+        """Create an eval dataset."""
+        raw = client.post("/api/registries/datasets", body=dataset.model_dump())
+        return EvalDataset.model_validate(raw)
 
-    def create_rubric(data: dict) -> dict:
-        return registries_service.create_rubric(repo_path, data)
+    def create_rubric(rubric: Rubric) -> Rubric:
+        """Create a scoring rubric."""
+        raw = client.post("/api/registries/rubrics", body=rubric.model_dump())
+        return _rubric_from_api(raw)
 
-    def create_extractor(data: dict) -> dict:
-        return registries_service.create_extractor(repo_path, data)
+    def create_extractor(extractor: Extractor, python_code: str) -> Extractor:
+        """Create a trace extractor."""
+        body = extractor.model_dump()
+        body["python_code"] = python_code
+        raw = client.post("/api/registries/extractors", body=body)
+        return Extractor.model_validate(raw)
 
-    def create_gym(data: dict) -> dict:
-        """Register a gym class for agentic-user eval cases.
+    def create_gym(gym: Gym) -> Gym:
+        """Register a gym class for agentic-user eval cases."""
+        raw = client.post("/api/registries/gyms", body=gym.model_dump())
+        return Gym.model_validate(raw)
 
-        ``data`` must include ``class_path`` (e.g. ``gym.ticket_triage_gym.TicketTriageGym``)
-        and ``name``; ``id`` is optional (derived from name). Agentic cases reference
-        the gym via ``agentic_user.gym_ref``.
-        """
-        return registries_service.create_gym(repo_path, data)
-
-    def update_governance(snapshot_id: str, data: dict) -> dict:
-        return governance_service.update_governance(repo_path, snapshot_id, data)
+    def update_governance(snapshot_id: str, profile: GovernanceProfile) -> GovernanceView:
+        """Update the governance profile on a snapshot."""
+        raw = client.post(f"/api/governance/{snapshot_id}", body=profile.model_dump())
+        return GovernanceView.model_validate(raw)
 
     def run_report(
         agent_path: str,
@@ -328,21 +234,25 @@ def build_registry(repo_path: str) -> dict[str, Callable[..., Any]]:
         output_format: str = "markdown",
         output_path: str | None = None,
     ) -> str:
-        return benchmark_service.run_headless_benchmark(
-            repo_path,
-            agent_path,
-            commit,
-            dataset_name,
-            tags=tags,
-            model_id=model_id,
-            output_format=output_format,
-            output_path=output_path,
+        """Run a headless benchmark report for a dataset and return the report text."""
+        payload = client.post(
+            "/api/benchmark/report",
+            body={
+                "agent_path": agent_path,
+                "commit": commit,
+                "dataset_name": dataset_name,
+                "tags": tags,
+                "model_id": model_id,
+                "output_format": output_format,
+                "output_path": output_path,
+            },
         )
+        return payload["report"]
 
-    def run_blueprint(blueprint: dict) -> dict:
-        from src.eval_workbench.services import blueprints as blueprints_service
-
-        return blueprints_service.run_blueprint(repo_path, blueprint)
+    def run_blueprint(blueprint: AgentBlueprint) -> BlueprintRunResult:
+        """Run an in-framework ADK blueprint agent to completion."""
+        raw = client.post("/api/blueprints/run", body=blueprint.model_dump())
+        return BlueprintRunResult.model_validate(raw)
 
     tools: dict[str, Callable[..., Any]] = {
         "list_snapshots": list_snapshots,
@@ -376,17 +286,6 @@ def build_registry(repo_path: str) -> dict[str, Callable[..., Any]]:
         "run_blueprint": run_blueprint,
     }
     return {name: _named(name, fn) for name, fn in tools.items()}
-
-
-def resolve_tools(repo_path: str, names: list[str]) -> list[Callable[..., Any]]:
-    """Resolve tool names to callables. Raises ServiceError(400) on unknown name."""
-    registry = build_registry(repo_path)
-    resolved: list[Callable[..., Any]] = []
-    for name in names:
-        if name not in registry:
-            raise ServiceError(f"Unknown tool: {name}", 400)
-        resolved.append(registry[name])
-    return resolved
 
 
 def list_tool_names() -> list[str]:

@@ -28,6 +28,7 @@ def create_app(
     from src.eval_workbench.web.routes.registries import registries_bp
     from src.eval_workbench.web.routes.governance import governance_bp
     from src.eval_workbench.web.routes.blueprints import blueprints_bp
+    from src.eval_workbench.web.routes.benchmark import benchmark_bp
 
     app.register_blueprint(agents_bp, url_prefix="/api/agents")
     app.register_blueprint(cases_bp, url_prefix="/api/cases")
@@ -36,6 +37,7 @@ def create_app(
     app.register_blueprint(registries_bp, url_prefix="/api/registries")
     app.register_blueprint(governance_bp, url_prefix="/api/governance")
     app.register_blueprint(blueprints_bp, url_prefix="/api/blueprints")
+    app.register_blueprint(benchmark_bp, url_prefix="/api/benchmark")
 
     if log_raw_otel:
         from src.eval_workbench.web.routes.otel import otel_bp

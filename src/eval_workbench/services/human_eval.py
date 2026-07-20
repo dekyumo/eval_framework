@@ -3,7 +3,7 @@ from src.eval_workbench.services._conn import conn
 from src.eval_workbench.storage.repositories import HumanEvalRepository
 
 
-def create_human_eval(repo_path: str, data: dict) -> dict:
+def create_human_eval(repo_path: str, data: dict):
     raw_results = data.get("results") or {}
     results_list = []
     if isinstance(raw_results, dict):

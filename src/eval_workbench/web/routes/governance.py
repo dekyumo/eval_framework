@@ -1,5 +1,8 @@
 from flask import Blueprint, jsonify, request, current_app
 
+from pydantic import ValidationError
+
+from src.eval_workbench.domain.governance import GovernanceProfile
 from src.eval_workbench.services import governance as governance_service
 from src.eval_workbench.services.errors import ServiceError
 
@@ -9,7 +12,8 @@ governance_bp = Blueprint("governance", __name__)
 @governance_bp.route("/<snapshot_id>", methods=["GET"])
 def get_governance(snapshot_id):
     try:
-        return jsonify(governance_service.get_governance(current_app.config["REPO_PATH"], snapshot_id))
+        view = governance_service.get_governance(current_app.config["REPO_PATH"], snapshot_id)
+        return jsonify(view.model_dump())
     except ServiceError as exc:
         return jsonify({"error": exc.message}), exc.status_code
 
@@ -17,10 +21,12 @@ def get_governance(snapshot_id):
 @governance_bp.route("/<snapshot_id>", methods=["POST"])
 def update_governance(snapshot_id):
     try:
-        return jsonify(
-            governance_service.update_governance(
-                current_app.config["REPO_PATH"], snapshot_id, request.json or {}
-            )
+        profile = GovernanceProfile.model_validate(request.json or {})
+        view = governance_service.update_governance(
+            current_app.config["REPO_PATH"], snapshot_id, profile
         )
+        return jsonify(view.model_dump())
+    except ValidationError as exc:
+        return jsonify({"error": str(exc)}), 400
     except ServiceError as exc:
         return jsonify({"error": exc.message}), exc.status_code

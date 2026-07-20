@@ -4,7 +4,8 @@ import asyncio
 import pytest
 
 from src.eval_workbench.domain.blueprint import AgentBlueprint, BlueprintPreset, BlueprintRunResult, ToolCall
-from src.eval_workbench.mcp.registry import TOOL_NAMES, build_registry, resolve_tools
+from src.eval_workbench.mcp.tool_defs import TOOL_NAMES
+from src.eval_workbench.mcp.registry_internal import build_internal_registry, resolve_tools
 from src.eval_workbench.services import blueprints as blueprints_service
 from src.eval_workbench.services.errors import ServiceError
 
@@ -12,19 +13,19 @@ from src.eval_workbench.services.errors import ServiceError
 def test_list_presets_returns_all_building_blocks():
     presets = blueprints_service.list_presets()
     assert len(presets) == len(BlueprintPreset)
-    names = {item["preset"] for item in presets}
+    names = {item.preset for item in presets}
     assert names == {preset.value for preset in BlueprintPreset}
     for item in presets:
-        assert item["instruction"]
-        assert isinstance(item["tools"], list)
-        assert item["tools"]
+        assert item.instruction
+        assert isinstance(item.tools, list)
+        assert item.tools
 
 
 def test_preset_blueprint_scanner():
     blueprint = blueprints_service.preset_blueprint("Scanner")
-    assert blueprint["agent_name"] == "Scanner"
-    assert blueprint["tools"] == ["scan_agent", "get_snapshot", "list_snapshots"]
-    assert blueprint["instruction"]
+    assert blueprint.agent_name == "Scanner"
+    assert blueprint.tools == ["scan_agent", "get_snapshot", "list_snapshots"]
+    assert blueprint.instruction
 
 
 def test_preset_blueprint_unknown_raises():
@@ -37,23 +38,24 @@ def test_run_blueprint_unknown_tool_raises(tmp_path):
     with pytest.raises(ServiceError) as exc:
         blueprints_service.run_blueprint(
             str(tmp_path),
-            {
-                "agent_name": "test",
-                "instruction": "do things",
-                "tools": ["no_such_tool"],
-            },
+            AgentBlueprint(
+                agent_name="test",
+                instruction="do things",
+                tools=["no_such_tool"],
+            ),
         )
     assert exc.value.status_code == 400
     assert "Unknown tool" in exc.value.message
 
 
 def test_run_blueprint_with_stubbed_runner(tmp_path):
+    blueprint = AgentBlueprint(
+        agent_name="reader",
+        instruction="List tags.",
+        tools=["list_tags"],
+    )
     expected = BlueprintRunResult(
-        blueprint=AgentBlueprint(
-            agent_name="reader",
-            instruction="List tags.",
-            tools=["list_tags"],
-        ),
+        blueprint=blueprint,
         final_output="Done listing tags.",
         transcript=[
             {"role": "assistant", "text": "Called list_tags({})"},
@@ -76,21 +78,14 @@ def test_run_blueprint_with_stubbed_runner(tmp_path):
             return_value=expected,
         ) as run_async,
     ):
-        result = blueprints_service.run_blueprint(
-            str(tmp_path),
-            {
-                "agent_name": "reader",
-                "instruction": "List tags.",
-                "tools": ["list_tags"],
-            },
-        )
+        result = blueprints_service.run_blueprint(str(tmp_path), blueprint)
 
     run_async.assert_awaited_once()
-    assert result["final_output"] == "Done listing tags."
-    assert result["transcript"]
-    assert result["tool_calls"]
-    assert result["tool_calls"][0]["name"] == "list_tags"
-    assert result["tool_calls"][0]["result"]
+    assert result.final_output == "Done listing tags."
+    assert result.transcript
+    assert result.tool_calls
+    assert result.tool_calls[0].name == "list_tags"
+    assert result.tool_calls[0].result
 
 
 def test_tool_calls_from_trace_pairs_repeated_tools_in_order():
@@ -109,18 +104,19 @@ def test_tool_calls_from_trace_pairs_repeated_tools_in_order():
 
 
 def test_run_blueprint_from_running_event_loop(tmp_path):
+    blueprint = AgentBlueprint(
+        agent_name="reader",
+        instruction="List tags.",
+        tools=["list_tags"],
+    )
     expected = BlueprintRunResult(
-        blueprint=AgentBlueprint(
-            agent_name="reader",
-            instruction="List tags.",
-            tools=["list_tags"],
-        ),
+        blueprint=blueprint,
         final_output="Done.",
         transcript=[],
         tool_calls=[],
     )
 
-    async def invoke_from_loop() -> dict:
+    async def invoke_from_loop() -> BlueprintRunResult:
         with patch(
             "src.eval_workbench.services.blueprints.resolve_tools",
             return_value=[lambda: []],
@@ -128,14 +124,7 @@ def test_run_blueprint_from_running_event_loop(tmp_path):
             "src.eval_workbench.services.blueprints._run_blueprint_async",
             return_value=expected,
         ):
-            return blueprints_service.run_blueprint(
-                str(tmp_path),
-                {
-                    "agent_name": "reader",
-                    "instruction": "List tags.",
-                    "tools": ["list_tags"],
-                },
-            )
+            return blueprints_service.run_blueprint(str(tmp_path), blueprint)
 
     result = asyncio.run(invoke_from_loop())
-    assert result["final_output"] == "Done."
+    assert result.final_output == "Done."

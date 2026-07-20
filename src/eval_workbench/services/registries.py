@@ -16,98 +16,71 @@ from src.eval_workbench.storage.repositories import (
 )
 
 
-def list_tags(repo_path: str) -> list[dict]:
+def list_tags(repo_path: str) -> list[Tag]:
+    """List all registry tags."""
     items = TagRepository(conn(repo_path)).get_all("Tag", "id", Tag)
-    return [item.model_dump() for item in items]
+    return items
 
 
-def list_datasets(repo_path: str) -> list[dict]:
+def list_datasets(repo_path: str) -> list[EvalDataset]:
+    """List all eval datasets."""
     items = EvalDatasetRepository(conn(repo_path)).get_all("EvalDataset", "id", EvalDataset)
-    return [item.model_dump() for item in items]
+    return items
 
 
-def _rubric_to_api(rubric: Rubric) -> dict:
-    data = rubric.model_dump()
-    for item in data.get("items", []):
-        item["description"] = item.get("prompt", "")
-    return data
-
-
-def list_rubrics(repo_path: str) -> list[dict]:
+def list_rubrics(repo_path: str) -> list[Rubric]:
+    """List all scoring rubrics."""
     items = RubricRepository(conn(repo_path)).get_all("Rubric", "id", Rubric)
-    return [_rubric_to_api(item) for item in items]
+    return items
 
 
-def list_extractors(repo_path: str) -> list[dict]:
+def list_extractors(repo_path: str) -> list[Extractor]:
+    """List all trace extractors."""
     items = ExtractorRepository(conn(repo_path)).get_all("Extractor", "id", Extractor)
-    return [item.model_dump() for item in items]
+    return items
 
 
-def list_gyms(repo_path: str) -> list[dict]:
+def list_gyms(repo_path: str) -> list[Gym]:
+    """List gym environments for agentic-user simulations."""
     items = GymRepository(conn(repo_path)).get_all("Gym", "id", Gym)
-    return [item.model_dump() for item in items]
+    return items
 
 
-def create_tag(repo_path: str, data: dict) -> dict:
-    payload = dict(data)
-    payload.pop("repo_path", None)
-    if not payload.get("id"):
-        payload["id"] = payload.get("name", "").strip().lower().replace(" ", "-")
-    tag = Tag(**payload)
+def create_tag(repo_path: str, tag: Tag) -> Tag:
+    """Create a registry tag."""
     TagRepository(conn(repo_path)).save(tag)
-    return tag.model_dump()
+    return tag
 
 
-def create_dataset(repo_path: str, data: dict) -> dict:
-    payload = dict(data)
-    payload.pop("repo_path", None)
-    dataset = EvalDataset(**payload)
+def create_dataset(repo_path: str, dataset: EvalDataset) -> EvalDataset:
+    """Create an eval dataset."""
     EvalDatasetRepository(conn(repo_path)).save(dataset)
-    return dataset.model_dump()
+    return dataset
 
 
-def create_rubric(repo_path: str, data: dict) -> dict:
-    payload = dict(data)
-    payload.pop("repo_path", None)
-    for item in payload.get("items", []):
-        if item.get("description") and not item.get("prompt"):
-            item["prompt"] = item["description"]
-    rubric = Rubric(**payload)
+def create_rubric(repo_path: str, rubric: Rubric) -> Rubric:
+    """Create a scoring rubric."""
     RubricRepository(conn(repo_path)).save(rubric)
-    return _rubric_to_api(rubric)
+    return rubric
 
 
-def create_extractor(repo_path: str, data: dict) -> dict:
-    payload = dict(data)
-    payload.pop("repo_path", None)
-
-    extractor_id = payload.get("id")
-    python_code = payload.pop("python_code", None) or "def extract(trace):\n    return True"
-    source_path = extractor_module.save_extractor_source(repo_path, extractor_id, python_code)
-
-    payload["source_path"] = source_path
-    payload["fingerprint"] = extractor_module.fingerprint_source(python_code)
-    extractor = Extractor(**payload)
-    ExtractorRepository(conn(repo_path)).save(extractor)
-
-    dumped = extractor.model_dump()
-    dumped["python_code"] = python_code
-    return dumped
+def create_extractor(repo_path: str, extractor: Extractor, *, python_code: str) -> Extractor:
+    """Create a trace extractor."""
+    source_path = extractor_module.save_extractor_source(repo_path, extractor.id, python_code)
+    saved = extractor.model_copy(
+        update={
+            "source_path": source_path,
+            "fingerprint": extractor_module.fingerprint_source(python_code),
+        }
+    )
+    ExtractorRepository(conn(repo_path)).save(saved)
+    return saved
 
 
-def create_gym(repo_path: str, data: dict) -> dict:
-    payload = dict(data)
-    payload.pop("repo_path", None)
-    if not payload.get("id"):
-        slug = payload.get("name", "").strip().lower().replace(" ", "-")
-        payload["id"] = "".join(ch for ch in slug if ch.isalnum() or ch in "-_")
-    if not payload.get("id"):
-        raise ServiceError("Gym requires a name", 400)
-    if not payload.get("class_path", "").strip():
-        raise ServiceError("Gym requires a class_path", 400)
-    gym = Gym(**payload)
+def create_gym(repo_path: str, gym: Gym) -> Gym:
+    """Register a gym class for agentic-user eval cases."""
     GymRepository(conn(repo_path)).save(gym)
-    return gym.model_dump()
+    return gym
 
 
 def delete_gym(repo_path: str, gym_id: str) -> None:
@@ -158,9 +131,8 @@ def delete_extractor(repo_path: str, extractor_id: str) -> None:
     ExtractorRepository(connection).delete(extractor_id)
 
 
-def generate_extractor_code(description: str) -> dict:
+def generate_extractor_code(description: str) -> str:
     try:
-        code = extractor_module.generate_extractor_code(description)
-        return {"code": code}
+        return extractor_module.generate_extractor_code(description)
     except Exception as exc:
         raise ServiceError(str(exc), 500) from exc

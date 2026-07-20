@@ -45,3 +45,11 @@ class BlueprintRunResult(BaseModel):
     final_output: str
     transcript: list[dict] = Field(default_factory=list)   # [{role, text}, ...]
     tool_calls: list[ToolCall] = Field(default_factory=list)
+
+
+class BlueprintPresetInfo(BaseModel):
+    """Metadata for one named blueprint preset."""
+
+    preset: str
+    instruction: str
+    tools: list[str] = Field(default_factory=list)

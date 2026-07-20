@@ -18,15 +18,14 @@ from src.eval_workbench.storage.repositories import (
 )
 
 
-def list_campaigns(repo_path: str) -> list[dict]:
+def list_campaigns(repo_path: str) -> list[EvalCampaign]:
+    """List all eval campaigns."""
     campaigns = EvalCampaignRepository(conn(repo_path)).get_all("EvalCampaign", "id", EvalCampaign)
-    return [campaign.model_dump() for campaign in campaigns]
+    return campaigns
 
 
-def create_campaign(repo_path: str, data: dict) -> dict:
-    payload = dict(data)
-    payload.pop("repo_path", None)
-    campaign = EvalCampaign(**payload)
+def create_campaign(repo_path: str, campaign: EvalCampaign) -> EvalCampaign:
+    """Create a campaign and run all dataset cases across a model panel."""
     connection = conn(repo_path)
     EvalCampaignRepository(connection).save(campaign)
 
@@ -78,7 +77,7 @@ def create_campaign(repo_path: str, data: dict) -> dict:
                 except Exception as exc:
                     print(f"Error running case {case_id} with model {model_id}: {exc}")
 
-    return campaign.model_dump()
+    return campaign
 
 
 def _collect_dataset_metrics(
@@ -153,7 +152,8 @@ def _matrix_cell(result: Result, metric_type: str) -> float:
     )
 
 
-def get_matrix(repo_path: str, campaign_id: str, metric_name: str | None = None) -> dict:
+def get_matrix(repo_path: str, campaign_id: str, metric_name: str | None = None) -> ResponseMatrix:
+    """Return the response matrix for a campaign, optionally filtered by metric."""
     connection = conn(repo_path)
     campaign = EvalCampaignRepository(connection).get(campaign_id)
     if not campaign:
@@ -220,7 +220,7 @@ def get_matrix(repo_path: str, campaign_id: str, metric_name: str | None = None)
         for case_idx, case_id in enumerate(case_ids):
             difficulty[case_id] = float(-coefs[len(campaign.model_panel) + case_idx])
 
-    matrix = ResponseMatrix(
+    return ResponseMatrix(
         campaign_id=campaign_id,
         models=campaign.model_panel,
         case_ids=case_ids,
@@ -233,4 +233,3 @@ def get_matrix(repo_path: str, campaign_id: str, metric_name: str | None = None)
         clusters={},
         redundant_pairs=[],
     )
-    return matrix.model_dump()

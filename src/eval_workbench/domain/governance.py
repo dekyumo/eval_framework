@@ -13,3 +13,17 @@ class GovernanceProfile(BaseModel):
 
     concern_coverage: str = ""   # freeform: which tags cover which NIST concerns
     business_case: str = ""      # business justification (MAP-3 scope/costs)
+
+
+class TagSummary(BaseModel):
+    id: str
+    name: str
+
+
+class GovernanceView(BaseModel):
+    """Governance profile plus registry context for a snapshot."""
+
+    snapshot_id: str
+    concern_coverage: str = ""
+    business_case: str = ""
+    all_tags: list[TagSummary] = []

@@ -2,6 +2,7 @@ import pytest
 
 from src.eval_workbench.domain.manifest import AgentManifest
 from src.eval_workbench.domain.snapshot import AgentSnapshot, AgentTarget
+from src.eval_workbench.domain.governance import GovernanceProfile
 from src.eval_workbench.services.errors import ServiceError
 from src.eval_workbench.services.governance import get_governance, update_governance
 from src.eval_workbench.storage.kuzu_store import close_all, get_connection
@@ -47,15 +48,15 @@ def test_update_and_get_governance_round_trip(repo_path):
     update_governance(
         repo_path,
         snapshot_id,
-        {
-            "concern_coverage": (
+        GovernanceProfile(
+            concern_coverage=(
                 "Concerns from Govern 1.1 (Compliance) are covered by tags 'legal' and 'compliance'"
             ),
-            "business_case": "Agent costs $0.10 per run vs $1.00 for humans.",
-        },
+            business_case="Agent costs $0.10 per run vs $1.00 for humans.",
+        ),
     )
 
     view = get_governance(repo_path, snapshot_id)
-    assert "legal" in view["concern_coverage"]
-    assert view["business_case"] == "Agent costs $0.10 per run vs $1.00 for humans."
-    assert isinstance(view["all_tags"], list)
+    assert "legal" in view.concern_coverage
+    assert view.business_case == "Agent costs $0.10 per run vs $1.00 for humans."
+    assert isinstance(view.all_tags, list)

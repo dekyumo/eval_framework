@@ -48,7 +48,8 @@ def generate_run(
     model_id: str,
     *,
     force: bool = False,
-) -> dict:
+) -> EvalRun:
+    """Execute one eval case against a snapshot and store the trace."""
     connection = conn(repo_path)
     snapshot = SnapshotRepository(connection).get(snapshot_id)
     case = EvalCaseRepository(connection).get(case_id)
@@ -61,7 +62,7 @@ def generate_run(
 
     existing = find_existing_run(connection, snapshot_id, case_id, model_id)
     if existing and not force:
-        return existing.model_dump()
+        return existing
 
     try:
         trace = AgentRunner(snapshot).run_case(case, model_id)
@@ -91,24 +92,27 @@ def generate_run(
             trace=trace,
         )
         EvalRunRepository(connection).save(run)
-        return run.model_dump()
+        return run
     except ServiceError:
         raise
     except Exception as exc:
         raise ServiceError(str(exc), 500) from exc
 
 
-def list_runs(repo_path: str) -> list[dict]:
+def list_runs(repo_path: str) -> list[EvalRun]:
+    """List all generated eval runs."""
     runs = EvalRunRepository(conn(repo_path)).get_all("EvalRun", "id", EvalRun)
-    return [run.model_dump() for run in runs]
+    return runs
 
 
-def list_scored_runs(repo_path: str) -> list[dict]:
+def list_scored_runs(repo_path: str) -> list[ScoredEvalRun]:
+    """List all scored eval runs."""
     runs = ScoredEvalRunRepository(conn(repo_path)).get_all("ScoredEvalRun", "id", ScoredEvalRun)
-    return [run.model_dump() for run in runs]
+    return runs
 
 
-def evaluate_run(repo_path: str, run_id: str, *, force: bool = False) -> dict:
+def evaluate_run(repo_path: str, run_id: str, *, force: bool = False) -> ScoredEvalRun:
+    """Score an existing run with its case rubrics and extractors."""
     connection = conn(repo_path)
     run = EvalRunRepository(connection).get(run_id)
     if not run:
@@ -117,7 +121,7 @@ def evaluate_run(repo_path: str, run_id: str, *, force: bool = False) -> dict:
     scored_id = f"scored_{run_id}"
     existing = ScoredEvalRunRepository(connection).get(scored_id)
     if existing and not force:
-        return existing.model_dump()
+        return existing
 
     case = EvalCaseRepository(connection).get(run.case_id)
     if not case:
@@ -131,7 +135,7 @@ def evaluate_run(repo_path: str, run_id: str, *, force: bool = False) -> dict:
             results=results,
         )
         ScoredEvalRunRepository(connection).save(scored)
-        return scored.model_dump()
+        return scored
     except ServiceError:
         raise
     except Exception as exc:

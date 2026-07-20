@@ -14,8 +14,13 @@ def main() -> None:
         default="web",
         help="web: Flask UI (default); headless: benchmark report; mcp: stdio MCP server",
     )
-    parser.add_argument("--host", default="127.0.0.1")
-    parser.add_argument("--port", type=int, default=5000)
+    parser.add_argument("--host", default=os.environ.get("HOST", "127.0.0.1"))
+    parser.add_argument("--port", type=int, default=int(os.environ.get("PORT", "5000")))
+    parser.add_argument(
+        "--api-url",
+        default=os.environ.get("EVAL_WORKBENCH_API_URL"),
+        help="Eval workbench base URL for MCP mode (e.g. http://127.0.0.1:5000)",
+    )
     parser.add_argument("--agent_path", help="Agent import path, e.g. a_single_agent.day_trip:root_agent")
     parser.add_argument("--commit", default="HEAD", help="Git commit or branch to evaluate")
     parser.add_argument("--dataset", help="Eval dataset name to run")
@@ -38,10 +43,10 @@ def main() -> None:
     dotenv.load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"))
 
     if args.mode == "mcp":
-        # Run MCP immediately to avoid print/logs that will pollute stdout.
-        from src.eval_workbench.mcp.server import build_server
+        from src.eval_workbench.mcp.server import build_server, resolve_api_url
 
-        build_server(repo_path).run(transport="stdio")
+        api_url = resolve_api_url(args.api_url)
+        build_server(api_url).run(transport="stdio")
         sys.exit(0)
 
     if args.mode == "headless":
@@ -80,7 +85,8 @@ def main() -> None:
         repo_path=repo_path,
         allow_db_wipe=args.allow_db_wipe_for_tests,
     )
-    app.run(host=args.host, port=args.port, debug=True, use_reloader=False)
+    debug = os.environ.get("FLASK_DEBUG", "").lower() in ("1", "true", "yes")
+    app.run(host=args.host, port=args.port, debug=debug, use_reloader=False)
 
 
 if __name__ == "__main__":

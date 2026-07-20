@@ -12,8 +12,15 @@ from google.adk.runners import InMemoryRunner
 from google.adk.tools import FunctionTool
 from google.genai import types
 
-from src.eval_workbench.domain.blueprint import AgentBlueprint, BlueprintPreset, BlueprintRunResult, ToolCall
-from src.eval_workbench.mcp.registry import PRESET_INSTRUCTIONS, PRESET_TOOLS, resolve_tools
+from src.eval_workbench.domain.blueprint import (
+    AgentBlueprint,
+    BlueprintPreset,
+    BlueprintPresetInfo,
+    BlueprintRunResult,
+    ToolCall,
+)
+from src.eval_workbench.mcp.tool_defs import PRESET_INSTRUCTIONS, PRESET_TOOLS
+from src.eval_workbench.mcp.registry_internal import resolve_tools
 from src.eval_workbench.runner.trace_events import append_trace_parts_from_event
 from src.eval_workbench.run_coro_sync import run_coro_sync as _run_coro_sync
 from src.eval_workbench.services.errors import ServiceError
@@ -22,18 +29,14 @@ _APP_NAME = "eval_workbench"
 _USER_ID = "blueprint_runner"
 
 
-def list_presets() -> list[dict]:
-    """Return the available blueprint presets.
-
-    Shape: [{"preset": str, "instruction": str, "tools": [str, ...]}, ...]
-    Sourced from eval_workbench.mcp.registry.PRESET_TOOLS / PRESET_INSTRUCTIONS.
-    """
+def list_presets() -> list[BlueprintPresetInfo]:
+    """Return the available blueprint presets."""
     return [
-        {
-            "preset": preset.value,
-            "instruction": PRESET_INSTRUCTIONS[preset],
-            "tools": PRESET_TOOLS[preset],
-        }
+        BlueprintPresetInfo(
+            preset=preset.value,
+            instruction=PRESET_INSTRUCTIONS[preset],
+            tools=PRESET_TOOLS[preset],
+        )
         for preset in BlueprintPreset
     ]
 
@@ -45,18 +48,14 @@ def _resolve_preset(preset: str) -> BlueprintPreset:
     raise ServiceError(f"Unknown preset: {preset}", 400)
 
 
-def preset_blueprint(preset: str) -> dict:
-    """Return a ready-to-run AgentBlueprint dict for a named preset.
-
-    Raises ServiceError(400) for an unknown preset.
-    """
+def preset_blueprint(preset: str) -> AgentBlueprint:
+    """Return a ready-to-run AgentBlueprint for a named preset."""
     key = _resolve_preset(preset)
-    blueprint = AgentBlueprint(
+    return AgentBlueprint(
         agent_name=key.value,
         instruction=PRESET_INSTRUCTIONS[key],
         tools=PRESET_TOOLS[key],
     )
-    return blueprint.model_dump()
 
 
 def _summarize_result(value: Any, limit: int = 500) -> str:
@@ -160,14 +159,7 @@ async def _run_blueprint_async(
     )
 
 
-def run_blueprint(repo_path: str, blueprint: dict) -> dict:
-    """Build an ADK LlmAgent from the blueprint, resolve its tools from the
-    shared registry, run it synchronously to completion, and return a
-    `BlueprintRunResult` dict.
-
-    Raises ServiceError(400) if a named tool is not in the registry.
-    """
-    model = AgentBlueprint.model_validate(blueprint)
-    tool_fns = resolve_tools(repo_path, model.tools)
-    result = _run_coro_sync(_run_blueprint_async(model, tool_fns))
-    return result.model_dump()
+def run_blueprint(repo_path: str, blueprint: AgentBlueprint) -> BlueprintRunResult:
+    """Build an ADK LlmAgent from the blueprint, resolve its tools, run to completion."""
+    tool_fns = resolve_tools(repo_path, blueprint.tools)
+    return _run_coro_sync(_run_blueprint_async(blueprint, tool_fns))

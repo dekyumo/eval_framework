@@ -91,8 +91,8 @@ def draft_to_dict(draft: GeneratedCaseDraft) -> dict:
     }
 
 
-def generate_eval_case(snapshot: AgentSnapshot, specification: str) -> dict:
-    """Generate an EvalCase draft dict from snapshot and user specification."""
+def generate_eval_case(snapshot: AgentSnapshot, specification: str) -> GeneratedCaseDraft:
+    """Generate an eval case draft from snapshot and user specification."""
     if not specification.strip():
         raise ValueError("Specification is required")
 
@@ -106,4 +106,4 @@ def generate_eval_case(snapshot: AgentSnapshot, specification: str) -> dict:
     if not draft.conversation:
         draft = _fallback_draft(specification)
 
-    return draft_to_dict(draft)
+    return draft

@@ -1,10 +1,20 @@
 """stdio MCP server exposing the eval workbench tool registry.
 
-Preferred entry: ``python run_app.py <repo> --mode mcp`` (repo as positional arg).
+Connect to a **running** eval workbench web server via HTTP so MCP and the UI
+share one Kuzu database.
 
-This module is also used by ``python -m src.eval_workbench.mcp`` and the
-``eval-workbench-mcp`` console script (repo from ``EVAL_WORKBENCH_REPO`` or CWD).
-Both load dotenv before serving so LLM tools have API keys."""
+Preferred entry::
+
+    # terminal 1
+    python run_app.py <repo> --mode web
+
+    # terminal 2
+    set EVAL_WORKBENCH_API_URL=http://127.0.0.1:5000
+    python run_app.py <repo> --mode mcp
+
+Also: ``python -m src.eval_workbench.mcp`` and the ``eval-workbench-mcp`` console
+script (``EVAL_WORKBENCH_API_URL`` required).
+"""
 
 from __future__ import annotations
 
@@ -12,26 +22,42 @@ import os
 
 from mcp.server.fastmcp import FastMCP
 
+from src.eval_workbench.mcp.api_client import ApiClient
 from src.eval_workbench.mcp.registry import build_registry
+from src.eval_workbench.mcp.registry_internal import build_internal_registry
+from src.eval_workbench.mcp.signatures import assert_matching_signatures
 
 
-def build_server(repo_path: str) -> FastMCP:
-    """Build the MCP server, registering every registry tool (plus run_blueprint).
+def resolve_api_url(explicit: str | None = None) -> str:
+    api_url = explicit or os.environ.get("EVAL_WORKBENCH_API_URL", "")
+    if not api_url:
+        raise RuntimeError(
+            "EVAL_WORKBENCH_API_URL is required for MCP mode "
+            "(e.g. http://127.0.0.1:5000). Start the web server first."
+        )
+    return api_url
 
-    Returns the server instance to be served over stdio.
-    """
+
+def build_server(api_url: str) -> FastMCP:
+    """Build the MCP server, registering every HTTP-backed registry tool."""
+    client = ApiClient(api_url)
+    client.get("/api/health")
+
+    registry = build_registry(api_url)
+    reference = build_internal_registry("/unused")
+    assert_matching_signatures(reference, registry)
+
     mcp = FastMCP("eval_workbench_mcp")
-    registry = build_registry(repo_path)
     for name, fn in registry.items():
         mcp.add_tool(fn, name=name)
     return mcp
 
 
 def main() -> None:
-    """Console entry point: resolve repo path, build server, serve over stdio."""
+    """Console entry point: resolve API URL, build server, serve over stdio."""
     import dotenv
 
     dotenv.load_dotenv()
-    repo_path = os.environ.get("EVAL_WORKBENCH_REPO", os.getcwd())
-    server = build_server(repo_path)
+    api_url = resolve_api_url()
+    server = build_server(api_url)
     server.run(transport="stdio")

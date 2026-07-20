@@ -72,3 +72,9 @@ class EvalDataset(BaseModel):
     id: str
     name: str
     case_ids: list[str]
+
+
+class CaseImpact(BaseModel):
+    run_count: int
+    snapshot_count: int
+    scored_count: int

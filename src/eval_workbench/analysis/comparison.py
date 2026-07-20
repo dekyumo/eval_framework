@@ -12,6 +12,14 @@ class SemanticDiff(BaseModel):
     removed_prompts: list[str]
     changed_prompts: list[str]
 
+
+class CompareSnapshotsResult(BaseModel):
+    snapshot_a: str
+    snapshot_b: str
+    diff: SemanticDiff
+    changes: list[dict]
+    summary: dict
+
 def compare_manifests(m1: AgentManifest, m2: AgentManifest) -> SemanticDiff:
     t1 = {t.name: t.source_fingerprint for t in m1.tools}
     t2 = {t.name: t.source_fingerprint for t in m2.tools}

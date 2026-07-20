@@ -15,6 +15,7 @@ from src.eval_workbench.analysis.metrics import (
 from src.eval_workbench.domain.case import EvalCase, EvalDataset
 from src.eval_workbench.services.cases import cases_eligible_for_dataset
 from src.eval_workbench.domain.result import Result
+from src.eval_workbench.domain.snapshot import AgentSnapshot, AgentTarget
 from src.eval_workbench.domain.tag import Tag
 from src.eval_workbench.extraction.extractor import run_extractor
 from src.eval_workbench.services import agents as agents_service
@@ -110,7 +111,7 @@ def _extractor_pairs(
 
 
 def render_markdown_report(
-    snapshot: dict,
+    snapshot: AgentSnapshot,
     outcomes: list[CaseRunOutcome],
     rubric_aggregates: dict[str, dict],
     extractor_aggregates: dict[str, dict],
@@ -121,7 +122,7 @@ def render_markdown_report(
         "## Agent Snapshot",
         "",
         "```json",
-        json.dumps(snapshot, indent=2),
+        json.dumps(snapshot.model_dump(), indent=2),
         "```",
         "",
         "## Per-case Results",
@@ -182,13 +183,13 @@ def render_markdown_report(
 
 
 def render_csv_report(
-    snapshot: dict,
+    snapshot: AgentSnapshot,
     outcomes: list[CaseRunOutcome],
     agent_path: str,
     commit: str,
     dataset_name: str,
 ) -> str:
-    snapshot_id = snapshot["id"]
+    snapshot_id = snapshot.id
     columns = [
         "snapshot_id", "agent_path", "commit", "dataset_name",
         "case_id", "case_name", "logical_id", "version",
@@ -232,13 +233,14 @@ def run_headless_benchmark(
     output_format: str = "markdown",
     output_path: str | None = None,
 ) -> str:
+    """Run a headless benchmark report for a dataset and return the report text."""
     agent_name = agent_path.split(":")[-1]
     snapshot = agents_service.scan(
         repo_path,
-        {"agent_path": agent_path, "name": agent_name},
+        AgentTarget(repo_path=repo_path, agent_path=agent_path, name=agent_name),
         commit,
     )
-    snapshot_id = snapshot["id"]
+    snapshot_id = snapshot.id
     connection = conn(repo_path)
     cases = select_cases(connection, dataset_name, tags)
     if not cases:
@@ -249,22 +251,22 @@ def run_headless_benchmark(
     extractor_values: dict[str, dict[str, list]] = {}
 
     for case in cases:
-        run_data = runs_service.generate_run(repo_path, snapshot_id, case.id, model_id)
-        trace = run_data["trace"]
-        if trace.get("exception"):
+        run = runs_service.generate_run(repo_path, snapshot_id, case.id, model_id)
+        trace = run.trace
+        if trace.exception:
             outcomes.append(
                 CaseRunOutcome(
                     case=case,
-                    run_id=run_data.get("id"),
+                    run_id=run.id,
                     skipped=True,
                     skip_reason="trace exception",
                 )
             )
             continue
 
-        scored = runs_service.evaluate_run(repo_path, run_data["id"])
-        results = [Result.model_validate(item) for item in scored.get("results", [])]
-        outcomes.append(CaseRunOutcome(case=case, run_id=run_data["id"], results=results))
+        scored = runs_service.evaluate_run(repo_path, run.id)
+        results = scored.results
+        outcomes.append(CaseRunOutcome(case=case, run_id=run.id, results=results))
 
         for result in results:
             if result.source == "llm_judge":
@@ -272,7 +274,7 @@ def run_headless_benchmark(
 
         from src.eval_workbench.domain.trace import Trace
 
-        trace_obj = Trace.model_validate(trace)
+        trace_obj = run.trace
         for metric_name, extractor_ref, ground_truth, predicted in _extractor_pairs(
             case, trace_obj, connection
         ):
