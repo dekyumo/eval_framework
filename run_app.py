@@ -86,7 +86,7 @@ def main() -> None:
         allow_db_wipe=args.allow_db_wipe_for_tests,
     )
     debug = os.environ.get("FLASK_DEBUG", "").lower() in ("1", "true", "yes")
-    app.run(host=args.host, port=args.port, debug=debug, use_reloader=False)
+    app.run(host=args.host, port=args.port, debug=debug, use_reloader=False, threaded=True)
 
 
 if __name__ == "__main__":

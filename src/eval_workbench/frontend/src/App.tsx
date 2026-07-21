@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { TaskProvider } from './context/TaskContext';
 import { Layout } from './components/Layout';
 import { Agents } from './pages/Agents';
 import { ViewCases } from './pages/ViewCases';
@@ -13,8 +14,9 @@ import { HumanEval } from './pages/HumanEval';
 export default function App() {
   return (
     <BrowserRouter>
-      <Routes>
-        <Route element={<Layout />}>
+      <TaskProvider>
+        <Routes>
+          <Route element={<Layout />}>
           <Route path="/" element={<Navigate to="/agents" replace />} />
           <Route path="/agents" element={<Agents />} />
           <Route path="/cases" element={<ViewCases />} />
@@ -26,7 +28,8 @@ export default function App() {
           <Route path="/registries" element={<Registries />} />
           <Route path="/human-eval" element={<HumanEval />} />
         </Route>
-      </Routes>
+        </Routes>
+      </TaskProvider>
     </BrowserRouter>
   );
 }

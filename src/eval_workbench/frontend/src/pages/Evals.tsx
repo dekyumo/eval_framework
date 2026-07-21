@@ -6,6 +6,8 @@ import { Button } from '../components/ui/Button';
 import { Select } from '../components/ui/Select';
 import { Heading, Text } from '../components/ui/Typography';
 import { PageContainer, PagePane, BorderedSection } from '../components/ui/PageLayout';
+import { useDomainEvent, useTasks } from '../context/TaskContext';
+import { enqueueEvaluateTrace, enqueueEvaluateTraces } from '../lib/jobsApi';
 
 export function Evals() {
   const [evalResults, setEvalResults] = useState<any[]>([]);
@@ -16,8 +18,12 @@ export function Evals() {
   const [selectedDatasetId, setSelectedDatasetId] = useState('');
   const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
   const [runs, setRuns] = useState<any[]>([]);
-  const [isEvaluating, setIsEvaluating] = useState(false);
-  const [isRerunning, setIsRerunning] = useState(false);
+  const { activeTasks } = useTasks();
+
+  const isEvaluating = activeTasks.some(
+    task => task.type === 'evaluate_traces' || task.type === 'evaluate_trace',
+  );
+  const isRerunning = activeTasks.some(task => task.type === 'evaluate_trace');
 
   const refreshData = async () => {
     const [evalsData, runsData] = await Promise.all([
@@ -65,12 +71,15 @@ export function Evals() {
     ? evalResults.find(e => e.run_id === selectedRun.id) ?? null
     : null;
 
-  const upsertEvalResult = (scored: { id: string; run_id: string }) => {
+  useDomainEvent('trace_evaluated', (data) => {
+    const scored = data.scored as Record<string, unknown> | undefined;
+    if (!scored) return;
     setEvalResults(prev => {
-      const rest = prev.filter(e => e.run_id !== scored.run_id);
+      const runId = scored.run_id as string;
+      const rest = prev.filter(e => e.run_id !== runId);
       return [...rest, scored];
     });
-  };
+  });
 
   const handleEvaluate = async () => {
     if (!selectedSnapshotId || !selectedDatasetId) {
@@ -78,57 +87,22 @@ export function Evals() {
       return;
     }
 
-    setIsEvaluating(true);
     try {
-      const activeCaseIds = casesForSelection.map(c => c.id);
-      const runsToEvaluate = runs.filter(
-        r =>
-          r.snapshot_id === selectedSnapshotId
-          && activeCaseIds.includes(r.case_id)
-          && !evalResults.some(e => e.run_id === r.id),
-      );
-
-      for (const run of runsToEvaluate) {
-        const res = await fetch('/api/runs/evaluate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ run_id: run.id, force: false }),
-        });
-        if (!res.ok) {
-          console.error('Evaluate failed', run.id, await res.text());
-          continue;
-        }
-        upsertEvalResult(await res.json());
-      }
-
-      await refreshData();
+      await enqueueEvaluateTraces(selectedSnapshotId, selectedDatasetId, false);
     } catch (err) {
       console.error(err);
-    } finally {
-      setIsEvaluating(false);
+      alert(err instanceof Error ? err.message : 'Failed to enqueue evaluations');
     }
   };
 
   const handleRerun = async () => {
     if (!selectedRun) return;
 
-    setIsRerunning(true);
     try {
-      const res = await fetch('/api/runs/evaluate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ run_id: selectedRun.id, force: true }),
-      });
-      if (!res.ok) {
-        console.error('Rerun failed', await res.text());
-        return;
-      }
-      upsertEvalResult(await res.json());
-      await refreshData();
+      await enqueueEvaluateTrace(selectedRun.id, true);
     } catch (e) {
       console.error(e);
-    } finally {
-      setIsRerunning(false);
+      alert(e instanceof Error ? e.message : 'Failed to enqueue rerun');
     }
   };
 

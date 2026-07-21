@@ -5,6 +5,7 @@ from pydantic import ValidationError
 from src.eval_workbench.agents.case_writer.case_writer_runner import draft_to_dict
 from src.eval_workbench.domain.case import EvalCase
 from src.eval_workbench.services import cases as cases_service
+from src.eval_workbench.services import events
 from src.eval_workbench.services.errors import ServiceError
 
 cases_bp = Blueprint("cases", __name__)
@@ -28,6 +29,7 @@ def create_case():
             case,
             from_version_of=from_version_of,
         )
+        events.publish_cases_modified("create", created.id)
         return jsonify(created.model_dump())
     except ValidationError as exc:
         return jsonify({"error": str(exc)}), 400
@@ -74,6 +76,7 @@ def update_case(case_id):
             case,
             cascade=cascade,
         )
+        events.publish_cases_modified("update", updated.id)
         return jsonify(updated.model_dump())
     except ValidationError as exc:
         return jsonify({"error": str(exc)}), 400
@@ -94,6 +97,7 @@ def case_impact(case_id):
 def deactivate_case(case_id):
     try:
         case = cases_service.deactivate_case(current_app.config["REPO_PATH"], case_id)
+        events.publish_cases_modified("deactivate", case.id)
         return jsonify(case.model_dump())
     except ServiceError as exc:
         return jsonify({"error": exc.message}), exc.status_code

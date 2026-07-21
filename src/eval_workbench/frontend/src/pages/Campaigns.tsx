@@ -1,9 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { SnapshotSelect } from '../components/SnapshotSelect';
 import { Button } from '../components/ui/Button';
 import { Select } from '../components/ui/Select';
 import { Heading, Text, FormLabel } from '../components/ui/Typography';
 import { PageContainer, PagePane } from '../components/ui/PageLayout';
+import { useDomainEvent, useTasks } from '../context/TaskContext';
+import { enqueueRunCampaign } from '../lib/jobsApi';
 
 function cellColor(value: number, metricType: string): string {
   if (metricType === 'bool') {
@@ -32,20 +34,29 @@ export function Campaigns() {
   const [modelsInput, setModelsInput] = useState('gemini-2.5-flash, gemini-2.5-flash-lite');
   const [selectedCampaignId, setSelectedCampaignId] = useState('');
   const [selectedMetric, setSelectedMetric] = useState('');
+  const { activeTasks } = useTasks();
+
+  const isLaunching = activeTasks.some(task => task.type === 'run_campaign');
+
+  const refreshCampaigns = useCallback(async () => {
+    const res = await fetch('/api/campaigns');
+    const data = await res.json();
+    if (Array.isArray(data)) setCampaigns(data);
+    return data;
+  }, []);
 
   useEffect(() => {
     Promise.all([
-      fetch('/api/campaigns').then(res => res.json()),
+      refreshCampaigns(),
       fetch('/api/registries/datasets').then(res => res.json()),
       fetch('/api/agents/snapshots').then(res => res.json()),
-    ]).then(([campData, dsData, snapsData]) => {
-      if (Array.isArray(campData)) setCampaigns(campData);
+    ]).then(([, dsData, snapsData]) => {
       if (Array.isArray(dsData)) setDatasets(dsData);
       if (Array.isArray(snapsData)) setSnapshots(snapsData);
     }).catch(console.error);
-  }, []);
+  }, [refreshCampaigns]);
 
-  const loadMatrix = (campId: string, metric?: string) => {
+  const loadMatrix = useCallback((campId: string, metric?: string) => {
     if (!campId) {
       setMatrixData(null);
       setSelectedMetric('');
@@ -63,7 +74,17 @@ export function Campaigns() {
         if (data.metric_name) setSelectedMetric(data.metric_name);
       })
       .catch(console.error);
-  };
+  }, []);
+
+  useDomainEvent('campaign_finished', (data) => {
+    const campaignId = data.campaign_id as string | undefined;
+    refreshCampaigns().then(() => {
+      if (campaignId) {
+        setSelectedCampaignId(campaignId);
+        loadMatrix(campaignId);
+      }
+    }).catch(console.error);
+  });
 
   const handleSelectCampaign = (campId: string) => {
     setSelectedCampaignId(campId);
@@ -93,20 +114,12 @@ export function Campaigns() {
         created_at: Math.floor(Date.now() / 1000),
       };
 
-      await fetch('/api/campaigns', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      const res = await fetch('/api/campaigns');
-      const data = await res.json();
-      if (Array.isArray(data)) setCampaigns(data);
-
+      await enqueueRunCampaign(payload);
       setSelectedCampaignId(payload.id);
-      loadMatrix(payload.id);
+      await refreshCampaigns();
     } catch (err) {
       console.error(err);
+      alert(err instanceof Error ? err.message : 'Failed to launch campaign');
     }
   };
 
@@ -162,8 +175,8 @@ export function Campaigns() {
               onChange={e => setModelsInput(e.target.value)}
             />
           </div>
-          <Button variant="cta" onClick={handleLaunch}>
-            Launch
+          <Button variant="cta" onClick={handleLaunch} disabled={isLaunching}>
+            {isLaunching ? 'Launching...' : 'Launch'}
           </Button>
         </div>
       </PagePane>

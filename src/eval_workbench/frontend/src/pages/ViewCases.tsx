@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '../components/ui/Button';
 import { PageContainer, PagePane } from '../components/ui/PageLayout';
 import { CaseListPane } from '../components/cases/CaseListPane';
 import { CaseDetailView } from '../components/cases/CaseListPane';
+import { useDomainEvent } from '../context/TaskContext';
 
 export function ViewCases() {
   const navigate = useNavigate();
@@ -14,16 +15,20 @@ export function ViewCases() {
   const [loading, setLoading] = useState(true);
   const [selectedCaseId, setSelectedCaseId] = useState<string | null>(highlightId);
 
-  const refreshCases = async () => {
+  const refreshCases = useCallback(async () => {
     const res = await fetch('/api/cases');
     const data = await res.json();
     if (Array.isArray(data)) setCases(data);
     return data;
-  };
+  }, []);
 
   useEffect(() => {
     refreshCases().finally(() => setLoading(false));
-  }, []);
+  }, [refreshCases]);
+
+  useDomainEvent('cases_modified', () => {
+    refreshCases().catch(console.error);
+  });
 
   useEffect(() => {
     if (highlightId) setSelectedCaseId(highlightId);
