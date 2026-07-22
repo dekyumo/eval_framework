@@ -64,7 +64,18 @@ def test_select_cases_filters_by_tag(tmp_path):
 
 
 def test_render_markdown_report_includes_snapshot_and_scores():
-    snapshot = {"id": "snap1", "agent_target": {"agent_path": "a:b"}}
+    from src.eval_workbench.domain.manifest import AgentManifest
+    from src.eval_workbench.domain.snapshot import AgentSnapshot, AgentTarget
+
+    snapshot = AgentSnapshot(
+        id="snap1",
+        agent_target=AgentTarget(repo_path="/repo", agent_path="a:b", name="root"),
+        commit_hash="abc",
+        timestamp=0.0,
+        manifest=AgentManifest(agents=[], tools=[], models=[], prompts=[], root_agent_name="root"),
+        sampling_params={},
+        dependency_lock="",
+    )
     case = EvalCase(
         id="case1",
         name="Paris",
@@ -129,28 +140,46 @@ def test_run_headless_benchmark_integration_mocked(tmp_path):
     finally:
         close_all()
 
-    snapshot = {
-        "id": "commit:agent:root",
-        "agent_target": {"agent_path": "agent:root", "repo_path": repo_path, "name": "root"},
-        "commit_hash": "commit",
-    }
-    run_payload = {
-        "id": "run1",
-        "trace": {
-            "id": "trace1",
-            "parts": [],
-            "snapshot_id": snapshot["id"],
-            "case_id": "case1",
-            "model_id": "gemini-2.5-flash",
-            "repetition_index": 0,
-            "exception": None,
-        },
-    }
-    scored_payload = {
-        "results": [
-            {"name": "budget_correct", "type": "bool", "value": True, "source": "deterministic"},
-        ]
-    }
+    from src.eval_workbench.domain.manifest import AgentManifest
+    from src.eval_workbench.domain.run import EvalRun, ScoredEvalRun
+    from src.eval_workbench.domain.snapshot import AgentSnapshot, AgentTarget
+    from src.eval_workbench.domain.trace import Trace
+
+    snapshot = AgentSnapshot(
+        id="commit:agent:root",
+        agent_target=AgentTarget(
+            repo_path=repo_path,
+            agent_path="agent:root",
+            name="root",
+        ),
+        commit_hash="commit",
+        timestamp=0.0,
+        manifest=AgentManifest(agents=[], tools=[], models=[], prompts=[], root_agent_name="root"),
+        sampling_params={},
+        dependency_lock="",
+    )
+    run_payload = EvalRun(
+        id="run1",
+        snapshot_id=snapshot.id,
+        case_id="case1",
+        model_id="gemini-2.5-flash",
+        repetition_index=0,
+        trace=Trace(
+            id="trace1",
+            parts=[],
+            snapshot_id=snapshot.id,
+            case_id="case1",
+            model_id="gemini-2.5-flash",
+            repetition_index=0,
+        ),
+    )
+    scored_payload = ScoredEvalRun(
+        id="scored_run1",
+        run_id="run1",
+        results=[
+            Result(name="budget_correct", type="bool", value=True, source="deterministic"),
+        ],
+    )
 
     with (
         patch("src.eval_workbench.services.benchmark.agents_service.scan", return_value=snapshot),

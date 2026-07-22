@@ -1,15 +1,18 @@
 import { useState, useEffect } from 'react';
 import { Button } from './ui/Button';
 import { FormLabel } from './ui/Typography';
+import { useTasks } from '../context/TaskContext';
+import { enqueueScanAgent } from '../lib/jobsApi';
 
 const AGENT_PATH_KEY = 'eval_workbench_agent_path';
 const COMMIT_KEY = 'eval_workbench_commit';
 
 type ScanAgentProps = {
   onScanned: (snapshotId: string) => void;
+  onScanEnqueued?: () => void;
 };
 
-export function ScanAgent({ onScanned }: ScanAgentProps) {
+export function ScanAgent({ onScanned, onScanEnqueued }: ScanAgentProps) {
   const [repo, setRepo] = useState('');
   const [agentPath, setAgentPath] = useState(
     () => localStorage.getItem(AGENT_PATH_KEY) || '',
@@ -17,8 +20,10 @@ export function ScanAgent({ onScanned }: ScanAgentProps) {
   const [commit, setCommit] = useState(
     () => localStorage.getItem(COMMIT_KEY) || 'HEAD',
   );
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const { activeTasks, subscribe } = useTasks();
+
+  const isScanning = activeTasks.some(task => task.type === 'scan_agent');
 
   useEffect(() => {
     fetch('/api/repo')
@@ -28,6 +33,15 @@ export function ScanAgent({ onScanned }: ScanAgentProps) {
       })
       .catch(console.error);
   }, []);
+
+  useEffect(() => {
+    return subscribe('snapshot_scanned', (data) => {
+      const snapshot = data.snapshot as { id?: string } | undefined;
+      if (snapshot?.id) {
+        onScanned(snapshot.id);
+      }
+    });
+  }, [onScanned, subscribe]);
 
   const handleAgentPathChange = (value: string) => {
     setAgentPath(value);
@@ -40,27 +54,15 @@ export function ScanAgent({ onScanned }: ScanAgentProps) {
   };
 
   const handleScan = async () => {
-    setLoading(true);
     setError('');
     try {
-      const res = await fetch('/api/agents/scan', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          agent_target: { repo_path: repo, agent_path: agentPath, name: 'target' },
-          commit,
-        }),
-      });
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || 'Failed to scan');
-      }
-      const snapshot = await res.json();
-      onScanned(snapshot.id);
+      await enqueueScanAgent(
+        { repo_path: repo, agent_path: agentPath, name: 'target' },
+        commit,
+      );
+      onScanEnqueued?.();
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Failed to scan');
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -93,9 +95,9 @@ export function ScanAgent({ onScanned }: ScanAgentProps) {
         <Button
           variant="cta"
           onClick={handleScan}
-          disabled={loading || !repo || !agentPath}
+          disabled={isScanning || !repo || !agentPath}
         >
-          {loading ? 'Scanning...' : 'Scan Agent'}
+          {isScanning ? 'Scanning...' : 'Scan Agent'}
         </Button>
       </div>
       {error && <div className="text-error text-sm">{error}</div>}

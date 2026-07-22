@@ -1,6 +1,8 @@
 import re
 
-from src.eval_workbench.domain.case import EvalCase, EvalDataset
+from src.eval_workbench.agents.case_writer.agent import GeneratedCaseDraft
+from src.eval_workbench.agents.case_writer.case_writer_runner import generate_eval_case
+from src.eval_workbench.domain.case import CaseImpact, EvalCase, EvalDataset
 from src.eval_workbench.services._conn import conn
 from src.eval_workbench.services.errors import ServiceError
 from src.eval_workbench.storage.kuzu_store import kuzu_transaction
@@ -10,7 +12,6 @@ from src.eval_workbench.storage.repositories import (
     EvalRunRepository,
     SnapshotRepository,
 )
-from src.eval_workbench.agents.case_writer.case_writer_runner import generate_eval_case
 
 
 def _slug_logical_id(name: str, case_id: str) -> str:
@@ -41,42 +42,44 @@ def cases_eligible_for_dataset(connection, dataset: EvalDataset) -> list[EvalCas
     return cases
 
 
-def list_cases(repo_path: str, *, active_only: bool = False) -> list[dict]:
+def list_cases(repo_path: str, *, active_only: bool = False) -> list[EvalCase]:
+    """List eval cases, optionally filtering to active cases only."""
     repository = EvalCaseRepository(conn(repo_path))
     cases = [_normalize_case(case) for case in repository.get_all("EvalCase", "id", EvalCase)]
     if active_only:
         cases = [case for case in cases if case.active_for_eval]
-    return [case.model_dump() for case in cases]
+    return cases
 
 
-def get_case_impact(repo_path: str, case_id: str) -> dict:
+def get_case_impact(repo_path: str, case_id: str) -> CaseImpact:
     connection = conn(repo_path)
     case = EvalCaseRepository(connection).get(case_id)
     if not case:
         raise ServiceError("Case not found", 404)
-    return EvalCaseRepository(connection).count_run_impact(case_id)
+    counts = EvalCaseRepository(connection).count_run_impact(case_id)
+    return CaseImpact(**counts)
 
 
-def create_case(repo_path: str, data: dict, dataset_id: str | None = None) -> dict:
-    payload = dict(data)
-    payload.pop("repo_path", None)
-    from_version_of = payload.pop("from_version_of", None)
-
-    resolved_dataset_id = payload.pop("dataset_id", None) or dataset_id
-    if not resolved_dataset_id or not str(resolved_dataset_id).strip():
+def create_case(
+    repo_path: str,
+    case: EvalCase,
+    *,
+    from_version_of: str | None = None,
+) -> EvalCase:
+    """Persist a new eval case."""
+    if not case.dataset_id or not str(case.dataset_id).strip():
         raise ServiceError("dataset_id is required", 400)
 
-    if payload.get("input_payload") and payload.get("conversation"):
+    if case.input_payload and case.conversation:
         raise ServiceError("Use either conversation turns or input_payload, not both", 400)
 
     connection = conn(repo_path)
     case_repo = EvalCaseRepository(connection)
-    dataset = EvalDatasetRepository(connection).get(resolved_dataset_id)
+    dataset = EvalDatasetRepository(connection).get(case.dataset_id)
     if not dataset:
-        raise ServiceError(f"Dataset not found: {resolved_dataset_id}", 404)
+        raise ServiceError(f"Dataset not found: {case.dataset_id}", 404)
 
-    case_id = payload.get("id")
-    if not case_id:
+    if not case.id:
         raise ServiceError("id is required", 400)
 
     if from_version_of:
@@ -84,16 +87,22 @@ def create_case(repo_path: str, data: dict, dataset_id: str | None = None) -> di
         if not source:
             raise ServiceError(f"Source case not found: {from_version_of}", 404)
         source = _normalize_case(source)
-        logical_id = source.logical_id
-        payload["logical_id"] = logical_id
-        payload["version"] = case_repo.max_version(logical_id) + 1
-        payload.setdefault("active_for_eval", True)
+        case = case.model_copy(
+            update={
+                "logical_id": source.logical_id,
+                "version": case_repo.max_version(source.logical_id) + 1,
+                "active_for_eval": True,
+            }
+        )
     else:
-        payload.setdefault("logical_id", _slug_logical_id(payload.get("name", ""), case_id))
-        payload.setdefault("version", 1)
-        payload.setdefault("active_for_eval", True)
+        case = case.model_copy(
+            update={
+                "logical_id": case.logical_id or _slug_logical_id(case.name, case.id),
+                "version": case.version if case.version and case.version >= 1 else 1,
+                "active_for_eval": case.active_for_eval if case.active_for_eval is not None else True,
+            }
+        )
 
-    case = EvalCase(**payload, dataset_id=resolved_dataset_id)
     case = _normalize_case(case)
     case_repo.save(case)
 
@@ -101,52 +110,43 @@ def create_case(repo_path: str, data: dict, dataset_id: str | None = None) -> di
         dataset.case_ids.append(case.id)
         EvalDatasetRepository(connection).save(dataset)
 
-    return case.model_dump()
+    return case
 
 
-def update_case(repo_path: str, case_id: str, data: dict, *, cascade: bool = False) -> dict:
+def update_case(repo_path: str, case: EvalCase, *, cascade: bool = False) -> EvalCase:
     connection = conn(repo_path)
     case_repo = EvalCaseRepository(connection)
-    existing = case_repo.get(case_id)
+    existing = case_repo.get(case.id)
     if not existing:
         raise ServiceError("Case not found", 404)
 
     existing = _normalize_case(existing)
-    impact = case_repo.count_run_impact(case_id)
+    impact = case_repo.count_run_impact(case.id)
     if impact["run_count"] > 0 and not cascade:
         raise ServiceError(
             "Case has existing runs; confirm force modify with cascade=true",
             409,
         )
 
-    payload = dict(data)
-    payload.pop("repo_path", None)
-    payload.pop("id", None)
-    payload.pop("from_version_of", None)
-
-    if payload.get("input_payload") and payload.get("conversation"):
+    if case.input_payload and case.conversation:
         raise ServiceError("Use either conversation turns or input_payload, not both", 400)
 
-    merged = existing.model_dump()
-    merged.update(payload)
-    merged["id"] = case_id
-    merged.setdefault("logical_id", existing.logical_id)
-    merged.setdefault("version", existing.version)
-    merged.setdefault("active_for_eval", existing.active_for_eval)
-
-    case = _normalize_case(EvalCase(**merged))
+    merged = existing.model_copy(
+        update=case.model_dump(exclude_unset=True, exclude={"id"}),
+    )
+    case = _normalize_case(EvalCase.model_validate(merged.model_dump()))
 
     if cascade and impact["run_count"] > 0:
         with kuzu_transaction(connection):
-            EvalRunRepository(connection).delete_runs_for_case(case_id)
+            EvalRunRepository(connection).delete_runs_for_case(case.id)
             case_repo.save(case)
     else:
         case_repo.save(case)
 
-    return case.model_dump()
+    return case
 
 
-def deactivate_case(repo_path: str, case_id: str) -> dict:
+def deactivate_case(repo_path: str, case_id: str) -> EvalCase:
     connection = conn(repo_path)
     case_repo = EvalCaseRepository(connection)
     case = case_repo.get(case_id)
@@ -154,17 +154,19 @@ def deactivate_case(repo_path: str, case_id: str) -> dict:
         raise ServiceError("Case not found", 404)
     case = _normalize_case(case).model_copy(update={"active_for_eval": False})
     case_repo.save(case)
-    return case.model_dump()
+    return case
 
 
-def get_case(repo_path: str, case_id: str) -> dict | None:
+def get_case(repo_path: str, case_id: str) -> EvalCase | None:
+    """Fetch one eval case by id, or None if it does not exist."""
     case = EvalCaseRepository(conn(repo_path)).get(case_id)
     if not case:
         return None
-    return _normalize_case(case).model_dump()
+    return _normalize_case(case)
 
 
-def generate_case(repo_path: str, snapshot_id: str, specification: str) -> dict:
+def generate_case(repo_path: str, snapshot_id: str, specification: str) -> GeneratedCaseDraft:
+    """Draft an eval case from a natural-language specification."""
     if not snapshot_id:
         raise ServiceError("snapshot_id is required", 400)
     if not specification or not specification.strip():

@@ -3,7 +3,7 @@
 Use this skill to run the CI/CD loop **inside** the eval workbench. The framework
 instantiates a Google ADK agent from your blueprint and runs it to completion.
 
-Pair skill: `skills/loops_mcp/ci_cd/SKILL.md` (outer loop via MCP).
+Pair skill: `skills/loops_mcp/ci-cd/SKILL.md` (outer loop via MCP).
 
 ---
 
@@ -91,4 +91,4 @@ per `skills/eval_data_analysis/SKILL.md` section 5.
 - Tweak `instruction` to name the dataset, agent path, and regression policy.
 - Read `BlueprintRunResult.final_output` and `tool_calls` from the response.
 - This inner loop **reports**; it does not edit agent source code. For automated
-  fixes, use the outer loop (`skills/loops_mcp/harness_optimisation/SKILL.md`).
+  fixes, use the outer loop (`skills/loops_mcp/harness-optimisation/SKILL.md`).

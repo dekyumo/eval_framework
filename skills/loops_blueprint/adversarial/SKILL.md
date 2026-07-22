@@ -69,5 +69,5 @@ optimisation blurbs is written.
 - Choose adversarial modalities appropriate to the agent's domain.
 - Keep attacks ethical — probe failures, do not generate harmful real-world
   exploit payloads.
-- Hand the optimisation brief to `skills/loops_blueprint/harness_optimisation/SKILL.md`
+- Hand the optimisation brief to `skills/loops_blueprint/harness-optimisation/SKILL.md`
   or the outer-loop equivalent for code fixes.

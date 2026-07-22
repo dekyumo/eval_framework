@@ -1,5 +1,8 @@
 from flask import Blueprint, jsonify, request, current_app
 
+from pydantic import ValidationError
+
+from src.eval_workbench.domain.snapshot import AgentTarget
 from src.eval_workbench.services import agents as agents_service
 from src.eval_workbench.services import comparison as comparison_service
 from src.eval_workbench.services.errors import ServiceError
@@ -10,7 +13,8 @@ agents_bp = Blueprint("agents", __name__)
 @agents_bp.route("/snapshots", methods=["GET"])
 def get_snapshots():
     try:
-        return jsonify(agents_service.list_snapshots(current_app.config["REPO_PATH"]))
+        snapshots = agents_service.list_snapshots(current_app.config["REPO_PATH"])
+        return jsonify([snapshot.model_dump() for snapshot in snapshots])
     except ServiceError as exc:
         return jsonify({"error": exc.message}), exc.status_code
 
@@ -19,7 +23,7 @@ def get_snapshots():
 def get_snapshot(id):
     snapshot = agents_service.get_snapshot(current_app.config["REPO_PATH"], id)
     if snapshot:
-        return jsonify(snapshot)
+        return jsonify(snapshot.model_dump())
     return jsonify({}), 404
 
 
@@ -36,20 +40,25 @@ def compare_snapshots():
             snapshot_a,
             snapshot_b,
         )
-        return jsonify(result)
+        return jsonify(result.model_dump())
     except ServiceError as exc:
         return jsonify({"error": exc.message}), exc.status_code
 
 
 @agents_bp.route("/scan", methods=["POST"])
 def scan():
-    data = request.json
+    data = request.json or {}
     try:
-        result = agents_service.scan(
+        target = AgentTarget.model_validate(
+            {**data["agent_target"], "repo_path": current_app.config["REPO_PATH"]}
+        )
+        snapshot = agents_service.scan(
             current_app.config["REPO_PATH"],
-            data["agent_target"],
+            target,
             data["commit"],
         )
-        return jsonify(result)
+        return jsonify(snapshot.model_dump())
+    except (KeyError, ValidationError) as exc:
+        return jsonify({"error": str(exc)}), 400
     except ServiceError as exc:
         return jsonify({"error": exc.message}), exc.status_code

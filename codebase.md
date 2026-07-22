@@ -4,6 +4,7 @@ eval_framework is software in python to evaluate AI agents written in the Google
 It is composed of a spec, a backend written in python with flask and a Kuzu database, and a React/Vite statically compiled frontend.
 
 # File tree
+
 Project root
 |   .env : env file with the LLM keys for the ADK (git ignored)
 |   .env.example : example env file
@@ -18,23 +19,23 @@ Project root
 |   |   README.md
 |   +---scenario1_autotranslate : try to translate metrics from the ragas package to Google ADK metrics with a skill
 |   |   +---example_output
-|   |   \---SKILL_file
-|   |       \---skills
-|   |           \---ragas-metric-to-adk
+|   |   --SKILL_file
+|   |       --skills
+|   |           --ragas-metric-to-adk
 |   |                   SKILL.md
-|   \---scenario2_compat_layer : try to  translate genai messages to the ragas message format, and implement a RagasBaseLLM using the ADK
+|   --scenario2_compat_layer : try to  translate genai messages to the ragas message format, and implement a RagasBaseLLM using the ADK
 |       |   run_context_recall_eval.py
 |       +---adk_ragas_compat
 |       |       adk_agent_runner.py
 |       |       adk_ragas_llm.py
 |       |       adk_to_ragas.py
-|       |       __init__.py
-|       \---articles_rag_tool
+|       |       **init**.py
+|       --articles_rag_tool
 |               articles_data.py
 |               articles_retrieval.py
 |               eval_state.py
 |               keyword_articles_retriever.py
-|               __init__.py
+|               **init**.py
 +---skills : Cursor agent skills for meta-loops and audits
 |   +---eval_data_analysis : how to analyse the csv/markdown output
 |   |       SKILL.md
@@ -46,20 +47,32 @@ Project root
 |   |   |       SKILL.md
 |   |   +---audit : check NIST AI RMF declaration (as agent)
 |   |   |       SKILL.md
-|   |   +---ci_cd : run CI/CD regression testing (as agent)
+|   |   +---ci-cd : run CI/CD regression testing (as agent)
 |   |   |       SKILL.md
-|   |   \---harness_optimisation : auto improve the agents from failing evals (as agent)
+|   |   --harness-optimisation : auto improve the agents from failing evals (as agent)
 |   |           SKILL.md
-|   \---loops_mcp : loops (SOUL8) implemented as the MCP host directly calling the eval framework using the MCP (with SKILLs.md for API guidance)
+|   --loops_mcp : loops (SOUL8) implemented as the MCP host directly calling the eval framework using the MCP (with SKILLs.md for API guidance)
 |       |   README.md
 |       +---adversarial red blue green adversarial evals (as MCP)
 |       |       SKILL.md
 |       +---audit : check NIST AI RMF declaration (as MCP)
 |       |       SKILL.md
-|       +---ci_cd : run CI/CD regression testing (as MCP)
+|       +---ci-cd : run CI/CD regression testing (as MCP)
 |       |       SKILL.md
-|       \---harness_optimisation : auto improve agents from failing evals (as MCP)
+|       --harness-optimisation : auto improve agents from failing evals (as MCP)
 |               SKILL.md
++---skills_tests : fixtures and notes for L1/L2 skill-loop evaluation
+|       1_cases___seven_agents_skill_fixtures.md
+|       1_prompt_to_create_the_cases.md
+|       2_planning.md
+|       2_planning___README.md
+|       2_planning___RUNBOOK.md
+|       3_trace___l1_seed_status.md
+|       3_trace___l2_seed_status.md
+|       agents_evaluated_with_skills.zip
+|       agents_evaluating_with_skills.zip
+|       manifests.zip
+|       skill_testing.jpg
 +---specs : root dir for all the specs written before generating the app
 |   |   functional_spec.md
 |   |   functional_spec_addendum.md
@@ -71,7 +84,7 @@ Project root
 |   |   |   AGENT4_extractor_author.md : makes functions from traces to bool/int/float, to help validate traces
 |   |   |   AGENT5_eval_case_writer.md : writes eval cases
 |   |   |   coding_agent_structure.md : an exploration of known coding agents
-|   |   \---loops
+|   |   --loops
 |   |           adversarial.md
 |   |           audit.md
 |   |           ci_cd.md
@@ -88,7 +101,7 @@ Project root
 |   |   |       scoring_extraction_response_matrix.md : spec for IRT/SOUL9
 |   |   |       web_frontend.md : spec for the web frontend
 |   |   |       worktree_runner.md : spec for git worktree isolation
-|   |   \---mockups : Google Stitch generated HTML mock designs (one HTML mockup and a png in each dir)
+|   |   --mockups : Google Stitch generated HTML mock designs (one HTML mockup and a png in each dir)
 |   |       +---01_add_target_scan_onboarding
 |   |       +---02_agent_lineage
 |   |       +---03_eval_case_builder
@@ -98,8 +111,8 @@ Project root
 |   |       +---07_registries_rubrics_frozen
 |   |       +---08_extractor_authoring
 |   |       +---09_human_evaluation
-|   |       \---10_chat_operator
-|   \---spec_of_the_spec : the mathematical and software development principles underlying the evaluation workbench
+|   |       --10_chat_operator
+|   --spec_of_the_spec : the mathematical and software development principles underlying the evaluation workbench
 |           SOUL10_FAULT_INJECTION.md : we can inject faults into the tools
 |           SOUL11_RUBRICS.md : we will use rubrics
 |           SOUL12_HUMAN_IN_THE_LOOP.md : where human judgement is used
@@ -114,12 +127,15 @@ Project root
 |           SOUL8_LOOPS.md : there can be meta agentic loops around this software
 |           SOUL9_IRT.md : we can use ItemResponseTheory to judge model strength and case difficulty
 +---src
-|   \---eval_workbench
+|   |   **init**.py
+|   --eval_workbench
 |       |   config.py
 |       |   otel_config.py : OpenTelemetry trace export configuration
 |       |   repo_layout.py : paths for repo root, worktrees, and data dirs
+|       |   run_coro_sync.py : run async coroutines from sync call sites
+|       |   subprocess_util.py : UTF-8-safe subprocess.run wrapper (Windows)
 |       +---agents : the agents described in the spec
-|       |   |   __init__.py
+|       |   |   **init**.py
 |       |   +---case_writer : writes eval cases
 |       |   |   |   agent.py
 |       |   |   |   case_writer_runner.py : subprocess runner for case-writer agent
@@ -151,6 +167,7 @@ Project root
 |       |   |   run.py
 |       |   |   snapshot.py
 |       |   |   tag.py
+|       |   |   task.py : background job task model for the web GUI
 |       |   |   trace.py
 |       +---extraction
 |       |   |   extractor.py : run one extraction function
@@ -170,7 +187,7 @@ Project root
 |       |   |   |   App.tsx
 |       |   |   |   index.css : unused (tailwind)
 |       |   |   |   main.tsx
-|       |   |   |   
+|       |   |   |  
 |       |   |   +---components : reusable components
 |       |   |   |   |   BlameTag.tsx
 |       |   |   |   |   CaseStatusBadge.tsx : not-gen / not-eval / ran badges on Runs and Evals
@@ -179,6 +196,7 @@ Project root
 |       |   |   |   |   LineageGraph.tsx
 |       |   |   |   |   MessageBubble.tsx
 |       |   |   |   |   ResultView.tsx
+|       |   |   |   |   ScanAgent.tsx : scan / onboarding agent target form
 |       |   |   |   |   SnapshotSelect.tsx
 |       |   |   |   |   SplitBadge.tsx
 |       |   |   |   |   TraceView.tsx
@@ -201,35 +219,49 @@ Project root
 |       |   |   |   |       GymRegistry.tsx : register gyms (class_path) for agentic-user cases
 |       |   |   |   |       RubricRegistry.tsx
 |       |   |   |   |       TagRegistry.tsx
-|       |   |   |   \---ui : shadcn components
+|       |   |   |   --ui : shadcn components
 |       |   |   |           AgentPromptInput.tsx
 |       |   |   |           Button.tsx
 |       |   |   |           PageLayout.tsx
 |       |   |   |           Select.tsx
 |       |   |   |           Textarea.tsx
 |       |   |   |           Typography.tsx
+|       |   |   +---context
+|       |   |   |       TaskContext.tsx : SSE task progress and domain-event subscriptions
+|       |   |   +---hooks
+|       |   |   |       useCaseEditor.ts : case editor form state and save/load
+|       |   |   +---lib
+|       |   |   |       caseForm.ts : case form helpers and payload mapping
+|       |   |   |       jobsApi.ts : enqueue background jobs and fetch task state
 |       |   |   +---pages : the main user pages
 |       |   |   |       Agents.tsx : look at the agent scan results and NIST AI RMF profile
 |       |   |   |       Campaigns.tsx : launches campaigns (IRT)
-|       |   |   |       Cases.tsx : adds test cases
+|       |   |   |       CaseEditor.tsx : create/edit eval cases
 |       |   |   |       Compare.tsx : compare an agent between two scans
 |       |   |   |       Evals.tsx : run the metrics on the generated Cases
 |       |   |   |       HumanEval.tsx : give a human eval on a rubric
-|       |   |   |       Onboarding.tsx : scans an ADK agent in a folder with AGENT2+instantiate_and_explore_agent_object_graph+ast exploration for tools/callbacks
 |       |   |   |       Registries.tsx : input static data (dataset names, tag names, extraction function, Rubrics)
 |       |   |   |       Runs.tsx : generates traces on Cases by running their ADK agent
+|       |   |   |       ViewCases.tsx : browse and deactivate eval cases
 |       |   |   +---types
-|       |   |   \---utils
+|       |   |   --utils
 |       |   |           cn.ts
 |       |   |           snapshotLabel.ts
-|       |   \---tests
+|       |   --tests
 |       |           e2e.spec.ts : the main frontend test suite
 |       |           eiffel_tap.png : image to test multimodal conversations
+|       |           free-port.ts : free a TCP port before e2e webServer start
+|       |           global-teardown.ts : Playwright global teardown
+|       |           start-web-server.ts : launch Flask for Playwright
 |       +---mcp : Model Context Protocol server exposing workbench tools
+|       |   |   api_client.py : HTTP client for the workbench REST API
 |       |   |   registry.py
+|       |   |   registry_internal.py : internal tool registration helpers
 |       |   |   server.py
-|       |   |   __init__.py
-|       |   |   __main__.py
+|       |   |   signatures.py : MCP tool argument schemas
+|       |   |   tool_defs.py : shared MCP tool names and blueprint presets
+|       |   |   **init**.py
+|       |   |   **main**.py
 |       +---runner : runs agents on eval cases
 |       |   |   agent_runner.py : run agents on a git commit
 |       |   |   agentic_sim.py : two-agent (user+solver) gym simulation loop for agentic-user cases
@@ -253,8 +285,10 @@ Project root
 |       |   |   cases.py
 |       |   |   comparison.py
 |       |   |   errors.py
+|       |   |   events.py : in-process pub/sub for SSE job and domain events
 |       |   |   governance.py : read/write NIST AI RMF profile on snapshots
 |       |   |   human_eval.py
+|       |   |   jobs.py : in-memory background job queue for the web GUI
 |       |   |   registries.py
 |       |   |   repo.py
 |       |   |   rubric_judge_runner.py : subprocess runner for rubric LLM judge
@@ -263,27 +297,30 @@ Project root
 |       |   |   snapshot_label.py
 |       |   |   _conn.py
 |       |   |   _ids.py
-|       |   |   __init__.py
+|       |   |   **init**.py
 |       +---storage
 |       |   |   kuzu_store.py
 |       |   |   repositories.py
 |       |   |   schema.py
 |       +---web
 |       |   |   app.py
+|       |   |   wsgi.py : Gunicorn entrypoint for container / Cloud Run
 |       |   +---routes : thin routes
 |       |   |   |   agents.py
+|       |   |   |   benchmark.py
 |       |   |   |   blueprints.py
 |       |   |   |   campaigns.py
 |       |   |   |   cases.py
 |       |   |   |   governance.py
+|       |   |   |   jobs.py
 |       |   |   |   otel.py
 |       |   |   |   registries.py
 |       |   |   |   runs.py
 |       |   +---static
 |       |   |   |   index.html : the HTML for the SPA, uses the assets files compiled by Vite
-|       |   |   \---assets
-|       |   |           index-5464446a.css
-|       |   |           index-da704a5a.js
+|       |   |   --assets
+|       |   |           index-14641bce.js
+|       |   |           index-9abdb80f.css
 +---tests : unit tests for the backend
 |   |   conftest.py
 |   |   test_agentic_sim.py
@@ -291,23 +328,30 @@ Project root
 |   |   test_ast_enrichment.py
 |   |   test_benchmark.py
 |   |   test_blueprints.py
+|   |   test_campaigns.py
 |   |   test_cases_state.py
+|   |   test_cases_versioning.py
 |   |   test_case_generation.py
 |   |   test_code_explorer_runner.py
 |   |   test_comparison.py
+|   |   test_events.py
 |   |   test_faults.py
 |   |   test_governance.py
 |   |   test_input_payload.py
+|   |   test_jobs.py
+|   |   test_jobs_routes.py
 |   |   test_mcp.py
 |   |   test_message_parts.py
 |   |   test_otel_dump.py
 |   |   test_registries.py
 |   |   test_rubric_judge.py
 |   |   test_runs_service.py
+|   |   test_run_coro_sync.py
 |   |   test_scanner.py
 |   |   test_scoring.py
 |   |   test_snapshot_label.py
 |   |   test_storage.py
+|   |   test_subprocess_util.py
 |   |   test_trace_events.py
 |   |   test_web.py
 |   |   test_worktree.py
@@ -315,7 +359,7 @@ Project root
 |   |   +---agents
 |   |   |   +---clean
 |   |   |   |       agent.py
-|   |   |   \---malformed
+|   |   |   --malformed
 |   |   |           agent.py
-|   |   \---gyms
+|   |   --gyms
 |   |       |   simple_gym.py

@@ -73,7 +73,7 @@ def test_generate_run_skips_when_run_already_exists(repo_path):
         first = generate_run(repo_path, snapshot_id, case_id, "gemini-2.5-flash")
         second = generate_run(repo_path, snapshot_id, case_id, "gemini-2.5-flash")
 
-    assert first["id"] == second["id"]
+    assert first.id == second.id
     assert runner_cls.return_value.run_case.call_count == 1
 
     connection = get_connection(repo_path)
@@ -109,8 +109,8 @@ def test_generate_run_force_reruns_and_upserts(repo_path):
             repo_path, snapshot_id, case_id, "gemini-2.5-flash", force=True
         )
 
-    assert first["id"] == second["id"]
-    assert second["trace"]["latency_ms"] == 20.0
+    assert first.id == second.id
+    assert second.trace.latency_ms == 20.0
     assert runner_cls.return_value.run_case.call_count == 2
 
     connection = get_connection(repo_path)
@@ -149,8 +149,8 @@ def test_evaluate_run_skips_when_scored_already_exists(repo_path):
         first = evaluate_run(repo_path, "run1")
         second = evaluate_run(repo_path, "run1")
 
-    assert first["id"] == "scored_run1"
-    assert second["id"] == "scored_run1"
+    assert first.id == "scored_run1"
+    assert second.id == "scored_run1"
     score_trace.assert_not_called()
 
 
@@ -186,5 +186,5 @@ def test_evaluate_run_force_rescores(repo_path):
     ) as score_trace:
         updated = evaluate_run(repo_path, "run1", force=True)
 
-    assert updated["results"][0]["value"] is True
+    assert updated.results[0].value is True
     score_trace.assert_called_once()

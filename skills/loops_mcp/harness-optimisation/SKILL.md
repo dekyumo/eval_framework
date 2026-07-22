@@ -1,9 +1,17 @@
+---
+name: harness-optimisation
+description: >-
+  Harness optimisation loop via eval-workbench MCP: analyse failing scored runs,
+  propose agent code fixes, re-scan and re-run until the suite improves. Use when
+  asked to fix an agent from eval failures.
+---
+
 # Skill: Harness Optimisation Loop (outer — MCP)
 
 Use this skill when **you** (the autonomous coding agent) own the harness
 optimisation loop — analyse failures, edit agent code, and re-run the suite.
 
-Pair skill: `skills/loops_blueprint/harness_optimisation/SKILL.md` (inner loop via API).
+Pair skill: `skills/loops_blueprint/harness-optimisation/SKILL.md` (inner loop via API).
 
 ---
 
@@ -86,5 +94,5 @@ failing set after each code change.
 | Verify | `scan_agent` → `generate_run` → `evaluate_run` on failing cases. |
 | Regress | If new failures appear, stop and report — do not silently overwrite fixes. |
 
-Hand off to `skills/loops_mcp/ci_cd/SKILL.md` for a full commit comparison once
+Hand off to `skills/loops_mcp/ci-cd/SKILL.md` for a full commit comparison once
 the failing set is green.

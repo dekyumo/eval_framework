@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { TraceView } from '../components/TraceView';
 import { SnapshotSelect } from '../components/SnapshotSelect';
 import { CaseStatusBadge } from '../components/CaseStatusBadge';
@@ -6,6 +6,8 @@ import { Button } from '../components/ui/Button';
 import { Select } from '../components/ui/Select';
 import { Heading, Text } from '../components/ui/Typography';
 import { PageContainer, PagePane, BorderedSection } from '../components/ui/PageLayout';
+import { useDomainEvent, useTasks } from '../context/TaskContext';
+import { enqueueGenerateTrace, enqueueGenerateTraces } from '../lib/jobsApi';
 
 export function Runs() {
   const [runs, setRuns] = useState<any[]>([]);
@@ -15,8 +17,12 @@ export function Runs() {
   const [selectedSnapshotId, setSelectedSnapshotId] = useState('');
   const [selectedDatasetId, setSelectedDatasetId] = useState('');
   const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [isRerunning, setIsRerunning] = useState(false);
+  const { activeTasks } = useTasks();
+
+  const isGenerating = activeTasks.some(
+    task => task.type === 'generate_traces' || task.type === 'generate_trace',
+  );
+  const isRerunning = activeTasks.some(task => task.type === 'generate_trace');
 
   const refreshRuns = async () => {
     const runsRes = await fetch('/api/runs');
@@ -55,14 +61,22 @@ export function Runs() {
 
   const selectedRun = selectedCaseId ? runForCase(selectedCaseId) ?? null : null;
 
-  const upsertRun = (run: { id: string; snapshot_id: string; case_id: string }) => {
+  const upsertRun = useCallback((run: Record<string, unknown>) => {
     setRuns(prev => {
+      const snapshotId = run.snapshot_id as string;
+      const caseId = run.case_id as string;
       const rest = prev.filter(
-        r => !(r.snapshot_id === run.snapshot_id && r.case_id === run.case_id),
+        r => !(r.snapshot_id === snapshotId && r.case_id === caseId),
       );
       return [...rest, run];
     });
-  };
+  }, []);
+
+  useDomainEvent('trace_generated', (data) => {
+    const run = data.run as Record<string, unknown> | undefined;
+    if (!run) return;
+    upsertRun(run);
+  });
 
   const handleGenerate = async () => {
     if (!selectedSnapshotId || !selectedDatasetId) {
@@ -70,58 +84,32 @@ export function Runs() {
       return;
     }
 
-    setIsGenerating(true);
     try {
-      for (const case_id of datasetCaseIds) {
-        const res = await fetch('/api/runs/generate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            snapshot_id: selectedSnapshotId,
-            case_id,
-            model_id: 'gemini-2.5-flash',
-            force: false,
-          }),
-        });
-        if (!res.ok) {
-          console.error('Generate failed', case_id, await res.text());
-          continue;
-        }
-        upsertRun(await res.json());
-      }
-      await refreshRuns();
+      await enqueueGenerateTraces(
+        selectedSnapshotId,
+        selectedDatasetId,
+        'gemini-2.5-flash',
+        false,
+      );
     } catch (err) {
       console.error(err);
-    } finally {
-      setIsGenerating(false);
+      alert(err instanceof Error ? err.message : 'Failed to enqueue trace generation');
     }
   };
 
   const handleRerun = async () => {
     if (!selectedRun) return;
 
-    setIsRerunning(true);
     try {
-      const res = await fetch('/api/runs/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          snapshot_id: selectedRun.snapshot_id,
-          case_id: selectedRun.case_id,
-          model_id: selectedRun.model_id,
-          force: true,
-        }),
-      });
-      if (!res.ok) {
-        console.error('Rerun failed', await res.text());
-        return;
-      }
-      upsertRun(await res.json());
-      await refreshRuns();
+      await enqueueGenerateTrace(
+        selectedRun.snapshot_id,
+        selectedRun.case_id,
+        selectedRun.model_id,
+        true,
+      );
     } catch (e) {
       console.error(e);
-    } finally {
-      setIsRerunning(false);
+      alert(e instanceof Error ? e.message : 'Failed to enqueue rerun');
     }
   };
 

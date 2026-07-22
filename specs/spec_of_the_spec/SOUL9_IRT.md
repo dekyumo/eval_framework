@@ -21,6 +21,9 @@ The co-failure matrix is phenomenological clustering (SOUL2) seen from the other
 
 A priori difficulty is free and artifact-proof: the generation coordinates (domain in/margin/ood x problem happy/technical/adversarial/client) already rank intrinsic hardness before any model runs. The campaign calibrates that prior against reality.
 
+(and, since we're throwing algorithm names in the air: co-clustering, bi clustering, co-finding groups of models and groups of cases that exhibit similar behaviour, for example "model B,D,F are bad as cases 5,8,12, looking more closely, "explanation", which could be "pre-2025 models are bad on the helpfulness vs. hallucination tradeoff", anyway this would still be a re-analysis or factoring of a case X model score matrix)
+(so, any operation on the model X case score matrix, probably one of the matrix operations)
+
 =====================
 
 In the evaluation framework:

@@ -1,3 +1,5 @@
+from collections.abc import Callable
+
 from src.eval_workbench.analysis.response_matrix import ResponseMatrix
 from src.eval_workbench.domain.campaign import EvalCampaign
 from src.eval_workbench.domain.result import Result
@@ -18,17 +20,29 @@ from src.eval_workbench.storage.repositories import (
 )
 
 
-def list_campaigns(repo_path: str) -> list[dict]:
+def list_campaigns(repo_path: str) -> list[EvalCampaign]:
+    """List all eval campaigns."""
     campaigns = EvalCampaignRepository(conn(repo_path)).get_all("EvalCampaign", "id", EvalCampaign)
-    return [campaign.model_dump() for campaign in campaigns]
+    return campaigns
 
 
-def create_campaign(repo_path: str, data: dict) -> dict:
-    payload = dict(data)
-    payload.pop("repo_path", None)
-    campaign = EvalCampaign(**payload)
+def save_campaign(repo_path: str, campaign: EvalCampaign) -> EvalCampaign:
+    """Persist campaign metadata without executing runs."""
+    EvalCampaignRepository(conn(repo_path)).save(campaign)
+    return campaign
+
+
+def execute_campaign(
+    repo_path: str,
+    campaign_id: str,
+    *,
+    on_progress: Callable[[int, int], None] | None = None,
+) -> dict[str, int]:
+    """Run all dataset cases across the campaign model panel."""
     connection = conn(repo_path)
-    EvalCampaignRepository(connection).save(campaign)
+    campaign = EvalCampaignRepository(connection).get(campaign_id)
+    if not campaign:
+        raise ServiceError(f"Campaign not found: {campaign_id}", 404)
 
     dataset = EvalDatasetRepository(connection).get(campaign.dataset_id)
     snapshot = SnapshotRepository(connection).get(campaign.base_snapshot_id)
@@ -36,49 +50,78 @@ def create_campaign(repo_path: str, data: dict) -> dict:
     run_repo = EvalRunRepository(connection)
     scored_repo = ScoredEvalRunRepository(connection)
 
-    if dataset and snapshot:
-        runner = AgentRunner(snapshot)
-        agent_name = snapshot.agent_target.agent_path.split(":")[-1]
-        for case_id in dataset.case_ids:
-            case = case_repo.get(case_id)
-            if not case or not case.active_for_eval:
-                continue
-            for model_id in campaign.model_panel:
-                try:
-                    trace = runner.run_case(case, model_id)
-                    run_id = build_run_id(
-                        dataset_name=dataset.name or dataset.id,
-                        case_name=case.name or case.id,
-                        agent_name=agent_name,
-                        commit_hash=snapshot.commit_hash or "",
-                        model_id=model_id,
-                        trace_id=trace.id,
-                        campaign_name=campaign.name,
-                        campaign_id=campaign.id,
-                    )
-                    trace.id = run_id
-                    run = EvalRun(
-                        id=run_id,
-                        snapshot_id=snapshot.id,
-                        case_id=case_id,
-                        model_id=model_id,
-                        repetition_index=0,
-                        trace=trace,
-                        campaign_id=campaign.id,
-                    )
-                    run_repo.save(run)
+    if not dataset or not snapshot:
+        raise ServiceError("Campaign dataset or snapshot not found", 404)
 
-                    results = score_trace(trace, case, connection)
-                    scored = ScoredEvalRun(
-                        id=f"scored_{run.id}",
-                        run_id=run.id,
-                        results=results,
-                    )
-                    scored_repo.save(scored)
-                except Exception as exc:
-                    print(f"Error running case {case_id} with model {model_id}: {exc}")
+    work_items: list[tuple[str, str]] = []
+    for case_id in dataset.case_ids:
+        case = case_repo.get(case_id)
+        if not case or not case.active_for_eval:
+            continue
+        for model_id in campaign.model_panel:
+            work_items.append((case_id, model_id))
 
-    return campaign.model_dump()
+    total = len(work_items)
+    succeeded = 0
+    failed = 0
+    if on_progress:
+        on_progress(0, total)
+    runner = AgentRunner(snapshot)
+    agent_name = snapshot.agent_target.agent_path.split(":")[-1]
+
+    for index, (case_id, model_id) in enumerate(work_items, start=1):
+        case = case_repo.get(case_id)
+        if not case:
+            failed += 1
+            if on_progress:
+                on_progress(index, total)
+            continue
+        try:
+            trace = runner.run_case(case, model_id)
+            run_id = build_run_id(
+                dataset_name=dataset.name or dataset.id,
+                case_name=case.name or case.id,
+                agent_name=agent_name,
+                commit_hash=snapshot.commit_hash or "",
+                model_id=model_id,
+                trace_id=trace.id,
+                campaign_name=campaign.name,
+                campaign_id=campaign.id,
+            )
+            trace.id = run_id
+            run = EvalRun(
+                id=run_id,
+                snapshot_id=snapshot.id,
+                case_id=case_id,
+                model_id=model_id,
+                repetition_index=0,
+                trace=trace,
+                campaign_id=campaign.id,
+            )
+            run_repo.save(run)
+
+            results = score_trace(trace, case, connection)
+            scored = ScoredEvalRun(
+                id=f"scored_{run.id}",
+                run_id=run.id,
+                results=results,
+            )
+            scored_repo.save(scored)
+            succeeded += 1
+        except Exception as exc:
+            failed += 1
+            print(f"Error running case {case_id} with model {model_id}: {exc}")
+        if on_progress:
+            on_progress(index, total)
+
+    return {"succeeded": succeeded, "failed": failed, "total": total}
+
+
+def create_campaign(repo_path: str, campaign: EvalCampaign) -> EvalCampaign:
+    """Create a campaign and run all dataset cases across a model panel."""
+    save_campaign(repo_path, campaign)
+    execute_campaign(repo_path, campaign.id)
+    return campaign
 
 
 def _collect_dataset_metrics(
@@ -153,7 +196,8 @@ def _matrix_cell(result: Result, metric_type: str) -> float:
     )
 
 
-def get_matrix(repo_path: str, campaign_id: str, metric_name: str | None = None) -> dict:
+def get_matrix(repo_path: str, campaign_id: str, metric_name: str | None = None) -> ResponseMatrix:
+    """Return the response matrix for a campaign, optionally filtered by metric."""
     connection = conn(repo_path)
     campaign = EvalCampaignRepository(connection).get(campaign_id)
     if not campaign:
@@ -220,7 +264,7 @@ def get_matrix(repo_path: str, campaign_id: str, metric_name: str | None = None)
         for case_idx, case_id in enumerate(case_ids):
             difficulty[case_id] = float(-coefs[len(campaign.model_panel) + case_idx])
 
-    matrix = ResponseMatrix(
+    return ResponseMatrix(
         campaign_id=campaign_id,
         models=campaign.model_panel,
         case_ids=case_ids,
@@ -233,4 +277,3 @@ def get_matrix(repo_path: str, campaign_id: str, metric_name: str | None = None)
         clusters={},
         redundant_pairs=[],
     )
-    return matrix.model_dump()

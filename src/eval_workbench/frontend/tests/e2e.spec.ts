@@ -17,12 +17,44 @@ const SCAN_TIMEOUT = 60_000;
 const CAMPAIGN_TIMEOUT = 180_000;
 
 async function selectSnapshotAndDataset(page: import('@playwright/test').Page) {
-  const snapshotSelect = page.locator('select[aria-label="Snapshot"]');
-  const datasetSelect = page.locator('select[aria-label="Dataset"]');
-  await expect(snapshotSelect.locator('option')).not.toHaveCount(1, { timeout: UI_TIMEOUT });
-  await snapshotSelect.selectOption({ index: 1 });
+  const snapshotSelect = page.locator('select[aria-label="Snapshot"]').first();
+  const datasetSelect = page.locator('select[aria-label="Dataset"]').first();
+
+  await expect(snapshotSelect.locator('option:not([value=""])')).not.toHaveCount(0, { timeout: UI_TIMEOUT });
+  const snapshotValue = await snapshotSelect.locator('option:not([value=""])').first().getAttribute('value');
+  if (!snapshotValue) {
+    throw new Error('No snapshot options available');
+  }
+  await snapshotSelect.selectOption(snapshotValue);
+  await expect(snapshotSelect).toHaveValue(snapshotValue, { timeout: UI_TIMEOUT });
+
   await expect(datasetSelect.locator('option', { hasText: 'DayTrip Tests' })).toBeAttached({ timeout: UI_TIMEOUT });
-  await datasetSelect.selectOption({ label: 'DayTrip Tests' });
+  const datasetValue = await datasetSelect.locator('option', { hasText: 'DayTrip Tests' }).getAttribute('value');
+  if (!datasetValue) {
+    throw new Error('DayTrip Tests dataset option not found');
+  }
+  await datasetSelect.selectOption(datasetValue);
+  await expect(datasetSelect).toHaveValue(datasetValue, { timeout: UI_TIMEOUT });
+}
+
+async function waitForActiveJobs(page: import('@playwright/test').Page) {
+  await expect.poll(async () => {
+    const res = await page.request.get('http://127.0.0.1:5000/api/jobs/');
+    const body = await res.json();
+    return Array.isArray(body) ? body.length : 0;
+  }, { timeout: RUN_BATCH_TIMEOUT }).toBe(0);
+}
+
+async function waitForAsyncJobButton(
+  button: import('@playwright/test').Locator,
+  busyLabel: string,
+  idleLabel: string,
+  timeout = RUN_BATCH_TIMEOUT,
+) {
+  await expect(button).toBeEnabled({ timeout });
+  await button.click();
+  await expect(button).toHaveText(busyLabel, { timeout: UI_TIMEOUT }).catch(() => {});
+  await expect(button).toHaveText(idleLabel, { timeout });
 }
 
 async function waitForCaseSave(page: import('@playwright/test').Page) {
@@ -43,18 +75,6 @@ async function waitForCaseSaveAndView(page: import('@playwright/test').Page) {
   await page.getByRole('button', { name: /Save case/ }).click();
   await saveResponse;
   await expect(page).toHaveURL(/\/cases/);
-}
-
-async function waitForAsyncJobButton(
-  button: import('@playwright/test').Locator,
-  busyLabel: string,
-  idleLabel: string,
-  timeout = RUN_BATCH_TIMEOUT,
-) {
-  await expect(button).toBeEnabled({ timeout: UI_TIMEOUT });
-  await button.click();
-  await expect(button).toHaveText(busyLabel, { timeout: UI_TIMEOUT }).catch(() => {});
-  await expect(button).toHaveText(idleLabel, { timeout });
 }
 
 test.describe('E2E Eval Framework Flow - Day Trip Agent', () => {
@@ -174,7 +194,6 @@ test.describe('E2E Eval Framework Flow - Day Trip Agent', () => {
 
       // A. Create, update, and delete Tag
       await page.getByRole('button', { name: 'tags', exact: true }).click();
-      await page.waitForLoadState('networkidle');
       await page.getByLabel('Tag Name').fill('europe-trips-temp');
       await page.getByRole('button', { name: 'Save Tag' }).click();
       
@@ -193,7 +212,6 @@ test.describe('E2E Eval Framework Flow - Day Trip Agent', () => {
 
       // B. Create, generate with agent, update, and delete Extractor for the budget
       await page.getByRole('button', { name: 'extractors', exact: true }).click();
-      await page.waitForLoadState('networkidle');
 
       // Test agent-assisted extractor generation
       await page.getByPlaceholder('e.g. Find the last dollar value in the trace and convert it to float').fill('Find the final budget and return float');
@@ -221,7 +239,6 @@ test.describe('E2E Eval Framework Flow - Day Trip Agent', () => {
 
       // C. Create, update, and delete Rubric
       await page.getByRole('button', { name: 'rubrics', exact: true }).click();
-      await page.waitForLoadState('networkidle');
       await page.getByLabel('Rubric Name').fill('Quality of Itinerary Temp');
       await page.getByLabel('Instructions').fill('You are a travel critic...');
       await page.getByRole('button', { name: 'Add Field' }).click();
@@ -255,7 +272,6 @@ test.describe('E2E Eval Framework Flow - Day Trip Agent', () => {
 
       // D. Create, update, and delete Dataset
       await page.getByRole('button', { name: 'datasets', exact: true }).click();
-      await page.waitForLoadState('networkidle');
       await page.getByLabel('Dataset Name').fill('DayTrip Tests Temp');
       await page.getByRole('button', { name: 'Save Dataset' }).click();
 
@@ -412,12 +428,11 @@ test.describe('E2E Eval Framework Flow - Day Trip Agent', () => {
       await page.getByRole('link', { name: 'Run Generation' }).click();
       await expect(page).toHaveURL(/\/runs/);
 
-      await page.waitForLoadState('networkidle');
-
       await selectSnapshotAndDataset(page);
 
       const generateBtn = page.locator('#generate-traces-btn');
       await waitForAsyncJobButton(generateBtn, 'Generating...', 'Generate Traces', RUN_BATCH_TIMEOUT);
+      await waitForActiveJobs(page);
 
       const parisTrace = page.locator('.trace-item').filter({ hasText: 'Paris 500 Budget' });
       await expect(parisTrace.getByText('ran', { exact: true })).toBeVisible({ timeout: RUN_BATCH_TIMEOUT });
@@ -427,8 +442,17 @@ test.describe('E2E Eval Framework Flow - Day Trip Agent', () => {
     // 6. RUN EVALS
     // ==========================================
     await test.step('Score the traces', async () => {
+      const evalsReady = Promise.all([
+        page.waitForResponse(
+          (r) => r.url().includes('/api/agents/snapshots') && r.status() === 200,
+        ),
+        page.waitForResponse(
+          (r) => r.url().includes('/api/registries/datasets') && r.status() === 200,
+        ),
+      ]);
       await page.getByRole('link', { name: 'Run Evals' }).click();
       await expect(page).toHaveURL(/\/evals/);
+      await evalsReady;
 
       await selectSnapshotAndDataset(page);
 

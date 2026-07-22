@@ -403,7 +403,7 @@ MCP equivalent: `run_report(agent_path, commit, dataset_name, …)`.
 
 | Goal | Skill |
 |---|---|
-| Fix failing agent from scores | `skills/loops_mcp/harness_optimisation/SKILL.md` |
+| Fix failing agent from scores | `skills/loops_mcp/harness-optimisation/SKILL.md` |
 | Red-team / adversarial cases | `skills/loops_mcp/adversarial/SKILL.md` |
 | Analyse score matrices | `skills/eval_data_analysis/SKILL.md` |
 | Inner-loop via blueprint API | `skills/loops_blueprint/*/SKILL.md` |

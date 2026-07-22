@@ -97,11 +97,11 @@ def test_compare_snapshots_service(tmp_path):
     _save_snapshot(repo_path, "snap_b", m2)
 
     result = compare_snapshots(repo_path, "snap_a", "snap_b")
-    assert result["snapshot_a"] == "snap_a"
-    assert result["summary"]["tools_added"] == 1
-    assert result["summary"]["tools_removed"] == 1
-    assert result["summary"]["prompts_modified"] == 1
-    prompt_change = next(c for c in result["changes"] if c["component"] == "Prompt")
+    assert result.snapshot_a == "snap_a"
+    assert result.summary["tools_added"] == 1
+    assert result.summary["tools_removed"] == 1
+    assert result.summary["prompts_modified"] == 1
+    prompt_change = next(c for c in result.changes if c["component"] == "Prompt")
     assert prompt_change["diff"]
     assert "hello world" in prompt_change["after"]
     close_all()

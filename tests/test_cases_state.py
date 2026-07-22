@@ -24,7 +24,7 @@ def seeded_dataset(repo_path):
 
 
 def test_create_case_persists_session_state_and_input_payload(repo_path, seeded_dataset):
-    case_data = {
+    case = EvalCase.model_validate({
         "id": "case_state_1",
         "name": "State injection case",
         "dataset_id": seeded_dataset.id,
@@ -33,30 +33,30 @@ def test_create_case_persists_session_state_and_input_payload(repo_path, seeded_
         "input_payload": {"destination": "Acapulco"},
         "distribution_position": "in",
         "problem_type": "happy",
-    }
-    saved = create_case(repo_path, case_data)
-    assert saved["session_state"]["destination"] == "Acapulco"
-    assert saved["input_payload"]["destination"] == "Acapulco"
-    assert saved["dataset_id"] == "ds1"
+    })
+    saved = create_case(repo_path, case)
+    assert saved.session_state["destination"] == "Acapulco"
+    assert saved.input_payload["destination"] == "Acapulco"
+    assert saved.dataset_id == "ds1"
 
     loaded = EvalCaseRepository(get_connection(repo_path)).get("case_state_1")
     assert loaded is not None
-    assert loaded.session_state == case_data["session_state"]
-    assert loaded.input_payload == case_data["input_payload"]
+    assert loaded.session_state == case.session_state
+    assert loaded.input_payload == case.input_payload
 
 
 def test_create_case_rejects_turns_and_payload_together(repo_path, seeded_dataset):
     with pytest.raises(ServiceError) as exc:
         create_case(
             repo_path,
-            {
+            EvalCase.model_validate({
                 "id": "case_bad",
                 "dataset_id": seeded_dataset.id,
                 "conversation": [MessagePart(role="user", kind="text", text="hi").model_dump()],
                 "input_payload": {"destination": "Paris"},
                 "distribution_position": "in",
                 "problem_type": "happy",
-            },
+            }),
         )
     assert exc.value.status_code == 400
 
@@ -65,12 +65,13 @@ def test_create_case_requires_dataset_id(repo_path):
     with pytest.raises(ServiceError) as exc:
         create_case(
             repo_path,
-            {
-                "id": "case_no_ds",
-                "conversation": [],
-                "distribution_position": "in",
-                "problem_type": "happy",
-            },
+            EvalCase.model_construct(
+                id="case_no_ds",
+                conversation=[],
+                distribution_position="in",
+                problem_type="happy",
+                dataset_id="",
+            ),
         )
     assert exc.value.status_code == 400
     assert "dataset_id" in exc.value.message

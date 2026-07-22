@@ -3,7 +3,7 @@
 Use this skill to analyse failing test cases and produce improvement guidance
 **inside** the eval workbench.
 
-Pair skill: `skills/loops_mcp/harness_optimisation/SKILL.md` (outer loop via MCP).
+Pair skill: `skills/loops_mcp/harness-optimisation/SKILL.md` (outer loop via MCP).
 
 ---
 
@@ -63,5 +63,5 @@ must pass on re-run.
 
 - Specify which snapshot/dataset defines "failing" (latest scored runs by default).
 - Read `BlueprintRunResult.final_output` and hand the brief to a human or to the
-  outer loop (`skills/loops_mcp/harness_optimisation/SKILL.md`) for code changes.
+  outer loop (`skills/loops_mcp/harness-optimisation/SKILL.md`) for code changes.
 - Re-invoke the CI/CD loop after fixes to confirm regressions are resolved.

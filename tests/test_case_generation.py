@@ -60,8 +60,8 @@ def test_generate_eval_case_uses_fallback_on_agent_failure():
         side_effect=RuntimeError("agent unavailable"),
     ):
         result = generate_eval_case(snapshot, "Plan a day in Paris with $500")
-    assert result["conversation"][0]["text"] == "Plan a day in Paris with $500"
-    assert result["name"] == "Generated case"
+    assert result.conversation[0].text == "Plan a day in Paris with $500"
+    assert result.name == "Generated case"
 
 
 def test_generate_case_service_validates_input(tmp_path):
@@ -88,20 +88,15 @@ def test_generate_case_service_with_snapshot(tmp_path):
 
         with patch(
             "src.eval_workbench.services.cases.generate_eval_case",
-            return_value={
-                "name": "Paris trip",
-                "conversation": [{"role": "user", "kind": "text", "text": "Paris $500"}],
-                "distribution_position": "in",
-                "problem_type": "happy",
-                "split": "test",
-                "tool_fault": None,
-                "metrics": [],
-                "tags": [],
-                "source": "generated",
-            },
+            return_value=GeneratedCaseDraft(
+                name="Paris trip",
+                conversation=[{"role": "user", "text": "Paris $500"}],
+                distribution_position="in",
+                problem_type="happy",
+            ),
         ):
             result = generate_case(repo_path, snapshot.id, "Plan Paris")
-        assert result["name"] == "Paris trip"
-        assert result["conversation"][0]["text"] == "Paris $500"
+        assert result.name == "Paris trip"
+        assert result.conversation[0].text == "Paris $500"
     finally:
         close_all()
