@@ -41,7 +41,7 @@ class ApiClient:
             headers["Content-Type"] = "application/json"
         req = urllib.request.Request(url, data=data, headers=headers, method=method)
         try:
-            with urllib.request.urlopen(req) as resp:
+            with urllib.request.urlopen(req, timeout=120) as resp:
                 raw = resp.read().decode("utf-8")
         except urllib.error.HTTPError as exc:
             raw = exc.read().decode("utf-8")
@@ -51,7 +51,17 @@ class ApiClient:
                 payload = {"error": raw or exc.reason}
             message = payload.get("error", raw or exc.reason)
             raise ServiceError(str(message), exc.code) from exc
+        except TimeoutError as exc:
+            raise ServiceError(
+                f"Eval workbench API timed out at {self.base_url}{path}",
+                504,
+            ) from exc
         except urllib.error.URLError as exc:
+            if isinstance(exc.reason, TimeoutError):
+                raise ServiceError(
+                    f"Eval workbench API timed out at {self.base_url}{path}",
+                    504,
+                ) from exc
             raise ServiceError(
                 f"Cannot reach eval workbench API at {self.base_url}: {exc.reason}",
                 503,

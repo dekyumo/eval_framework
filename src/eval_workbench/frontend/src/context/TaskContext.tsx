@@ -61,7 +61,21 @@ export function TaskProvider({ children }: { children: ReactNode }) {
 
   const refreshActiveTasks = useCallback(async () => {
     const tasks = await fetchActiveTasks();
-    setActiveTasks(tasks);
+    const active = tasks.filter(
+      task => task.status === 'queued' || task.status === 'running',
+    );
+    const recoveredFailed = tasks.filter(task => task.status === 'failed');
+    setActiveTasks(active);
+    if (recoveredFailed.length > 0) {
+      const now = Date.now();
+      setFailedTasks(prev => {
+        const byId = new Map(prev.map(task => [task.id, task]));
+        for (const task of recoveredFailed) {
+          byId.set(task.id, { ...task, failedAt: byId.get(task.id)?.failedAt ?? now });
+        }
+        return [...byId.values()];
+      });
+    }
   }, []);
 
   useEffect(() => {

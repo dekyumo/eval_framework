@@ -1,9 +1,14 @@
-"""In-memory background job queue for the web GUI."""
+"""In-memory background job queue for the web GUI.
+
+Designed for a single Flask process (`threaded=True`). Task state and the worker
+queue are process-local — do not run multi-worker WSGI without an external broker.
+"""
 
 from __future__ import annotations
 
 import queue
 import threading
+import time
 import uuid
 from collections.abc import Callable
 
@@ -19,7 +24,12 @@ from src.eval_workbench.services import agents as agents_service
 from src.eval_workbench.services.errors import ServiceError
 from src.eval_workbench.storage.repositories import EvalCaseRepository, EvalDatasetRepository
 
+# How long finished tasks remain fetchable so SSE reconnect / focus refresh
+# can recover success/failure (and error text) after a missed event.
+_TERMINAL_RETENTION_S = 60.0
+
 _tasks: dict[str, Task] = {}
+_terminal_until: dict[str, float] = {}
 _registry_lock = threading.Lock()
 _work_queue: queue.Queue[Callable[[], None]] = queue.Queue()
 _worker_lock = threading.Lock()
@@ -34,12 +44,23 @@ def _publish_task(task: Task) -> None:
     events.publish("task_updated", task.model_dump(mode="json"))
 
 
+def _purge_expired_terminal() -> None:
+    now = time.monotonic()
+    with _registry_lock:
+        expired = [tid for tid, until in _terminal_until.items() if now >= until]
+        for tid in expired:
+            _tasks.pop(tid, None)
+            _terminal_until.pop(tid, None)
+
+
 def _remove_task(task_id: str) -> None:
     with _registry_lock:
         _tasks.pop(task_id, None)
+        _terminal_until.pop(task_id, None)
 
 
 def _get_task(task_id: str) -> Task | None:
+    _purge_expired_terminal()
     with _registry_lock:
         return _tasks.get(task_id)
 
@@ -47,6 +68,7 @@ def _get_task(task_id: str) -> Task | None:
 def _store_task(task: Task) -> None:
     with _registry_lock:
         _tasks[task.id] = task
+        _terminal_until.pop(task.id, None)
     _publish_task(task)
 
 
@@ -55,8 +77,10 @@ def _finish_task(task_id: str, *, status: TaskStatus, error: str | None = None) 
     if not task:
         return
     finished = task.model_copy(update={"status": status, "error": error})
+    with _registry_lock:
+        _tasks[task_id] = finished
+        _terminal_until[task_id] = time.monotonic() + _TERMINAL_RETENTION_S
     _publish_task(finished)
-    _remove_task(task_id)
 
 
 def _set_running(task_id: str) -> None:
@@ -74,8 +98,19 @@ def _set_progress(task_id: str, done: int, total: int) -> None:
 
 
 def list_tasks() -> list[Task]:
+    """Return active tasks plus recently finished ones (within retention)."""
+    _purge_expired_terminal()
     with _registry_lock:
         return list(_tasks.values())
+
+
+def list_active_tasks() -> list[Task]:
+    """Return only queued/running tasks."""
+    return [
+        task
+        for task in list_tasks()
+        if task.status in (TaskStatus.QUEUED, TaskStatus.RUNNING)
+    ]
 
 
 def get_task(task_id: str) -> Task | None:
@@ -327,7 +362,16 @@ def enqueue_run_campaign(repo_path: str, campaign: EvalCampaign) -> Task:
                     "summary": summary,
                 },
             )
-            _finish_task(task_id, status=TaskStatus.SUCCEEDED)
+            failed = int(summary.get("failed", 0))
+            total = int(summary.get("total", 0))
+            if failed > 0:
+                _finish_task(
+                    task_id,
+                    status=TaskStatus.FAILED,
+                    error=f"Campaign finished with {failed}/{total} failed items",
+                )
+            else:
+                _finish_task(task_id, status=TaskStatus.SUCCEEDED)
         except Exception as exc:
             _finish_task(task_id, status=TaskStatus.FAILED, error=str(exc))
 

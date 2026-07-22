@@ -14,6 +14,7 @@ from src.eval_workbench.storage.kuzu_store import close_all
 def reset_jobs():
     with jobs_service._registry_lock:
         jobs_service._tasks.clear()
+        jobs_service._terminal_until.clear()
     while not jobs_service._work_queue.empty():
         try:
             jobs_service._work_queue.get_nowait()
@@ -23,6 +24,7 @@ def reset_jobs():
     yield
     with jobs_service._registry_lock:
         jobs_service._tasks.clear()
+        jobs_service._terminal_until.clear()
 
 
 @pytest.fixture
@@ -71,11 +73,12 @@ def test_enqueue_generate_trace_completes_and_publishes_event(repo_path):
         task = jobs_service.enqueue_generate_trace(repo_path, "snap1", "case1", "gemini-2.5-flash")
         _wait_for_task(task.id)
 
-    assert jobs_service.get_task(task.id) is None
+    assert jobs_service.get_task(task.id) is not None
+    assert jobs_service.get_task(task.id).status == TaskStatus.SUCCEEDED
     assert any(name == "trace_generated" for name, _ in captured)
 
 
-def test_finished_tasks_are_not_listed(repo_path):
+def test_finished_tasks_remain_fetchable_then_expire(repo_path):
     stored = Task(
         id="task_test",
         type=TaskType.GENERATE_TRACE,
@@ -85,8 +88,16 @@ def test_finished_tasks_are_not_listed(repo_path):
     )
     with jobs_service._registry_lock:
         jobs_service._tasks[stored.id] = stored
-    assert len(jobs_service.list_tasks()) == 1
+    assert len(jobs_service.list_active_tasks()) == 1
     jobs_service._finish_task(stored.id, status=TaskStatus.SUCCEEDED)
+    finished = jobs_service.get_task(stored.id)
+    assert finished is not None
+    assert finished.status == TaskStatus.SUCCEEDED
+    assert len(jobs_service.list_active_tasks()) == 0
+    assert any(task.id == stored.id for task in jobs_service.list_tasks())
+
+    with jobs_service._registry_lock:
+        jobs_service._terminal_until[stored.id] = time.monotonic() - 1
     assert jobs_service.get_task(stored.id) is None
     assert jobs_service.list_tasks() == []
 
@@ -94,3 +105,30 @@ def test_finished_tasks_are_not_listed(repo_path):
 def test_enqueue_generate_traces_requires_dataset(repo_path):
     with pytest.raises(ServiceError):
         jobs_service.enqueue_generate_traces(repo_path, "snap1", "missing", "gemini-2.5-flash")
+
+
+def test_campaign_marks_failed_when_items_fail(repo_path):
+    from src.eval_workbench.domain.campaign import EvalCampaign
+
+    campaign = EvalCampaign(
+        id="camp1",
+        name="Camp",
+        base_snapshot_id="snap1",
+        dataset_id="ds1",
+        model_panel=["gemini-2.5-flash"],
+        created_at=time.time(),
+    )
+    with patch(
+        "src.eval_workbench.services.jobs.campaigns_service.save_campaign",
+        return_value=campaign,
+    ), patch(
+        "src.eval_workbench.services.jobs.campaigns_service.execute_campaign",
+        return_value={"succeeded": 0, "failed": 3, "total": 3},
+    ):
+        task = jobs_service.enqueue_run_campaign(repo_path, campaign)
+        _wait_for_task(task.id)
+
+    finished = jobs_service.get_task(task.id)
+    assert finished is not None
+    assert finished.status == TaskStatus.FAILED
+    assert finished.error and "3/3" in finished.error
