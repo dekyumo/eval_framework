@@ -12,6 +12,7 @@ dotenv.load_dotenv()
 
 from datetime import datetime
 from google.genai import types
+from google.adk.agents.run_config import RunConfig
 from google.adk.runners import InMemoryRunner
 from src.eval_workbench.runner.message_parts import build_genai_parts
 from src.eval_workbench.runner.case_input import (
@@ -53,11 +54,14 @@ def _build_trace(
     }
 
 
-async def _consume_runner_events(runner, new_msg, trace_parts: list, token_totals: dict) -> None:
+async def _consume_runner_events(
+    runner, new_msg, trace_parts: list, token_totals: dict, *, run_config: RunConfig | None = None
+) -> None:
     async for event in runner.run_async(
         user_id="user1",
         session_id="session1",
         new_message=new_msg,
+        run_config=run_config or RunConfig(),
     ):
         accumulate_token_usage(token_totals, event)
         append_trace_parts_from_event(event, trace_parts)
@@ -80,6 +84,13 @@ async def run_agent_flow():
     mod_name, var_name = agent_target["agent_path"].split(':')
     mod = importlib.import_module(mod_name)
     agent = getattr(mod, var_name)
+    # Optional module-level override (ADK RunConfig.max_llm_calls; default 500).
+    max_llm_calls = getattr(mod, "MAX_LLM_CALLS", None)
+    run_config = (
+        RunConfig(max_llm_calls=int(max_llm_calls))
+        if max_llm_calls is not None
+        else RunConfig()
+    )
 
     agent_path = agent_target["agent_path"]
     repo_path = agent_target["repo_path"]
@@ -121,7 +132,7 @@ async def run_agent_flow():
             )
         else:
             trace_parts, token_totals = await _run_conversation(
-                agent, case, session_state, trace_parts, token_totals
+                agent, case, session_state, trace_parts, token_totals, run_config=run_config
             )
 
         latency = (time.time() - start_time) * 1000.0
@@ -158,7 +169,13 @@ def _seed_user_text(conversation: list) -> str:
 
 
 async def _run_conversation(
-    agent, case: dict, session_state: dict, trace_parts: list, token_totals: dict
+    agent,
+    case: dict,
+    session_state: dict,
+    trace_parts: list,
+    token_totals: dict,
+    *,
+    run_config: RunConfig | None = None,
 ) -> tuple[list, dict]:
     """Run the standard input_payload / fixed-conversation flow."""
     runner = InMemoryRunner(agent=agent, app_name="eval_workbench")
@@ -171,6 +188,7 @@ async def _run_conversation(
 
     input_payload = case.get("input_payload")
     messages = case.get("conversation", [])
+    cfg = run_config or RunConfig()
 
     if input_payload:
         if messages:
@@ -178,7 +196,7 @@ async def _run_conversation(
         filtered_payload = filter_input_payload(agent, input_payload)
         trace_parts.append(structured_input_trace_part(filtered_payload))
         new_msg = build_structured_input_message(filtered_payload)
-        await _consume_runner_events(runner, new_msg, trace_parts, token_totals)
+        await _consume_runner_events(runner, new_msg, trace_parts, token_totals, run_config=cfg)
     else:
         idx = 0
         while idx < len(messages):
@@ -196,7 +214,7 @@ async def _run_conversation(
                 idx += 1
 
             new_msg = types.Content(role="user", parts=batch_parts)
-            await _consume_runner_events(runner, new_msg, trace_parts, token_totals)
+            await _consume_runner_events(runner, new_msg, trace_parts, token_totals, run_config=cfg)
 
     return trace_parts, token_totals
 
